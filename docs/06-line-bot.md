@@ -46,5 +46,22 @@ CEO พูดผ่านไมค์บนแป้นพิมพ์ → LINE 
 งานร่างหนึ่งชิ้น: `draftId`, ข้อความ, รูปที่แนบ, ผู้รับผิดชอบที่เลือก, เวลาเริ่ม
 ⚠️ เลือกใน n8n ระหว่าง Data tables / Workflow static data / List `Drafts` ใน SharePoint ตามที่ n8n Cloud รองรับ
 
-## เชื่อม n8n → SharePoint
-⚠️ ยังไม่ตัดสินใจ ดูคำถามที่เปิดอยู่ใน [README.md](README.md)
+## เชื่อม n8n → SharePoint (ตัดสินใจแล้ว: App Registration + `Sites.Selected`)
+n8n เขียนได้ **เฉพาะ Site `CEO-Tickets`** ผ่าน Microsoft Graph แบบ App-only (Client credentials)
+
+### ขั้นตอนที่ Global Admin ทำ (ครั้งเดียว ประมาณ 15 นาที)
+ทำหลังจากสร้าง Site `CEO-Tickets` แล้ว
+1. entra.microsoft.com → **App registrations** → **New registration** ชื่อ `DF-CEO-Bot-n8n` แบบ Single tenant
+2. **API permissions** → Add → Microsoft Graph → **Application permissions** → `Sites.Selected` → **Grant admin consent**
+3. **Certificates & secrets** → New client secret อายุ 24 เดือน แล้ว**กรอกลง Credential ของ n8n โดยตรง** ห้ามส่งทางแชตหรืออีเมล จดวันหมดอายุไว้ใน [05-handover.md](05-handover.md)
+4. ให้สิทธิ์เขียนเฉพาะ Site นี้ ผ่าน Graph Explorer (ล็อกอินด้วยบัญชี Global Admin ⚠️ อาจต้อง Consent `Sites.FullControl.All` ให้ Graph Explorer)
+   - `GET https://graph.microsoft.com/v1.0/sites/digitalfocusth.sharepoint.com:/sites/CEO-Tickets` → จด `id`
+   - `POST https://graph.microsoft.com/v1.0/sites/{id}/permissions`
+     ```json
+     {"roles": ["write"], "grantedToIdentities": [{"application": {"id": "<Application (client) ID>", "displayName": "DF-CEO-Bot-n8n"}}]}
+     ```
+5. ส่ง **Tenant ID** และ **Application (client) ID** ให้ผู้พัฒนา (สองค่านี้ไม่ใช่ความลับ)
+
+### หน้าที่ที่แบ่งกัน
+- **n8n:** อ่าน `Employees` และ `Config`, สร้างรายการใน `Tickets` และ `TicketHistory` แล้วได้เลข Ticket ทันทีเพื่อตอบ CEO
+- **Power Automate:** ตั้งสิทธิ์รายรายการและแจ้งเตือนพนักงาน เพราะ Graph ตั้งสิทธิ์รายรายการของ List ไม่ได้โดยตรง ⚠️ ดูคำถามเรื่องความเร็วใน README

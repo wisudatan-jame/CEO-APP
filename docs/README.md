@@ -37,10 +37,11 @@
 15. **บัญชี LINE:** เปิด **LINE Official Account ใหม่แยกเฉพาะงานสั่งงาน** (ไม่ใช้ OA การตลาด) ใช้ Messaging API ตั้งค่าให้ค้นหาไม่ได้ และบอทตอบเฉพาะ LINE user ID ของ CEO CEO ใช้งานเหมือนแชตกับเพื่อน: กดค้างไมค์แล้วพูด, Forward หรือส่งรูป ห้ามใช้บัญชี LINE ส่วนตัวกับระบบอัตโนมัติ (ผิดเงื่อนไข LINE)
 16. **วิธีพูดสั่งงาน:** CEO กด**ไมค์บนแป้นพิมพ์**ในแชต LINE ให้มือถือแปลงเสียงเป็นข้อความ ตรวจแล้วกดส่ง ถ้าส่งข้อความเสียงของ LINE มา บอทตอบให้ใช้ไมค์บนแป้นพิมพ์แทน
 17. **ไม่ใช้ AI ในเฟสแรก:** บอทใช้ข้อความที่ CEO ส่งเป็นชื่องาน แล้วให้ CEO **แตะปุ่มเลือกผู้รับผิดชอบและวันส่ง** (พูด 1 ครั้ง + แตะ 2 ครั้ง) ไม่มีค่า AI ไม่ส่งข้อความลับไปผู้ให้บริการเพิ่ม และแทบไม่มีโอกาสสั่งผิดคน เพิ่ม AI ภายหลังได้โดยไม่ต้องรื้อระบบ รายละเอียดใน [06-line-bot.md](06-line-bot.md)
+19. **n8n → SharePoint:** App Registration `DF-CEO-Bot-n8n` สิทธิ์ `Sites.Selected` เขียนได้เฉพาะ Site `CEO-Tickets` Global Admin ทำให้ครั้งเดียว ขั้นตอนใน [06-line-bot.md](06-line-bot.md)
 18. **รายชื่อพนักงาน:** SharePoint List `Employees` (ชื่อจริง นามสกุล ชื่อเล่น ชื่อเรียกอื่น อีเมล แผนก สถานะทำงาน) **HR เป็นเจ้าของและอัปเดต** ถ้าใช้สร้างปุ่มเลือกผู้รับผิดชอบและค้นหาด้วยชื่อเล่น
 
 ## เรื่องที่ยังเปิดอยู่
-- ⚠️ วิธีให้ n8n สร้าง Ticket ใน SharePoint (App Registration + Admin Consent หรือส่งผ่าน Power Automate)
+- ⚠️ ความเร็วแจ้งเตือนพนักงานเมื่อ Ticket มาจากบอท LINE (Flow ตั้งสิทธิ์และแจ้งเตือนจากตัวกระตุ้น "When an item is created" อาจหน่วง ต้องวัดจริง)
 - ⚠️ ผู้มีสิทธิ์ Global Admin / SharePoint Admin ของ Tenant (ผู้ใช้ปัจจุบันมีสิทธิ์ Exchange Admin และ User Admin เท่านั้น) ใช้สร้าง SharePoint Site และปลด/ตรวจนโยบายการสร้างแอป
 - ตัดสินใจเรื่องบัญชีบริการ (Service account) สำหรับเป็นเจ้าของ Flow ดู [05-handover.md](05-handover.md)
 - ลบ Trial ที่ไม่ใช้ออกจากบัญชี (Power Apps Plan 2 Trial, Power Pages vTrial, Copilot Studio Viral Trial, Copilot for Finance Trial)
