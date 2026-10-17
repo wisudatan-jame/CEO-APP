@@ -34,4 +34,8 @@
 - ผู้ติดตาม (Watchers) ต่อ Ticket
 - โอนงานให้ผู้รับผิดชอบคนใหม่
 - ข้อมูลจาก SAP B1, Web Sales, Platform บริหารโครงการ, Forecast สำหรับหน้าภาพรวมของ CEO
+  - ใช้ **n8n ที่บริษัทมีอยู่แล้ว** เป็นตัวดึงข้อมูลตามรอบเวลา (เช่น SAP B1 Service Layer) แล้วเขียนสรุปลง SharePoint List ให้ Power Apps อ่านด้วย Connector มาตรฐาน ไม่ต้องซื้อ Premium
+  - ห้ามให้ Power Apps เรียก n8n ตรง ๆ (ต้องใช้ HTTP/Custom Connector ซึ่งเป็น Premium)
+  - กุญแจที่ n8n ใช้เข้า SharePoint ต้องจำกัดสิทธิ์เฉพาะ Site หรือ List ที่จำเป็น และไม่ให้เข้าถึง List `Tickets`
+- ช่องทางแจ้งเตือนผ่าน LINE Official Account (Messaging API) ผ่าน n8n ถ้าการแจ้งเตือนแบบอื่นไม่ตอบโจทย์ (ส่งแค่เลข Ticket ไม่ส่งรายละเอียด)
 - นำข้อมูลใน SharePoint ไปทำ RAG องค์กร
