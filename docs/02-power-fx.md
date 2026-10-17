@@ -32,8 +32,20 @@ SortByColumns(
 - CEO กรองตามพนักงาน: `Filter(Tickets, IsOpen = true, Assignee.Email = drpPerson.Selected.Mail)` ⚠️ ตรวจคำเตือน Delegation
 - ป้ายเกินกำหนด: `If(ThisItem.DueDate < Today(), "เกินกำหนด", "")`
 
-## ฟอร์มสร้างงาน (`scrNew`) — เป้าหมาย: สร้างเสร็จใน 10 วินาที
+## ฟอร์มสร้างงาน (`scrNew`) — เป้าหมาย: เร็วพอ ๆ กับพิมพ์ LINE
+
+ปัจจุบัน CEO สั่งงานทาง LINE เป็นหลัก ถ้าแอปช้ากว่า LINE จะกลับไปใช้ LINE
+เกณฑ์: **จากปลดล็อกมือถือถึงสั่งงานสำเร็จ ไม่เกิน 15 วินาที** (วัดจริงในสัปดาห์ทดลอง)
+
+- เปิดแอปแล้วเข้าหน้า `scrNew` ทันทีสำหรับ CEO: `App.StartScreen = If(varIsCEO, scrNew, scrTickets)` ⚠️ ถ้า `varIsCEO` คำนวณไม่ทันใน StartScreen ให้ใช้ `App.Formulas` แทน `OnStart`
+- บังคับกรอกแค่ **ชื่องาน + ผู้รับผิดชอบ** ค่าเริ่มต้น: กำหนดส่ง = พรุ่งนี้, ความสำคัญ = ปกติ
+- **ปุ่มลัดผู้รับผิดชอบ** แถวบนสุด แสดงคนที่ CEO สั่งบ่อย (PM, การตลาด, Presales, Sales) แตะครั้งเดียวเลือกได้ ไม่ต้องค้นหา
+  `galQuickPeople.Items = FirstN(SortByColumns(AddColumns(GroupBy(Filter(Tickets, Created >= DateAdd(Today(), -30, TimeUnit.Days)), "Assignee", "Rows"), "Cnt", CountRows(Rows)), "Cnt", SortOrder.Descending), 6)` ⚠️ GroupBy ไม่ Delegable ใช้ได้เพราะกรองแค่ 30 วัน แต่ถ้าช้า ให้ใช้รายชื่อคงที่ใน `Config` แทน
+- โฟกัสช่องชื่องานทันทีที่เปิดหน้า (`txtTitle` → `SetFocus` ใน `OnVisible`) เพื่อให้แป้นพิมพ์ขึ้นและกดไมโครโฟนได้เลย
 ```powerfx
+// scrNew.OnVisible
+Set(varDue, DateAdd(Today(), 1, TimeUnit.Days)); SetFocus(txtTitle)
+
 // ปุ่มลัดกำหนดส่ง
 btnToday.OnSelect    = Set(varDue, Today())
 btnTomorrow.OnSelect = Set(varDue, DateAdd(Today(), 1, TimeUnit.Days))
@@ -45,7 +57,7 @@ cmbAssignee.Items = Office365Users.SearchUserV2({searchTerm: cmbAssignee.SearchT
 
 // ปุ่มบันทึก
 btnCreate.DisplayMode = If(
-    IsBlank(Trim(txtTitle.Text)) || IsBlank(cmbAssignee.Selected) || IsBlank(varDue) || varBusy,
+    IsBlank(Trim(txtTitle.Text)) || IsBlank(cmbAssignee.Selected) || varBusy,
     DisplayMode.Disabled, DisplayMode.Edit)
 btnCreate.OnSelect =
     Set(varBusy, true);
@@ -58,7 +70,7 @@ btnCreate.OnSelect =
     Set(varBusy, false);
     If(varResult.ok = "true",
         Notify("สั่งงานแล้ว T-" & varResult.id, NotificationType.Success);
-        Reset(txtTitle); Reset(txtDetails); Reset(cmbAssignee); Set(varDue, Blank());
+        Reset(txtTitle); Reset(txtDetails); Reset(cmbAssignee); Set(varDue, DateAdd(Today(), 1, TimeUnit.Days));
         Refresh(Tickets); Back(),
         Notify("สร้างไม่สำเร็จ: " & varResult.message, NotificationType.Error))
 ```
