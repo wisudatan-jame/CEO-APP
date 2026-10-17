@@ -6,7 +6,7 @@
 ## ขั้นตอน
 | # | ทำอะไร | ผ่านเมื่อ |
 |---|---|---|
-| 1 | สร้าง SharePoint Site ส่วนตัว `CEO-Tickets` (Team site, ไม่ผูก Microsoft 365 Group ที่เพิ่มพนักงานอัตโนมัติ) ⚠️ อาจต้องขอ SharePoint Admin หากผู้ใช้สร้าง Site ไม่ได้ | สร้างได้ และ Members/Visitors ว่าง |
+| 1 | สร้าง Site `CEO-Tickets` แบบ **Communication site → Blank** ภาษา English (ห้ามใช้ Team site แบบ Standard team เพราะผูก Microsoft 365 Group ซึ่งเพิ่มสมาชิกได้จาก Outlook/Teams) ผู้ใช้สร้าง Site เองได้ (ตรวจแล้ว) | ใน Advanced permissions: Members/Visitors ว่าง ไม่มีกลุ่ม Everyone และ Owners มีแค่ผู้สร้าง |
 | 2 | สร้าง List `Tickets` ตาม [01-data-model.md](01-data-model.md) อย่างน้อย 5 คอลัมน์ (Title, Assignee, DueDate, Status, IsOpen) | สร้างได้ |
 | 3 | สร้าง Canvas App 1 หน้า แสดงรายการจาก `Tickets` | เปิดได้ ไม่มีไอคอน Premium ที่ตัว Connector |
 | 4 | สร้าง Flow ตัวกระตุ้น **Power Apps (V2)** ที่สร้างรายการ แล้ว **Stop sharing an item** และ **Grant access to an item** ให้ผู้รับผิดชอบ | Flow รันสำเร็จ และไม่มีคำเตือนเรื่อง Premium |

@@ -1,6 +1,6 @@
 # โครงสร้างข้อมูล (SharePoint)
 
-Site: `CEO-Tickets` เป็น Team site ส่วนตัว
+Site: `CEO-Tickets` เป็น Communication site (ไม่ผูก Microsoft 365 Group) ภาษา English
 - **Owners:** CEO, เจ้าของโปรเจกต์, ผู้ดูแลสำรอง
 - **Members / Visitors:** เว้นว่างไว้ พนักงานเข้าถึงข้อมูลผ่านสิทธิ์ระดับรายการที่ Flow ตั้งให้เท่านั้น
 
