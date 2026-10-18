@@ -81,18 +81,23 @@ CEO พูดผ่านไมค์บนแป้นพิมพ์ → LINE 
 ## เชื่อม n8n → SharePoint (ตัดสินใจแล้ว: App Registration + `Sites.Selected`)
 n8n เขียนได้ **เฉพาะ Site `CEO-Tickets`** ผ่าน Microsoft Graph แบบ App-only (Client credentials)
 
-### ขั้นตอนที่ Global Admin ทำ (ครั้งเดียว ประมาณ 15 นาที)
+### ขั้นตอนตั้งค่า (ครั้งเดียว)
 ทำหลังจากสร้าง Site `CEO-Tickets` แล้ว
+
+**ผู้พัฒนาทำเอง** (ผู้ใช้ทั่วไปสร้าง App Registration ได้)
 1. entra.microsoft.com → **App registrations** → **New registration** ชื่อ `DF-CEO-Bot-n8n` แบบ Single tenant
-2. **API permissions** → Add → Microsoft Graph → **Application permissions** → `Sites.Selected` → **Grant admin consent**
-3. **Certificates & secrets** → New client secret อายุ 24 เดือน แล้ว**กรอกลง Credential ของ n8n โดยตรง** ห้ามส่งทางแชตหรืออีเมล จดวันหมดอายุไว้ใน [05-handover.md](05-handover.md)
-4. ให้สิทธิ์เขียนเฉพาะ Site นี้ ผ่าน Graph Explorer (ล็อกอินด้วยบัญชี Global Admin ⚠️ อาจต้อง Consent `Sites.FullControl.All` ให้ Graph Explorer)
+2. **API permissions** → Add → Microsoft Graph → **Application permissions** → `Sites.Selected`
+3. **Certificates & secrets** → New client secret อายุ 24 เดือน แล้ว**กรอกลง n8n โดยตรง** ห้ามส่งทางแชตหรืออีเมล จดวันหมดอายุไว้ใน [05-handover.md](05-handover.md)
+
+**Global Admin ทำ** (ต้องใช้สิทธิ์ Global Admin)
+4. API permissions → **Grant admin consent for Digital Focus** → ตรวจว่า Status เป็น ✅ Granted
+5. ให้สิทธิ์เขียนเฉพาะ Site นี้ ผ่าน Graph Explorer (ล็อกอินด้วยบัญชี Global Admin ถ้าไม่มีสิทธิ์ ให้ Consent `Sites.FullControl.All` ในแท็บ Modify permissions)
    - `GET https://graph.microsoft.com/v1.0/sites/digitalfocusth.sharepoint.com:/sites/CEO-Tickets` → จด `id`
    - `POST https://graph.microsoft.com/v1.0/sites/{id}/permissions`
      ```json
      {"roles": ["write"], "grantedToIdentities": [{"application": {"id": "<Application (client) ID>", "displayName": "DF-CEO-Bot-n8n"}}]}
      ```
-5. ส่ง **Tenant ID** และ **Application (client) ID** ให้ผู้พัฒนา (สองค่านี้ไม่ใช่ความลับ)
+6. ถ้าข้อ 5 ยังไม่ได้ทำ บอทจะได้ Error `403` / `accessDenied` ตอนอ่าน List
 
 ### หน้าที่ที่แบ่งกัน
 - **n8n:** อ่าน `Employees`, `Config`, `Holidays` และ `Tickets` สร้างรายการใน `Tickets` (`Source = LINE`, `PermsSet = false`, `Status = New`, `IsOpen = true`, `AssigneeEmail`) อัปโหลดรูปไป `TicketFiles/T-<ID>` และเขียน `TicketHistory` (`Processed = false`) แล้วตอบเลข Ticket ให้ CEO ทันที
