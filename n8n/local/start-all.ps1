@@ -9,7 +9,9 @@ $log = Join-Path $env:TEMP 'ceo-n8n-tunnel.log'
 Remove-Item $log -ErrorAction SilentlyContinue
 Get-Process cloudflared -ErrorAction SilentlyContinue | Stop-Process -Force
 Write-Host 'Starting Cloudflare Tunnel...'
-Start-Process cloudflared -ArgumentList 'tunnel', '--url', 'http://localhost:5678' -RedirectStandardError $log -NoNewWindow
+$tunnelExe = Join-Path $PSScriptRoot 'cloudflared.exe'
+if (-not (Test-Path $tunnelExe)) { $tunnelExe = 'cloudflared' }
+Start-Process $tunnelExe -ArgumentList 'tunnel', '--url', 'http://localhost:5678' -RedirectStandardError $log -NoNewWindow
 
 $url = $null
 for ($i = 0; $i -lt 60 -and -not $url; $i++) {

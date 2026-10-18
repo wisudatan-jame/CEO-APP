@@ -36,18 +36,28 @@ if (Has 'n8n') {
 }
 
 Step '3/5 Cloudflare Tunnel (cloudflared)'
-if (Has 'cloudflared') {
-    Write-Host 'cloudflared already installed.'
+$localTunnel = Join-Path $PSScriptRoot 'cloudflared.exe'
+if ((Has 'cloudflared') -or (Test-Path $localTunnel)) {
+    Write-Host 'cloudflared already available.'
 } else {
+    Write-Host 'Windows will ask for permission (UAC) - click Yes.' -ForegroundColor Yellow
     winget install --id Cloudflare.cloudflared -e --accept-source-agreements --accept-package-agreements
     Refresh-Path
+    if (-not (Has 'cloudflared')) {
+        Write-Host 'cloudflared was not installed (no admin rights or cancelled).' -ForegroundColor Yellow
+        Write-Host 'Alternative without admin: download cloudflared-windows-amd64.exe from' -ForegroundColor Yellow
+        Write-Host '  https://github.com/cloudflare/cloudflared/releases/latest' -ForegroundColor Yellow
+        Write-Host "  rename it to cloudflared.exe and put it in $PSScriptRoot" -ForegroundColor Yellow
+    }
 }
 
 Step '4/5 Settings file (.env)'
 $envFile = Join-Path $PSScriptRoot '.env'
-$example = Join-Path $PSScriptRoot '.env.example'
+# Browsers often drop the leading dot or add .txt when downloading, so accept those names too.
+$example = @('.env.example', 'env.example', '.env.example.txt', 'env.example.txt') |
+    ForEach-Object { Join-Path $PSScriptRoot $_ } | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not (Test-Path $envFile)) {
-    if (-not (Test-Path $example)) { Write-Host "Missing $example - put .env.example next to this script." -ForegroundColor Red; exit 1 }
+    if (-not $example) { Write-Host "Missing .env.example in $PSScriptRoot - put it next to this script." -ForegroundColor Red; exit 1 }
     Copy-Item $example $envFile
     Write-Host "Created $envFile"
 }
