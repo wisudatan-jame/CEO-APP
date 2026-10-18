@@ -26,51 +26,10 @@ URL ต้องเป็น `https://digitalfocusth.sharepoint.com/sites/CEO-Ti
 
 ⚠️ สคริปต์ทดสอบกับ SharePoint จำลองแล้ว (`node setup/test-create-lists.js`) แต่ยังไม่เคยรันกับ SharePoint จริง ถ้าคอลัมน์ใดไม่ถูกสร้าง ให้แจ้งผม อย่าสร้างแทนด้วยมือ
 
-## 2-ทางเลือก: นำเข้าจาก Excel (แทนข้อ 2)
-ใช้เมื่อไม่สะดวกรันสคริปต์ ไฟล์อยู่ที่ [`setup/import/`](../../setup/import/) 1 ไฟล์ต่อ 1 List ในแต่ละไฟล์ แท็บ `Data` คือตารางที่นำเข้า ส่วนแท็บ `วิธีใช้` บอกชนิดคอลัมน์ที่ต้องเลือก
-> ⚠️ การนำเข้าของ SharePoint **ตั้งค่าเริ่มต้น ช่องบังคับ และ Index ให้ไม่ได้** ต้องทำรายการตรวจด้านล่างให้ครบ ถ้าข้ามไป บอทและ Flow จะทำงานผิดแบบเงียบ ๆ (เช่น งานใหม่ไม่มีสถานะ) สคริปต์ในข้อ 2 ตั้งค่าเหล่านี้ให้ครบในครั้งเดียว
-
-### นำเข้าทีละไฟล์
-ลำดับ: `Config` → `Holidays` → `Employees` → `TicketHistory` → `Tickets`
-1. ก่อนนำเข้า `Tickets.xlsx`: เปิดไฟล์ แทนที่ `example@digitalfocus.co.th` ในคอลัมน์ `Assignee` ด้วยอีเมลของคุณเอง (คอลัมน์ Person ต้องเป็นผู้ใช้จริง) แล้วบันทึก
-2. Site `CEO-Tickets` → **+ New** → **List** → **Import from: Excel** → อัปโหลดไฟล์
-3. เลือกตาราง (Table) ที่ชื่อเดียวกับไฟล์
-4. ในหน้าตรวจคอลัมน์ ให้เลือก **ชนิดคอลัมน์ตามแท็บ `วิธีใช้`** ทุกคอลัมน์ (โดยเฉพาะ Choice, Yes/No, Person, Number)
-5. ตั้งชื่อ List ให้ตรงกับชื่อไฟล์ทุกตัวอักษร เช่น `TicketHistory` → **Create**
-6. สร้าง Library รูปแนบ: **+ New** → **Document library** → ชื่อ `TicketFiles`
-
-### รายการตรวจหลังนำเข้า (ทำให้ครบทุกข้อ)
-เข้าไปที่ List → ⚙️ → **List settings** แล้วคลิกชื่อคอลัมน์เพื่อแก้
-
-**ทุก List**
-- [ ] **ชื่อภายในตรง:** คลิกชื่อคอลัมน์ แล้วดูท้าย URL `...&Field=<ชื่อภายใน>` ต้องตรงกับหัวคอลัมน์ทุกตัวอักษร ถ้า SharePoint สร้างคอลัมน์ชื่อ `Title0` หรือ `field_1` แทน `Title` **ให้ลบ List นั้นแล้วใช้สคริปต์ในข้อ 2**
-- [ ] **Versioning settings** → Create a version each time you edit = **Yes**
-- [ ] ลบแถวตัวอย่างสีเหลืองทั้งหมด (ทำ **หลัง** ตรวจตัวเลือก Choice แล้ว)
-
-**`Tickets`**
-- [ ] `Status` (Choice) มี 6 ตัวเลือก `New, Acknowledged, InProgress, WaitingCEO, Done, Closed` · Default = `New` · Require = Yes
-- [ ] `Priority` มี `Low, Normal, High` · Default = `Normal` · Require = Yes
-- [ ] `Source` มี `App, LINE` · Default = `App`
-- [ ] `IsOpen` Default = **Yes** · `OverdueNotified`, `NoAckNotified`, `PermsSet`, `HasFiles` Default = **No**
-- [ ] `AssigneeEmail` Require = Yes · `DueDate` เป็น **Date only** และ Require = Yes
-- [ ] `Assignee` เป็น **Person** และ **Require = No**
-- [ ] `Details` เป็น **Plain text** (ไม่ใช่ Rich text)
-- [ ] **Indexed columns** → Create a new index ทีละคอลัมน์: `AssigneeEmail`, `DueDate`, `Status`, `IsOpen`
-
-**`TicketHistory`**
-- [ ] `Action` มี 11 ตัวเลือก `create, ack, start, wait, reply, done, reopen, close, cancel, comment, due_change` · Require = Yes
-- [ ] `Source` มี `App, LINE` · Default = `App`
-- [ ] `Processed` Default = **Yes** · `CEOPending` Default = **No**
-- [ ] `TicketID` เป็น Number ทศนิยม 0 · Require = Yes
-- [ ] Indexed columns: `TicketID`, `CEOPending`
-
-**`Employees`**
-- [ ] `Active` Default = **Yes** · `Email` Require = Yes · Indexed columns: `Email`
-
-**`Config` และ `Holidays`**
-- [ ] `Config` มี 7 แถว (ข้อมูลจริง ไม่ต้องลบ) · `Holidays` คอลัมน์ `Date` เป็น **Date only**
-
-เมื่อตรวจครบ ข้ามไปข้อ 3
+## ❌ ห้ามใช้ "Import from Excel / CSV" สร้าง List
+ทดสอบจริงแล้ว (Config): SharePoint ตั้งชื่อภายในของคอลัมน์เป็น `field_1`, `field_2`, ... แทนชื่อหัวคอลัมน์ และเดาชนิดผิด (เช่น `Value` กลายเป็นตัวเลข) ชื่อภายในแก้ทีหลังไม่ได้ บอทและ Flow จึงหาคอลัมน์ไม่เจอ
+**ถ้า Import ไปแล้ว:** ลบ List นั้น (Site contents → … → Delete และลบออกจาก Recycle bin ถ้าสร้างชื่อเดิมไม่ได้) แล้วใช้สคริปต์ในข้อ 2
+ไฟล์ใน `setup/import/` ยังใช้เป็น **แหล่งข้อมูลสำหรับคัดลอกไปวางใน grid view** ได้ (ข้อ 4–5) แต่ห้ามใช้เมนู Import
 
 ## 3. กรอกค่าตั้งใน `Config`
 เปิด List `Config` แล้วแก้คอลัมน์ `Value`
@@ -98,6 +57,7 @@ URL ต้องเป็น `https://digitalfocusth.sharepoint.com/sites/CEO-Ti
 | `Active` | `Yes` หรือ `No` |
 
 3. นำเข้า: เปิด List `Employees` → **Edit in grid view** → คัดลอกแถวข้อมูลจาก Excel (ไม่รวมหัวตาราง) → คลิกช่องแรกของแถวว่าง → วาง → ตรวจ → **Exit grid view**
+   ⚠️ ลำดับคอลัมน์ใน grid view ต้องตรงกับไฟล์ (Title, FirstName, LastName, Nickname, Aliases, Email, Department, Active) ถ้าไม่ตรง ปรับมุมมองก่อนวาง หรือวางทีละคอลัมน์ · `Active` ใน Excel เป็น TRUE ถ้าวางไม่ติด ให้พิมพ์ Yes
 4. ตรวจว่าไม่มีชื่อเล่นที่ซ้ำกันในแผนกเดียวกัน ถ้ามี ให้เพิ่ม `Aliases` ที่ต่างกัน
 
 **ต่อจากนี้ HR แก้ใน List `Employees` โดยตรง** (คนเข้าใหม่เพิ่มแถว คนลาออกเปลี่ยน `Active` เป็น `No` ห้ามลบแถว เพราะงานเก่ายังอ้างถึง)
