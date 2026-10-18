@@ -36,15 +36,34 @@ Workflow อ่านค่าเหล่านี้จาก **n8n Variables*
 - **n8n Cloud:** ใช้เมนู **Variables** ⚠️ ตรวจว่าแพ็กเกจที่ซื้อมีฟีเจอร์ Variables ถ้าไม่มี ต้องหาวิธีอื่นก่อนย้ายขึ้น Cloud (ห้ามพิมพ์ค่าลับลงในโค้ดของ Workflow เพราะจะติดไปกับไฟล์ Export)
 - ค่าของ Variables มองเห็นได้โดยทุกคนที่มีสิทธิ์ใน n8n instance นั้น ให้จำกัดผู้ใช้ n8n ไว้ที่ผู้พัฒนาและคุณ Suchada
 
-## ติดตั้งบนโน้ตบุ๊ก (ช่วงพัฒนาและทดลอง)
-1. ตั้งเครื่องไม่ให้ Sleep เมื่อเสียบสายชาร์จ และเปิด BitLocker
-2. เปิด n8n แล้ว **Workflows → Import from File** เลือก `ceo-line-bot.json`
-3. ตั้ง Timezone ของ Workflow เป็น `Asia/Bangkok` (ตั้งไว้ในไฟล์แล้ว ตรวจใน Settings ของ Workflow)
-4. เปิด Cloudflare Tunnel ชี้ไปที่ n8n แล้วได้ URL สาธารณะแบบ HTTPS เช่น `https://xxx.trycloudflare.com` ⚠️ ถ้าใช้ Quick Tunnel URL จะเปลี่ยนทุกครั้งที่รันใหม่ ให้ใช้ Named Tunnel ถ้าต้องการ URL คงที่
-5. ตั้ง `WEBHOOK_URL` ของ n8n เป็น URL ของ Tunnel แล้วรีสตาร์ต n8n
-6. **Activate** Workflow (งานร่างและการกันข้อความซ้ำทำงานเฉพาะเมื่อ Workflow เปิดใช้งาน ไม่ใช่ตอนกด Test)
-7. LINE Developers → Messaging API → Webhook URL = `<URL ของ Tunnel>/webhook/ceo-line-bot` → **Verify** → เปิด **Use webhook**
-8. LINE Official Account Manager → ปิด Auto-reply และ Greeting message และตั้งค่าบัญชีไม่ให้ค้นหาเจอ
+## ติดตั้งบนโน้ตบุ๊ก Windows (ช่วงพัฒนาและทดลอง)
+ใช้ npm (เบากว่า Docker) เพราะใช้งานจริงจะย้ายไป n8n Cloud · ใช้เวลาประมาณ 30 นาที
+> ⚠️ ขั้นตอนนี้เขียนตามวิธีติดตั้ง n8n ที่ทราบ แต่ยังไม่เคยทดสอบบนเครื่องของบริษัท ถ้าคำสั่งใดขึ้น Error ให้ส่งข้อความมาดู
+
+### ก. เตรียมเครื่อง (ครั้งเดียว)
+1. ตั้งเครื่อง**ไม่ให้ Sleep เมื่อเสียบสายชาร์จ** (Settings → System → Power) และเปิด **BitLocker**
+2. ติดตั้ง **Node.js รุ่น LTS** จาก https://nodejs.org (ตัวติดตั้ง .msi) → เปิด PowerShell ใหม่ → `node -v` ต้องแสดงเลขเวอร์ชัน ⚠️ ใช้รุ่นที่ n8n รองรับ ตรวจที่ https://docs.n8n.io ถ้าติดตั้งแล้ว n8n ฟ้องเรื่องเวอร์ชัน
+3. ติดตั้ง n8n: `npm install -g n8n` (ใช้เวลาหลายนาที)
+   - ถ้า PowerShell ขึ้นว่า "running scripts is disabled": `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` แล้วลองใหม่
+4. ติดตั้ง Cloudflare Tunnel: `winget install --id Cloudflare.cloudflared` → เปิด PowerShell ใหม่ → `cloudflared --version`
+
+### ข. ทุกครั้งที่เริ่มใช้งาน
+1. **หน้าต่าง PowerShell ที่ 1 (Tunnel):** `cloudflared tunnel --url http://localhost:5678` → จด URL `https://....trycloudflare.com` แล้ว**เปิดทิ้งไว้**
+   - URL นี้**เปลี่ยนทุกครั้ง**ที่เปิดใหม่ ต้องแก้ `WEBHOOK_URL` ใน `.env`, Webhook URL ใน LINE และรัน `setup/create-webhook.js` ใหม่ (ถ้าต้องการ URL คงที่ ใช้ Named Tunnel ซึ่งต้องมีโดเมนใน Cloudflare)
+2. ครั้งแรก: คัดลอก [`local/.env.example`](local/.env.example) เป็น `local/.env` แล้วกรอกค่า (ดูตาราง "ค่าตั้ง" ด้านบน) **ห้าม Commit ไฟล์ `.env`** (อยู่ใน `.gitignore` แล้ว)
+3. **หน้าต่าง PowerShell ที่ 2 (n8n):** ไปที่โฟลเดอร์ `n8n/local` แล้วรัน
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\start-n8n.ps1
+   ```
+   สคริปต์โหลดค่าจาก `.env` ตั้ง `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` (ให้บอทอ่านค่าลับได้) และ Timezone เป็นเวลาไทย แล้วแสดง URL ของ Webhook ทั้งสองตัว
+4. เปิด http://localhost:5678 → ครั้งแรกสร้างบัญชีเจ้าของ n8n (เก็บในเครื่องนี้)
+
+### ค. นำบอทเข้า n8n (ครั้งแรก)
+1. **Workflows → Import from File** → `ceo-line-bot.json`
+2. Settings ของ Workflow: Timezone `Asia/Bangkok` (ตั้งไว้ในไฟล์แล้ว)
+3. **Activate** (งานร่างและการกันข้อความซ้ำทำงานเฉพาะเมื่อ Active ไม่ใช่ตอนกด Test)
+4. LINE Developers → Messaging API → Webhook URL = `<URL ของ Tunnel>/webhook/ceo-line-bot` → **Verify** → เปิด **Use webhook** (ดู [../docs/guides/D-line-oa.md](../docs/guides/D-line-oa.md))
+5. ส่งข้อความหา OA แล้วดู n8n → **Executions**: มี Execution ใหม่ = ต่อกันแล้ว · ผล `bad-signature` = `LINE_CHANNEL_SECRET` ผิด · Error `403/accessDenied` = รอ Global Admin ให้สิทธิ์ SharePoint (ติดตั้งถูกแล้ว)
 
 ## SharePoint webhook (ให้ CEO ได้แจ้งเตือนเมื่อพนักงานอัปเดต)
 ทำหลังจาก Workflow เปิดใช้งาน (Active) แล้ว เพราะ SharePoint จะเรียก URL ยืนยันทันทีตอนสร้าง
