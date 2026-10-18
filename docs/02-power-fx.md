@@ -133,6 +133,26 @@ Office365Outlook.V4CalendarPostItem(
 ⚠️ ชื่อฟังก์ชัน (`CalendarGetTablesV2`, `GetEventsCalendarViewV3`, `V4CalendarPostItem`) และชื่อพารามิเตอร์ต้องตรวจกับ Connector จริง
 ปฏิทินหลักอาจไม่ใช่รายการแรกเสมอ ⚠️ ตรวจว่าเลือก `Calendar` ถูกต้องในต้นแบบ
 
+## หน้า Dashboard ของ CEO (`scrDashboard`) — แสดงเฉพาะเมื่อ `varIsCEO`
+```powerfx
+// ดึงงานที่เปิดอยู่ครั้งเดียว แล้วนับจาก Collection (CountRows บน SharePoint ตรง ๆ ไม่ Delegable)
+ClearCollect(colOpen, Filter(Tickets, IsOpen = true));
+lblOverdue.Text  = CountRows(Filter(colOpen, DueDate < Today()))
+lblWaiting.Text  = CountRows(Filter(colOpen, Status.Value = "WaitingCEO"))
+lblDone.Text     = CountRows(Filter(colOpen, Status.Value = "Done"))
+lblNoAck.Text    = CountRows(Filter(colOpen, Status.Value = "New", Created < DateAdd(Now(), -24, TimeUnit.Hours)))
+
+// ตารางรายคน
+galByPerson.Items = SortByColumns(
+    AddColumns(GroupBy(colOpen, "Assignee", "Rows"),
+        "OpenCount", CountRows(Rows),
+        "OverdueCount", CountRows(Filter(Rows, DueDate < Today()))),
+    "OverdueCount", SortOrder.Descending)
+```
+- งานที่เปิดอยู่พร้อมกันคาดว่าไม่ถึง 2,000 รายการ จึงนับจาก Collection ได้ ⚠️ ตั้ง Data row limit ใน Settings เป็น 2000
+- สถิติย้อนหลัง (ปิดแล้วรายเดือน/รายปี) ให้ n8n คำนวณในสรุปวันศุกร์แทน ไม่คำนวณในแอป
+- แตะการ์ด → ไปหน้า `scrTickets` พร้อมตัวกรองนั้น
+
 ## หน้าจอทั่วไป
 - เปิดแอปครั้งแรกไม่มีอินเทอร์เน็ต: แสดงข้อความ `If(!Connection.Connected, "ไม่มีอินเทอร์เน็ต", "")` และปิดปุ่มบันทึกทั้งหมด
 - ภาษา UI เป็นภาษาไทยทั้งหมด แสดงวันที่ด้วย `Text(d, "d mmm yyyy", "th-TH")` เฉพาะตอนแสดงผล
