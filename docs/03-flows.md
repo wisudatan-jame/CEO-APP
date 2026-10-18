@@ -1,7 +1,7 @@
 # Power Automate Flows
 
 ทุก Flow:
-- อยู่ใน Solution เดียวกับแอป ⚠️ (ถ้าข้อ 10 ของต้นแบบผ่าน)
+- สร้างใน **My flows** ของ Environment `Digital Focus (default)` (ไม่มี Dataverse จึงไม่ใช้ Solution) สำรองด้วย Export → Package (.zip)
 - ใช้เฉพาะ Connector มาตรฐาน: SharePoint, Power Apps, Power Apps Notification, Office 365 Outlook, Office 365 Users, Microsoft Teams
 - ใช้ Connection ของเจ้าของ Flow (ไม่ใช่ของผู้กด) สำหรับ SharePoint เพื่อให้พนักงานไม่ต้องมีสิทธิ์เขียน List
 - มีโครงสร้าง **Try / Catch** ด้วย Scope: `Scope Try` → `Scope Catch` (Configure run after = has failed, has timed out) → ส่งอีเมลหา `OWNER_EMAIL` และ `BACKUP_EMAIL` พร้อมลิงก์ Run
@@ -92,4 +92,4 @@ Trigger: Recurrence ทุกวันจันทร์ 08:30 (เวลาไ�
 ถ้าข้อ 5 ของต้นแบบพบว่า Push ผ่าน Power Apps Notification ใช้ไม่ได้หรือไม่เสถียร ให้เปลี่ยนข้อความแจ้งเตือนในทุก Flow เป็น:
 1. Microsoft Teams `Post message in a chat or channel` (Post as: Flow bot, Post in: Chat with bot) — มีแจ้งเตือนบนมือถือผ่านแอป Teams
 2. อีเมล (Office 365 Outlook `Send an email (V2)`) เป็นทางสุดท้าย
-แยกส่วนส่งแจ้งเตือนเป็น Child flow `Notify` (Inputs: email, message, ticketId) เพื่อเปลี่ยนช่องทางได้จุดเดียว ⚠️ Child flow ต้องอยู่ใน Solution
+แยกส่วนส่งแจ้งเตือนเป็น Child flow `Notify` (Inputs: email, message, ticketId) เพื่อเปลี่ยนช่องทางได้จุดเดียว ⚠️ Child flow ต้องอยู่ใน Solution ซึ่ง Environment นี้ใช้ไม่ได้ จึงต้องแก้ข้อความในแต่ละ Flow แทน

@@ -14,8 +14,7 @@ Flow นี้รับต่อจากบอท LINE: ตั้งสิท�
 
 ## 1. สร้าง Flow
 1. เปิด **https://make.powerautomate.com** ด้วยบัญชีของคุณ
-2. ถ้าใช้ Solution ได้ (ข้อ 10 ของต้นแบบ): **Solutions** → **+ New solution** ชื่อ `CEO-APP` → เปิด Solution → **+ New** → **Automation** → **Cloud flow** → **Automated**
-   ถ้าไม่ได้: เมนูซ้าย **+ Create** → **Automated cloud flow**
+2. เมนูซ้าย **+ Create** → **Automated cloud flow** (ไม่ใช้ Solution เพราะ Default environment ไม่มี Dataverse)
 3. Flow name: `OnLineEvent`
 4. ช่องค้นหา Trigger พิมพ์ `When an item is created` → เลือกตัวที่เป็น **SharePoint** → **Create**
 

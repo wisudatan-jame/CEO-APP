@@ -17,7 +17,7 @@
 แอปห้ามแก้ SharePoint เอง (พนักงานมีสิทธิ์แค่อ่าน) ทุกการเปลี่ยนสถานะต้องผ่าน Flow นี้ ซึ่งตรวจว่า **ใครกด** และ **เปลี่ยนจากสถานะไหนไปไหนได้**
 
 ### 1.1 สร้าง Flow และ Input
-1. make.powerautomate.com → (ใน Solution `CEO-APP` ถ้ามี) **+ New** → **Cloud flow** → **Instant**
+1. make.powerautomate.com → **+ Create** → **Instant cloud flow**
 2. ชื่อ `UpdateTicket` · Trigger: **When Power Apps calls a flow (V2)** → Create
 3. คลิก Trigger → **+ Add an input** สร้างตามลำดับนี้
    | ชนิด | ชื่อ | บังคับ |
@@ -139,7 +139,7 @@ or(not(equals(outputs('Current'), outputs('In_expected'))), empty(outputs('NewSt
 ## ส่วนที่ 2: สร้างแอป
 
 ### 2.1 สร้างแอปเปล่า
-1. **https://make.powerapps.com** → (ใน Solution `CEO-APP` ถ้ามี) **+ New** → **App** → **Canvas app** → รูปแบบ **Phone** · ชื่อ `CEO-APP`
+1. **https://make.powerapps.com** → **+ Create** → **Blank app** → **Blank canvas app** → รูปแบบ **Phone** · ชื่อ `CEO-APP`
 2. **Data** (ไอคอนทรงกระบอก) → **Add data** → SharePoint → Site `CEO-Tickets` → ติ๊ก `Tickets`, `TicketHistory` → Connect
 3. **Power Automate** (ไอคอนด้านซ้าย) → **Add flow** → เลือก `UpdateTicket`
 4. **Settings** → **General** → **Data row limit** = `2000`
