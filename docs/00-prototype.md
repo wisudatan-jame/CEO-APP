@@ -4,6 +4,8 @@
 ใช้บัญชีทดสอบ 2 บัญชี: บัญชีเจ้าของ (คุณ) และบัญชีพนักงานธรรมดา 1 บัญชีที่ไม่ใช่ Admin
 
 ## ขั้นตอน
+> **สร้างใน Environment หลักของบริษัทเท่านั้น:** มุมขวาบนของ make.powerautomate.com / make.powerapps.com ต้องเป็น Environment ชื่อ `Digital Focus (default)` หรือชื่อบริษัทที่มีคำว่า default **ห้ามสร้างใน Environment ส่วนตัวแบบ Developer** (ชื่อมักเป็น `<ชื่อคุณ>'s Environment`) เพราะ Microsoft ประกาศยกเลิก Developer environment แบบ unmanaged และ Power Apps Developer Plan: เริ่มระงับ 15 ธ.ค. 2026 และเริ่มลบ 15 ม.ค. 2027 ⚠️ ตรวจชื่อ Environment ก่อนเริ่มทุกครั้ง
+
 | # | ทำอะไร | ผ่านเมื่อ |
 |---|---|---|
 | 1 | สร้าง Site `CEO-Tickets` แบบ **Communication site → Blank** ภาษา English (ห้ามใช้ Team site แบบ Standard team เพราะผูก Microsoft 365 Group ซึ่งเพิ่มสมาชิกได้จาก Outlook/Teams) ผู้ใช้สร้าง Site เองได้ (ตรวจแล้ว) | ใน Advanced permissions: Members/Visitors ว่าง ไม่มีกลุ่ม Everyone และ Owners มีแค่ผู้สร้าง |
