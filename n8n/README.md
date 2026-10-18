@@ -40,6 +40,13 @@ Workflow อ่านค่าเหล่านี้จาก **n8n Variables*
 ใช้ npm (เบากว่า Docker) เพราะใช้งานจริงจะย้ายไป n8n Cloud · ใช้เวลาประมาณ 30 นาที
 > ⚠️ ขั้นตอนนี้เขียนตามวิธีติดตั้ง n8n ที่ทราบ แต่ยังไม่เคยทดสอบบนเครื่องของบริษัท ถ้าคำสั่งใดขึ้น Error ให้ส่งข้อความมาดู
 
+### ทางลัด: สคริปต์ติดตั้งอัตโนมัติ
+วางไฟล์ทั้งหมดใน [`local/`](local/) ไว้ในโฟลเดอร์เดียวกัน (เช่น `C:\n8n-ceo`) แล้วเปิด PowerShell ในโฟลเดอร์นั้น
+1. ครั้งเดียว: `powershell -ExecutionPolicy Bypass -File .\install-n8n.ps1` → ติดตั้ง Node.js, n8n, cloudflared, สร้าง `.env` (สุ่ม `SP_WEBHOOK_CLIENT_STATE` ให้) และตั้งเครื่องไม่ให้ Sleep เมื่อเสียบสายชาร์จ แล้วเปิด Notepad ให้กรอกค่า LINE / Microsoft
+2. ทุกครั้งที่ใช้งาน: `powershell -ExecutionPolicy Bypass -File .\start-all.ps1` → เปิด Tunnel เขียน URL ลง `.env` ให้เอง แล้วเปิด n8n และบอกว่า URL เปลี่ยนหรือไม่ (ถ้าเปลี่ยน ต้องแก้ Webhook ใน LINE และรัน `setup/create-webhook.js` ใหม่)
+
+ขั้นตอนด้านล่าง (ก–ข) คือสิ่งที่สคริปต์ทำ ใช้เมื่อสคริปต์ขึ้น Error และต้องทำเอง
+
 ### ก. เตรียมเครื่อง (ครั้งเดียว)
 1. ตั้งเครื่อง**ไม่ให้ Sleep เมื่อเสียบสายชาร์จ** (Settings → System → Power) และเปิด **BitLocker**
 2. ติดตั้ง **Node.js รุ่น LTS** จาก https://nodejs.org (ตัวติดตั้ง .msi) → เปิด PowerShell ใหม่ → `node -v` ต้องแสดงเลขเวอร์ชัน ⚠️ ใช้รุ่นที่ n8n รองรับ ตรวจที่ https://docs.n8n.io ถ้าติดตั้งแล้ว n8n ฟ้องเรื่องเวอร์ชัน
