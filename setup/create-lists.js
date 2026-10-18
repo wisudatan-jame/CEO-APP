@@ -137,6 +137,8 @@ async function setupCeoTickets(fetchImpl, siteUrl, log) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { setupCeoTickets, CEO_TICKETS_SCHEMA };
 } else {
-  setupCeoTickets(window.fetch.bind(window), _spPageContextInfo.webAbsoluteUrl, console.log)
+  const siteUrl = (window._spPageContextInfo && window._spPageContextInfo.webAbsoluteUrl) || location.href.match(/^https:\/\/[^/]+\/sites\/[^/?#]+/)[0];
+  console.log('Site:', siteUrl);
+  setupCeoTickets(window.fetch.bind(window), siteUrl, console.log)
     .catch((e) => console.error('ไม่สำเร็จ:', e));
 }

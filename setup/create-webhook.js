@@ -55,7 +55,8 @@ if (typeof module !== 'undefined' && module.exports) {
 } else {
   const url = prompt('URL ของ SharePoint Webhook ใน n8n (…/webhook/ceo-sp-hook)');
   const state = prompt('ค่า SP_WEBHOOK_CLIENT_STATE (ต้องตรงกับใน n8n)');
-  setupTicketHistoryWebhook(window.fetch.bind(window), _spPageContextInfo.webAbsoluteUrl, url, state, new Date(), console.log)
+  const siteUrl = (window._spPageContextInfo && window._spPageContextInfo.webAbsoluteUrl) || location.href.match(/^https:\/\/[^/]+\/sites\/[^/?#]+/)[0];
+  setupTicketHistoryWebhook(window.fetch.bind(window), siteUrl, url, state, new Date(), console.log)
     .then(() => console.log('เสร็จแล้ว'))
     .catch((e) => console.error('ไม่สำเร็จ:', e));
 }
