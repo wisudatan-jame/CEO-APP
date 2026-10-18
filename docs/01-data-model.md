@@ -21,6 +21,8 @@ Site: `CEO-Tickets` เป็น Communication site (ไม่ผูก Microsof
 | `ClosedAt` | Date and time | ไม่ | เวลาที่ CEO ปิดงาน |
 | `OverdueNotified` | Yes/No | ใช่ | ค่าเริ่มต้น `false` กันการเตือนซ้ำ |
 | `NoAckNotified` | Yes/No | ใช่ | ค่าเริ่มต้น `false` กันการเตือนซ้ำกรณีไม่กดรับทราบ |
+| `Source` | Choice: `App`, `LINE` | ใช่ | ช่องทางที่สร้าง Ticket |
+| `PermsSet` | Yes/No | ใช่ | Flow ตั้งเป็น `true` หลังตั้งสิทธิ์และแจ้งเตือนเสร็จ ใช้กันทำซ้ำ |
 
 ตั้ง **Require that items are checked out** = ปิด และเปิด **Item-level version history** (Versioning) เพื่อกู้ข้อมูลที่ถูกแก้ผิด
 อย่าใช้ Advanced settings → Item-level permissions แบบ **Only their own** เพราะกติกานั้นอิงจาก "ผู้สร้างรายการ" ซึ่งในระบบนี้คือ Flow/CEO ไม่ใช่ผู้รับผิดชอบ ให้คงค่าเริ่มต้นไว้ แล้วใช้สิทธิ์เฉพาะรายการที่ Flow ตั้งแทน

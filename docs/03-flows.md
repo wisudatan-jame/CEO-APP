@@ -47,6 +47,20 @@ Trigger: Power Apps (V2) — Inputs: `ticketId` (number), `action` (text), `expe
 
 ตั้ง **Concurrency control** ของ Flow นี้ไม่จำเป็น เพราะข้อ 3 ป้องกันการเขียนทับแล้ว แต่ ⚠️ ทดสอบกดพร้อมกันสองเครื่องตามแผนทดสอบ
 
+## Flow 2b: `OnTicketFromLine` (Ticket ที่บอท LINE สร้าง)
+Trigger: SharePoint **When an item is created** (List `Tickets`) ⚠️ ตัวกระตุ้นนี้ตรวจเป็นรอบ คาดว่าหน่วง 1–5 นาที (ยอมรับแล้วสำหรับช่วงทดลอง)
+Trigger condition: `@and(equals(triggerBody()?['Source']?['Value'], 'LINE'), equals(triggerBody()?['PermsSet'], false))`
+
+1. **Stop sharing an item** แล้ว **Grant access** ผู้รับผิดชอบแบบ Can view (เหมือน `CreateTicket` ข้อ 5–7)
+2. ตั้งสิทธิ์ของรายการ `TicketHistory` ที่ n8n สร้างไว้ (ค้นด้วย `TicketID`)
+3. แจ้งเตือนผู้รับผิดชอบ (ข้อความเดียวกับ `CreateTicket`)
+4. Update item: `PermsSet = true`
+5. Scope Catch: ส่งอีเมลหาผู้ดูแล **และ** ห้ามตั้ง `PermsSet = true` เพื่อให้แก้แล้วรันซ้ำได้
+
+`CreateTicket` (จาก Power Apps) ตั้ง `Source = App` และ `PermsSet = true` เองตอนจบ จึงไม่ซ้ำกับ Flow นี้
+
+**ตรวจรายวัน:** `DailyReminders` ต้องหารายการ `PermsSet eq 0` ที่สร้างนานกว่า 15 นาที แล้วส่งอีเมลหาผู้ดูแล (แปลว่า Flow 2b ไม่ทำงาน และพนักงานยังไม่เห็นงาน)
+
 ## Flow 3: `DailyReminders` (ตามเวลา)
 Trigger: Recurrence ทุกวัน 08:00 Time zone = **(UTC+07:00) Bangkok, Hanoi, Jakarta**
 

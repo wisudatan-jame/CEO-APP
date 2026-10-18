@@ -63,5 +63,5 @@ n8n เขียนได้ **เฉพาะ Site `CEO-Tickets`** ผ่าน
 5. ส่ง **Tenant ID** และ **Application (client) ID** ให้ผู้พัฒนา (สองค่านี้ไม่ใช่ความลับ)
 
 ### หน้าที่ที่แบ่งกัน
-- **n8n:** อ่าน `Employees` และ `Config`, สร้างรายการใน `Tickets` และ `TicketHistory` แล้วได้เลข Ticket ทันทีเพื่อตอบ CEO
-- **Power Automate:** ตั้งสิทธิ์รายรายการและแจ้งเตือนพนักงาน เพราะ Graph ตั้งสิทธิ์รายรายการของ List ไม่ได้โดยตรง ⚠️ ดูคำถามเรื่องความเร็วใน README
+- **n8n:** อ่าน `Employees` และ `Config`, สร้างรายการใน `Tickets` (`Source = LINE`, `PermsSet = false`, `Status = New`, `IsOpen = true`) และ `TicketHistory` แล้วได้เลข Ticket ทันทีเพื่อตอบ CEO
+- **Power Automate (`OnTicketFromLine` ใน [03-flows.md](03-flows.md)):** ตั้งสิทธิ์รายรายการและแจ้งเตือนพนักงาน เพราะ Graph ตั้งสิทธิ์รายรายการของ List ไม่ได้โดยตรง พนักงานได้แจ้งเตือนช้าลงประมาณ 1–5 นาที (ยอมรับแล้ว)
