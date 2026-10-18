@@ -468,6 +468,12 @@ async function onMessage(ctx, ev, cfg) {
     const t = String(m.text || '').trim();
     if (!t) return { skipped: 'empty' };
     if (t === 'สรุป') return replySummary(ctx, ev, cfg);
+    const pendingReply = currentReply(ctx);
+    if (t === 'ยกเลิก' && pendingReply) {
+      delete ctx.store.replyTo;
+      await lineReply(ctx, ev, textMsg(`ยกเลิกการตอบ T-${pendingReply.ticketId} แล้ว`));
+      return { replyCancelled: pendingReply.ticketId };
+    }
     if (t === 'ยกเลิก') {
       if (dr) delete drafts(ctx)[userId];
       await lineReply(ctx, ev, textMsg(dr ? `ยกเลิกแล้ว: "${truncate(dr.title, 60)}"` : 'ไม่มีงานที่กำลังสร้าง'));
@@ -477,6 +483,7 @@ async function onMessage(ctx, ev, cfg) {
       await lineReply(ctx, ev, textMsg(helpText()));
       return { help: true };
     }
+    if (pendingReply) return sendReply(ctx, ev, cfg, pendingReply, t);
     if (dr && dr.stage === 'search') return onSearch(ctx, ev, dr, t);
     if (dr && dr.stage === 'who' && nowMs - dr.lastTextAt < APPEND_WINDOW_MS) {
       dr.details.push(t);
@@ -603,6 +610,12 @@ async function onPostback(ctx, ev, cfg) {
   if (p.a === 'sum') return replySummary(ctx, ev, cfg);
   if (p.a === 'list') return replyList(ctx, ev, p.k, Number(p.p || 0));
   if (p.a === 'close' || p.a === 'reopen') return changeStatus(ctx, ev, cfg, p.a, Number(p.t), p.s);
+  if (p.a === 'replyto') return startReply(ctx, ev, Number(p.t));
+  if (p.a === 'replycancel') {
+    delete ctx.store.replyTo;
+    await lineReply(ctx, ev, textMsg(`ยกเลิกการตอบ T-${p.t} แล้ว`));
+    return { replyCancelled: Number(p.t) };
+  }
 
   const dr = currentDraft(ctx, userId);
   if (!dr || dr.id !== p.d) {
@@ -801,6 +814,114 @@ async function replyList(ctx, ev, kind, page) {
   return { list: kind, count: rows.length };
 }
 
+// ---------- CEO replies to staff from LINE ----------
+const REPLY_TTL_MS = 30 * 60 * 1000;
+
+function currentReply(ctx) {
+  const r = ctx.store.replyTo;
+  if (r && ctx.now().getTime() - r.at > REPLY_TTL_MS) {
+    delete ctx.store.replyTo;
+    return null;
+  }
+  return r || null;
+}
+
+async function startReply(ctx, ev, ticketId) {
+  const it = await getItem(ctx, 'Tickets', ticketId);
+  if (!it.fields.IsOpen) {
+    await lineReply(ctx, ev, textMsg(`T-${ticketId} ปิดไปแล้ว`));
+    return { replyTo: 'closed' };
+  }
+  const emp = (await getEmployees(ctx)).find((e) => e.email === lower(it.fields.AssigneeEmail));
+  ctx.store.replyTo = { ticketId, at: ctx.now().getTime() };
+  await lineReply(ctx, ev, textMsg(`💬 พิมพ์หรือพูดคำตอบถึง${personName(emp, it.fields.AssigneeEmail)} (T-${ticketId}) แล้วกดส่ง`, [
+    qrPostback('❌ ยกเลิก', { a: 'replycancel', t: ticketId }, 'ยกเลิก'),
+  ]));
+  return { replyTo: ticketId };
+}
+
+async function sendReply(ctx, ev, cfg, pending, text) {
+  delete ctx.store.replyTo;
+  const it = await getItem(ctx, 'Tickets', pending.ticketId);
+  const status = it.fields.Status;
+  if (!it.fields.IsOpen) {
+    await lineReply(ctx, ev, textMsg(`T-${pending.ticketId} ปิดไปแล้ว ไม่ได้ส่งคำตอบ`));
+    return { reply: 'closed' };
+  }
+  // Answering a question moves the task back to work; otherwise it is just a comment.
+  const isAnswer = status === 'WaitingCEO';
+  if (isAnswer) await updateFields(ctx, 'Tickets', pending.ticketId, { Status: 'InProgress' });
+  await createItem(ctx, 'TicketHistory', {
+    Title: `T-${pending.ticketId}`, TicketID: pending.ticketId, Action: isAnswer ? 'reply' : 'comment',
+    FromStatus: status, ToStatus: isAnswer ? 'InProgress' : status, Comment: text,
+    ActorEmail: lower(cfg.CEO_EMAIL), Source: 'LINE', Processed: false, CEOPending: false,
+  });
+  const emp = (await getEmployees(ctx)).find((e) => e.email === lower(it.fields.AssigneeEmail));
+  await lineReply(ctx, ev, textMsg(`✅ ส่งคำตอบให้${personName(emp, it.fields.AssigneeEmail)}แล้ว (T-${pending.ticketId})`));
+  return { reply: pending.ticketId, answered: isAnswer };
+}
+
+// ---------- Staff updates -> CEO (triggered by the SharePoint webhook on TicketHistory) ----------
+function checkSharePointCall(ctx, query, body) {
+  if (query && query.validationtoken) return { respond: String(query.validationtoken), process: false };
+  const expected = ctx.setting('SP_WEBHOOK_CLIENT_STATE');
+  const notes = (body && body.value) || [];
+  const valid = notes.length > 0 && notes.every((n) => n.clientState === expected);
+  return { respond: '', process: valid };
+}
+
+async function pendingStaffUpdates(ctx) {
+  const sid = await siteId(ctx);
+  try {
+    const out = [];
+    let url = `/sites/${sid}/lists/TicketHistory/items?expand=fields&$filter=fields/CEOPending eq 1&$top=200`;
+    while (url) {
+      const res = await graph(ctx, 'GET', url, undefined, { headers: { Prefer: 'HonorNonIndexedQueriesWarningMayFailRandomly' } });
+      for (const it of res.value || []) out.push({ id: Number(it.id), fields: it.fields || {} });
+      url = res['@odata.nextLink'] || null;
+    }
+    return out;
+  } catch (e) {
+    // Filter syntax not accepted: fall back to a full scan (slower, same result).
+    return (await listItems(ctx, 'TicketHistory')).filter((it) => it.fields.CEOPending === true);
+  }
+}
+
+function staffUpdateMessage(h, ticket, emp) {
+  const who = personName(emp, ticket.fields.AssigneeEmail);
+  const id = h.fields.TicketID;
+  const title = truncate(ticket.fields.Title, 80);
+  const note = h.fields.Comment ? `\n💬 ${truncate(h.fields.Comment, 1000)}` : '';
+  const replyBtn = qrPostback('💬 ตอบ', { a: 'replyto', t: id }, `ตอบ T-${id}`);
+  if (h.fields.Action === 'wait') {
+    return textMsg(`⏳ ${who} รอคำตอบจากคุณ\nT-${id} ${title}${note}`, [replyBtn]);
+  }
+  if (h.fields.Action === 'done') {
+    return textMsg(`✅ ${who} ทำเสร็จแล้ว รอคุณตรวจ\nT-${id} ${title}${note}`, [
+      qrPostback('✅ ปิดงาน', { a: 'close', t: id, s: 'Done' }, `ปิด T-${id}`),
+      qrPostback('↩️ ส่งกลับ', { a: 'reopen', t: id, s: 'Done' }, `ส่งกลับ T-${id}`),
+      replyBtn,
+    ]);
+  }
+  return textMsg(`💬 ${who} เรื่อง T-${id} ${title}${note}`, [replyBtn]);
+}
+
+async function notifyCeoOfStaffUpdates(ctx) {
+  const cfg = await getConfig(ctx);
+  if (!cfg.CEO_LINE_USER_ID) return { skipped: 'no-ceo-line-user-id' };
+  const pending = (await pendingStaffUpdates(ctx)).sort((a, b) => a.id - b.id);
+  const employees = await getEmployees(ctx);
+  let sent = 0;
+  for (const h of pending) {
+    const ticket = await getItem(ctx, 'Tickets', h.fields.TicketID);
+    const emp = employees.find((e) => e.email === lower(ticket.fields.AssigneeEmail));
+    await linePush(ctx, cfg.CEO_LINE_USER_ID, [staffUpdateMessage(h, ticket, emp)]);
+    await updateFields(ctx, 'TicketHistory', h.id, { CEOPending: false });
+    sent++;
+  }
+  return { sent };
+}
+
 async function dailySummary(ctx) {
   const cfg = await getConfig(ctx);
   if (!cfg.CEO_LINE_USER_ID) return { skipped: 'no-ceo-line-user-id' };
@@ -872,6 +993,6 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     sha256, hmacSha256, verifyLineSignature, bkkYmd, addDays, fridayOf, mondayOf, spDate, thaiDate,
     encodeData, decodeData, matchEmployees, computeStats, weeklyLines, chunkMessages, truncate,
-    handleWebhook, dailySummary, weeklySummary,
+    handleWebhook, dailySummary, weeklySummary, checkSharePointCall, notifyCeoOfStaffUpdates,
   };
 }

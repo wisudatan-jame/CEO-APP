@@ -16,6 +16,7 @@ const SETTINGS = {
   MS_CLIENT_SECRET: 'secret',
   SP_HOSTNAME: 'digitalfocusth.sharepoint.com',
   SP_SITE_PATH: '/sites/CEO-Tickets',
+  SP_WEBHOOK_CLIENT_STATE: 'sp-state-secret',
 };
 
 // ---------- fakes ----------
@@ -82,6 +83,13 @@ function fakeWorld(opts = {}) {
     const [, list, , id, fieldsPath] = m;
     if (opts.failCreate === list && o.method === 'POST') throw new Error(`create ${list} failed`);
     const rows = items[list];
+    const query = m[5] || '';
+    if (o.method === 'GET' && !id && query.includes('$filter=')) {
+      if (opts.filterFails) throw new Error('filter not supported');
+      assert.equal(o.headers.Prefer, 'HonorNonIndexedQueriesWarningMayFailRandomly');
+      assert.match(query, /fields\/CEOPending eq 1/);
+      return { value: rows.filter((r) => r.fields.CEOPending === true) };
+    }
     if (o.method === 'GET' && !id) return { value: rows };
     if (o.method === 'GET') return rows.find((r) => r.id === id);
     if (o.method === 'POST') {
@@ -414,5 +422,82 @@ test('built workflow code runs in a simulated n8n Code node', async () => {
   assert.equal(out[0].json.ok, true);
   assert.ok(staticData.drafts && Object.keys(staticData.drafts).length === 1);
   assert.match(lastReply(w).text, /งานจาก n8n/);
-  assert.deepEqual(Object.keys(wf.connections).sort(), ['Friday 17:00', 'LINE Webhook', 'Weekdays 07:00']);
+  assert.deepEqual(Object.keys(wf.connections).sort(), ['Check SharePoint call', 'Friday 17:00', 'LINE Webhook', 'Respond to SharePoint', 'SharePoint Webhook', 'Weekdays 07:00']);
+});
+
+// ---------- staff updates -> CEO, and CEO replies ----------
+function staffHistory(world, ticketId, action, comment, pending = true) {
+  const row = { id: String(900 + world.items.TicketHistory.length), createdDateTime: '2026-10-19T03:00:00Z',
+    fields: { Title: `T-${ticketId}`, TicketID: ticketId, Action: action, Comment: comment, Source: 'App', Processed: true, CEOPending: pending } };
+  world.items.TicketHistory.push(row);
+  return row;
+}
+
+test('SharePoint webhook: echoes validation token and checks clientState', () => {
+  const w = fakeWorld();
+  assert.deepEqual(lib.checkSharePointCall(w.ctx, { validationtoken: 'abc' }, {}), { respond: 'abc', process: false });
+  assert.equal(lib.checkSharePointCall(w.ctx, {}, { value: [{ clientState: 'sp-state-secret' }] }).process, true);
+  assert.equal(lib.checkSharePointCall(w.ctx, {}, { value: [{ clientState: 'forged' }] }).process, false);
+  assert.equal(lib.checkSharePointCall(w.ctx, {}, {}).process, false);
+});
+
+test('staff question and done are pushed to the CEO once, with action buttons', async () => {
+  const w = summaryWorld();
+  staffHistory(w, 3, 'wait', 'ลูกค้าขอส่วนลด 10% ได้ไหม');
+  staffHistory(w, 4, 'done', 'ส่งแล้ว');
+  staffHistory(w, 1, 'ack', null, false);
+  const r = await lib.notifyCeoOfStaffUpdates(w.ctx);
+  assert.equal(r.sent, 2);
+  const [q, d] = w.calls.pushes.map((p) => p.messages[0]);
+  assert.match(q.text, /⏳ คุณปิ รอคำตอบจากคุณ\nT-3 งาน 3\n💬 ลูกค้าขอส่วนลด 10% ได้ไหม/);
+  assert.deepEqual(quick(q).map((a) => a.label), ['💬 ตอบ']);
+  assert.match(d.text, /✅ คุณปิ ทำเสร็จแล้ว รอคุณตรวจ/);
+  assert.deepEqual(quick(d).map((a) => a.label), ['✅ ปิดงาน', '↩️ ส่งกลับ', '💬 ตอบ']);
+  assert.ok(w.items.TicketHistory.every((h) => h.fields.CEOPending !== true));
+  assert.equal((await lib.notifyCeoOfStaffUpdates(w.ctx)).sent, 0);
+});
+
+test('falls back to a full scan when the filter query is rejected', async () => {
+  const w = summaryWorld({ filterFails: true });
+  staffHistory(w, 3, 'comment', 'อัปเดตครับ');
+  assert.equal((await lib.notifyCeoOfStaffUpdates(w.ctx)).sent, 1);
+  assert.match(w.calls.pushes[0].messages[0].text, /💬 คุณปิ เรื่อง T-3/);
+});
+
+test('CEO answers a question from LINE: status back to InProgress, history for the flow', async () => {
+  const w = summaryWorld();
+  await send(w, postbackEv({ a: 'replyto', t: 3 }));
+  assert.match(lastReply(w).text, /คำตอบถึงคุณปิ \(T-3\)/);
+  await send(w, textEv('ให้ได้ไม่เกิน 5%'));
+  const t3 = w.items.Tickets.find((t) => t.id === '3').fields;
+  assert.equal(t3.Status, 'InProgress');
+  const h = w.items.TicketHistory[w.items.TicketHistory.length - 1].fields;
+  assert.deepEqual([h.Action, h.Comment, h.Source, h.Processed, h.FromStatus, h.ToStatus], ['reply', 'ให้ได้ไม่เกิน 5%', 'LINE', false, 'WaitingCEO', 'InProgress']);
+  assert.match(lastReply(w).text, /ส่งคำตอบให้คุณปิแล้ว/);
+  assert.equal(w.items.Tickets.length, 6); // the reply did not become a new task
+  await send(w, textEv('งานใหม่หลังตอบ'));
+  assert.match(lastReply(w).text, /สั่งใคร/);
+});
+
+test('reply on a task that is not waiting becomes a comment; cancel works', async () => {
+  const w = summaryWorld();
+  await send(w, postbackEv({ a: 'replyto', t: 1 }));
+  await send(w, textEv('เร่งหน่อยนะ'));
+  const h = w.items.TicketHistory[w.items.TicketHistory.length - 1].fields;
+  assert.equal(h.Action, 'comment');
+  assert.equal(w.items.Tickets.find((t) => t.id === '1').fields.Status, 'InProgress');
+  await send(w, postbackEv({ a: 'replyto', t: 2 }));
+  await send(w, textEv('ยกเลิก'));
+  assert.match(lastReply(w).text, /ยกเลิกการตอบ T-2/);
+  await send(w, postbackEv({ a: 'replyto', t: 6 }));
+  assert.match(lastReply(w).text, /ปิดไปแล้ว/);
+});
+
+test('built workflow wires the SharePoint webhook chain', () => {
+  const wf = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'ceo-line-bot.json'), 'utf8'));
+  assert.equal(wf.connections['SharePoint Webhook'].main[0][0].node, 'Check SharePoint call');
+  assert.equal(wf.connections['Check SharePoint call'].main[0][0].node, 'Respond to SharePoint');
+  assert.equal(wf.connections['Respond to SharePoint'].main[0][0].node, 'Notify CEO of staff updates');
+  const hook = wf.nodes.find((n) => n.name === 'SharePoint Webhook');
+  assert.equal(hook.parameters.responseMode, 'responseNode');
 });

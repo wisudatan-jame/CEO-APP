@@ -42,7 +42,10 @@ Trigger: Power Apps (V2) — Inputs: `ticketId` (number), `action` (text), `expe
 4. **ตรวจเส้นทางสถานะ** ตามตารางใน [01-data-model.md](01-data-model.md) ใช้ Switch ตาม `action` ถ้าไม่อยู่ในตาราง → `ok=false`
 5. Update item: `Status` ใหม่ และเวลาที่เกี่ยวข้อง (`AckedAt`, `DoneAt`, `ClosedAt`) ถ้าเป็น `close`/`cancel` ตั้ง `IsOpen=false`
 6. Create item `TicketHistory` (FromStatus, ToStatus, Comment, ActorEmail=`CallerEmail`) และตั้งสิทธิ์เหมือน Ticket
-7. แจ้งเตือนอีกฝ่าย: ผู้รับผิดชอบกด → แจ้ง CEO, CEO กด → แจ้งผู้รับผิดชอบ ข้อความสั้น เช่น `T-<ID>: รับทราบแล้ว`
+7. แจ้งเตือนอีกฝ่าย:
+   - **ผู้รับผิดชอบกด `wait` / `done` / `comment`:** ตั้ง `CEOPending = true` ในรายการประวัติ แล้วบอท LINE ส่งให้ CEO ทันทีผ่าน SharePoint webhook (มีปุ่มตอบ / ปิดงาน / ส่งกลับ) **ไม่ส่ง Teams ซ้ำ**
+   - **ผู้รับผิดชอบกด `ack` / `start`:** ไม่แจ้ง CEO (ดูในสรุปเช้า)
+   - **CEO กด (จากแอป):** แจ้งผู้รับผิดชอบทาง Teams ข้อความสั้น เช่น `T-<ID>: ปิดงานแล้ว`
 8. ตอบ `ok=true`
 
 ตั้ง **Concurrency control** ของ Flow นี้ไม่จำเป็น เพราะข้อ 3 ป้องกันการเขียนทับแล้ว แต่ ⚠️ ทดสอบกดพร้อมกันสองเครื่องตามแผนทดสอบ
@@ -78,6 +81,7 @@ Trigger: Recurrence ทุกวัน 08:00 Time zone = **(UTC+07:00) Bangkok, 
 3. Get items Filter Query: `Status eq 'New' and NoAckNotified eq 0 and Created lt '<ตอนนี้ลบ NOACK_HOURS ชั่วโมง>'`
 4. ต่อแต่ละใบ: เตือนผู้รับผิดชอบ และสรุปรายการให้ CEO **รวมเป็นข้อความเดียว** (ไม่ส่งทีละใบ) แล้วตั้ง `NoAckNotified = true`
 5. ถ้า CEO เลื่อนกำหนดส่งในอนาคต (`due_change`) ต้องรีเซ็ต `OverdueNotified = false`
+6. อ่าน `Config` → `SP_WEBHOOK_EXPIRES` ถ้าเหลือน้อยกว่า 14 วัน (หรือว่าง) ส่งอีเมลหา `OWNER_EMAIL` และ `BACKUP_EMAIL`: "ต่ออายุ SharePoint webhook (รัน setup/create-webhook.js)" ถ้าหมดอายุ CEO จะไม่ได้แจ้งเตือนใน LINE เมื่อพนักงานถามหรือทำเสร็จ
 
 ## Flow 4: `HealthCheck` (รายสัปดาห์)
 Trigger: Recurrence ทุกวันจันทร์ 08:30 (เวลาไทย)

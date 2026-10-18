@@ -65,6 +65,7 @@ Site: `CEO-Tickets` เป็น Communication site (ไม่ผูก Microsof
 | `ActorEmail` | Single line text | อีเมลที่ Flow ตรวจสอบเอง **ไม่รับค่าที่แอปส่งมาตรง ๆ** (จาก LINE = อีเมล CEO หลังตรวจ LINE user ID แล้ว) |
 | `Source` | Choice: `App`, `LINE` | ช่องทางของเหตุการณ์ |
 | `Processed` | Yes/No | เหตุการณ์จาก LINE รอ Flow `OnLineEvent` ตั้งสิทธิ์และแจ้งเตือน (`false`) / ทำแล้ว (`true`) |
+| `CEOPending` | Yes/No (Index) | `true` = พนักงานถาม CEO / ทำเสร็จ / เขียนความเห็น และบอทยังไม่ได้ส่งเข้า LINE ของ CEO (Flow `UpdateTicket` ตั้ง, บอทล้างหลังส่ง) |
 
 เฉพาะ Flow เท่านั้นที่เขียนได้ ผู้ใช้ทั่วไปไม่มีสิทธิ์เขียนหรือแก้ไข สิทธิ์รายการตั้งเหมือน Ticket ที่เกี่ยวข้อง
 
@@ -100,6 +101,7 @@ HR อัปเดตปีละครั้ง ใช้ข้ามวัน�
 | `NOACK_HOURS` | 24 | เตือนถ้าไม่รับทราบภายในกี่ชั่วโมง |
 | `CEO_LINE_USER_ID` | LINE user ID ของ CEO (`U...`) | บอทตอบเฉพาะคนนี้ เว้นว่างไว้ระหว่างตั้งค่า บอทจะบอก ID ของผู้ส่ง |
 | `QUICK_ASSIGNEES` | อีเมลคั่นด้วยจุลภาค | ปุ่มลัดช่วงแรกก่อนมีสถิติ (PM, การตลาด, Presales, Sales) |
+| `SP_WEBHOOK_EXPIRES` | `YYYY-MM-DD` | วันหมดอายุของ SharePoint webhook ที่แจ้ง n8n สคริปต์ `setup/create-webhook.js` เขียนให้ |
 
 เก็บค่าตั้งไว้ที่เดียว เปลี่ยนคนโดยไม่ต้องแก้แอปและ Flow Config อ่านได้เฉพาะ Owners และ Flow
 

@@ -31,6 +31,7 @@ const CEO_TICKETS_SCHEMA = [
       '<Field Type="Text" Name="ActorEmail" DisplayName="ActorEmail" />',
       choice('Source', ['App', 'LINE'], 'App', true),
       bool('Processed', true),
+      bool('CEOPending', false, true),
     ],
   },
   {
@@ -53,6 +54,7 @@ const CEO_TICKETS_SCHEMA = [
       ['NOACK_HOURS', '24'],
       ['CEO_LINE_USER_ID', ''],
       ['QUICK_ASSIGNEES', ''],
+      ['SP_WEBHOOK_EXPIRES', ''],
     ],
   },
   {

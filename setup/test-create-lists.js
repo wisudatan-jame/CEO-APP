@@ -47,11 +47,11 @@ function fakeSharePoint(existingLists) {
     assert.ok(sp.lists[list.title], list.title);
     for (const xml of list.fields) assert.ok(sp.lists[list.title].fields.has(xml.match(/ Name="([^"]+)"/)[1]));
   }
-  assert.deepEqual(sp.lists.Config.items, ['CEO_EMAIL', 'OWNER_EMAIL', 'BACKUP_EMAIL', 'NOACK_HOURS', 'CEO_LINE_USER_ID', 'QUICK_ASSIGNEES']);
+  assert.deepEqual(sp.lists.Config.items, ['CEO_EMAIL', 'OWNER_EMAIL', 'BACKUP_EMAIL', 'NOACK_HOURS', 'CEO_LINE_USER_ID', 'QUICK_ASSIGNEES', 'SP_WEBHOOK_EXPIRES']);
   assert.ok(logs.includes('มี Employees อยู่แล้ว'));
   // Fields the bot and flows rely on
   for (const f of ['AssigneeEmail', 'Status', 'IsOpen', 'Source', 'PermsSet', 'HasFiles', 'DueDate', 'ClosedAt']) assert.ok(sp.lists.Tickets.fields.has(f), f);
-  for (const f of ['TicketID', 'Processed', 'Source', 'ActorEmail']) assert.ok(sp.lists.TicketHistory.fields.has(f), f);
+  for (const f of ['TicketID', 'Processed', 'Source', 'ActorEmail', 'CEOPending']) assert.ok(sp.lists.TicketHistory.fields.has(f), f);
   // Second run creates nothing new
   const before = sp.calls.filter((c) => c.method === 'POST').length;
   await setupCeoTickets(sp.fetch, 'https://t.sharepoint.com/sites/CEO-Tickets', () => {});

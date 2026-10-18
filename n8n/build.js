@@ -58,6 +58,40 @@ const nodes = [
     typeVersion: 2,
     position: [260, 440],
   },
+  {
+    parameters: { httpMethod: 'POST', path: 'ceo-sp-hook', responseMode: 'responseNode', options: {} },
+    id: '5b0f2a1e-0c1d-4e57-9a2b-1f0e6c3d9a08',
+    name: 'SharePoint Webhook',
+    type: 'n8n-nodes-base.webhook',
+    typeVersion: 2,
+    position: [0, 660],
+    webhookId: 'b7c4e0d2-6f4a-4f1e-8d3c-2a9e5b7f1c09',
+  },
+  {
+    parameters: { jsCode: code('entry-sharepoint.js') },
+    id: '5b0f2a1e-0c1d-4e57-9a2b-1f0e6c3d9a10',
+    name: 'Check SharePoint call',
+    type: 'n8n-nodes-base.code',
+    typeVersion: 2,
+    position: [260, 660],
+  },
+  {
+    // SharePoint needs the validation token echoed as text within 5 seconds, and 200 for notifications.
+    parameters: { respondWith: 'text', responseBody: '={{ $json.respond }}', options: { responseCode: 200 } },
+    id: '5b0f2a1e-0c1d-4e57-9a2b-1f0e6c3d9a11',
+    name: 'Respond to SharePoint',
+    type: 'n8n-nodes-base.respondToWebhook',
+    typeVersion: 1.1,
+    position: [520, 660],
+  },
+  {
+    parameters: { jsCode: code('entry-notify.js') },
+    id: '5b0f2a1e-0c1d-4e57-9a2b-1f0e6c3d9a12',
+    name: 'Notify CEO of staff updates',
+    type: 'n8n-nodes-base.code',
+    typeVersion: 2,
+    position: [780, 660],
+  },
 ];
 
 const link = (to) => ({ main: [[{ node: to, type: 'main', index: 0 }]] });
@@ -68,6 +102,9 @@ const workflow = {
     'LINE Webhook': link('Handle LINE events'),
     'Weekdays 07:00': link('Daily summary'),
     'Friday 17:00': link('Weekly summary'),
+    'SharePoint Webhook': link('Check SharePoint call'),
+    'Check SharePoint call': link('Respond to SharePoint'),
+    'Respond to SharePoint': link('Notify CEO of staff updates'),
   },
   settings: { executionOrder: 'v1', timezone: 'Asia/Bangkok', saveDataErrorExecution: 'all', saveDataSuccessExecution: 'none' },
   pinData: {},

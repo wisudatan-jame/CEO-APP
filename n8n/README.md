@@ -6,6 +6,7 @@
 | **LINE Webhook** (`POST /webhook/ceo-line-bot`) | รับข้อความจาก CEO → ถามผู้รับผิดชอบ → ถามวันส่ง → สร้าง Ticket ใน SharePoint, คำสั่ง "สรุป", ปิดงาน/ส่งกลับจาก LINE |
 | **Weekdays 07:00** | สรุปเช้าส่งเข้า LINE ของ CEO (ข้ามวันหยุดใน List `Holidays`) |
 | **Friday 17:00** | สรุปรายคนประจำสัปดาห์ |
+| **SharePoint Webhook** (`POST /webhook/ceo-sp-hook`) | SharePoint เรียกเมื่อ `TicketHistory` เปลี่ยน → ส่งเรื่องที่พนักงานถาม/ทำเสร็จ/เขียนความเห็นเข้า LINE ของ CEO |
 
 การออกแบบบทสนทนาและความปลอดภัยอยู่ที่ [../docs/06-line-bot.md](../docs/06-line-bot.md)
 
@@ -29,6 +30,7 @@ Workflow อ่านค่าเหล่านี้จาก **n8n Variables*
 | `MS_CLIENT_SECRET` | Client secret (Global Admin กรอกเอง ห้ามส่งทางแชต) |
 | `SP_HOSTNAME` | `digitalfocusth.sharepoint.com` |
 | `SP_SITE_PATH` | `/sites/CEO-Tickets` |
+| `SP_WEBHOOK_CLIENT_STATE` | ข้อความสุ่มยาว 32 ตัวอักษรขึ้นไปที่คุณตั้งเอง ใช้ยืนยันว่าการเรียกมาจาก SharePoint จริง (ใช้ค่าเดียวกันตอนรัน `setup/create-webhook.js`) |
 
 - **บนโน้ตบุ๊ก (Docker):** ใส่ในไฟล์ `.env` ของ n8n แล้วตั้ง `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` เพื่อให้ Code node อ่าน `$env` ได้ ห้าม Commit ไฟล์ `.env`
 - **n8n Cloud:** ใช้เมนู **Variables** ⚠️ ตรวจว่าแพ็กเกจที่ซื้อมีฟีเจอร์ Variables ถ้าไม่มี ต้องหาวิธีอื่นก่อนย้ายขึ้น Cloud (ห้ามพิมพ์ค่าลับลงในโค้ดของ Workflow เพราะจะติดไปกับไฟล์ Export)
@@ -43,6 +45,14 @@ Workflow อ่านค่าเหล่านี้จาก **n8n Variables*
 6. **Activate** Workflow (งานร่างและการกันข้อความซ้ำทำงานเฉพาะเมื่อ Workflow เปิดใช้งาน ไม่ใช่ตอนกด Test)
 7. LINE Developers → Messaging API → Webhook URL = `<URL ของ Tunnel>/webhook/ceo-line-bot` → **Verify** → เปิด **Use webhook**
 8. LINE Official Account Manager → ปิด Auto-reply และ Greeting message และตั้งค่าบัญชีไม่ให้ค้นหาเจอ
+
+## SharePoint webhook (ให้ CEO ได้แจ้งเตือนเมื่อพนักงานอัปเดต)
+ทำหลังจาก Workflow เปิดใช้งาน (Active) แล้ว เพราะ SharePoint จะเรียก URL ยืนยันทันทีตอนสร้าง
+1. เปิด Site `CEO-Tickets` ด้วยบัญชี Owner → F12 → Console
+2. วางเนื้อหาไฟล์ [`../setup/create-webhook.js`](../setup/create-webhook.js) → Enter
+3. ใส่ URL `<URL ของ n8n>/webhook/ceo-sp-hook` และค่า `SP_WEBHOOK_CLIENT_STATE`
+4. ต้องเห็น `สร้าง webhook ... หมดอายุ ...` และ `เสร็จแล้ว` ถ้าเห็น Error ว่ายืนยัน URL ไม่ผ่าน ให้ตรวจว่า Workflow Active และ URL ถูกต้อง
+5. **รันซ้ำทุก 5 เดือน** หรือเมื่อเปลี่ยน URL ของ n8n (เช่น ตอนย้ายจากโน้ตบุ๊กไป n8n Cloud) สคริปต์ลบของเดิมแล้วสร้างใหม่ให้
 
 ## หา LINE user ID ของ CEO
 1. เว้น `CEO_LINE_USER_ID` ใน List `Config` ว่างไว้
@@ -62,6 +72,8 @@ Workflow อ่านค่าเหล่านี้จาก **n8n Variables*
 | 7 | ตั้งงานหนึ่งเป็น `Done` แล้วกด [✅ รอปิด] → [✅ ปิด T-x] | งานเป็น `Closed` และพนักงานได้แจ้งเตือน (ทดสอบข้อ 11 ของต้นแบบไปด้วย) |
 | 8 | กดคำสั่ง **Execute step** ที่ node `Daily summary` | CEO ได้สรุปใน LINE |
 | 9 | ปิด n8n แล้วส่งข้อความ | ไม่มีคำตอบภายใน 10 วินาที (CEO ต้องรู้ว่าให้สั่งผ่าน Power Apps แทน) |
+| 10 | พนักงานทดสอบกด "ถาม CEO" พร้อมคำถามในแอป | CEO ได้ข้อความ ⏳ ใน LINE ภายในไม่กี่วินาที แตะ [💬 ตอบ] → ส่งคำตอบ → งานกลับเป็น "กำลังทำ" และพนักงานได้ Teams |
+| 11 | พนักงานกด "ทำเสร็จแล้ว" | CEO ได้ข้อความ ✅ พร้อมปุ่มปิดงาน/ส่งกลับ |
 
 ## แก้ไขโค้ด
 แก้ที่ `src/` แล้วรัน
@@ -76,6 +88,7 @@ node --test n8n/test/*.test.js    # ทดสอบ
 | `src/lib.js` | Logic ทั้งหมด: ตรวจลายเซ็น, บทสนทนา, Graph, LINE, สรุป |
 | `src/glue.js` | อ่านค่าลับและสร้าง Context ใน Code node |
 | `src/entry-*.js` | จุดเริ่มของแต่ละ Code node |
+| `../setup/create-webhook.js` | สคริปต์สร้าง/ต่ออายุ SharePoint webhook (รันใน Console ของเบราว์เซอร์) |
 | `build.js` | ประกอบไฟล์ Workflow |
 | `test/bot.test.js` | ทดสอบด้วย Mock |
 

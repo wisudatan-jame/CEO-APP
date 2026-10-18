@@ -83,13 +83,14 @@ Control → **Condition**
   - **Assignee Claims** (Expression): `body('Get_ticket')?['AssigneeEmail']`
   - **PermsSet:** `Yes`
 
-#### ฝั่ง False (CEO ปิดงานหรือส่งกลับจาก LINE)
+#### ฝั่ง False (CEO ปิดงาน ส่งกลับ ตอบคำถาม หรือเขียนความเห็นจาก LINE)
 **Post message in a chat or channel** (Microsoft Teams) ชื่อ `Notify status change`
 - Post as: Flow bot · Post in: Chat with Flow bot · Recipient: `body('Get_ticket')?['AssigneeEmail']`
 - Message (Expression):
   ```
-  if(equals(triggerBody()?['Action']?['Value'], 'close'), concat('✅ T-', triggerBody()?['TicketID'], ': CEO ปิดงานแล้ว'), concat('↩️ T-', triggerBody()?['TicketID'], ': CEO ส่งกลับให้ทำต่อ'))
+  concat('🔔 T-', triggerBody()?['TicketID'], ': ', json('{"close":"CEO ปิดงานแล้ว","reopen":"CEO ส่งกลับให้ทำต่อ","reply":"CEO ตอบคำถามแล้ว เปิดดูในแอป","comment":"CEO มีความเห็น เปิดดูในแอป"}')?[triggerBody()?['Action']?['Value']])
   ```
+  ไม่ใส่ข้อความที่ CEO ตอบในแจ้งเตือน (แสดงบนหน้าจอล็อก) ให้พนักงานเปิดอ่านในแอป
 
 ### 3.3 Stop sharing รายการประวัติ (ใต้ Condition ยังอยู่ใน Try)
 **Stop sharing an item or a file** · Library Name: `TicketHistory` · Id (Expression): `triggerBody()?['ID']`

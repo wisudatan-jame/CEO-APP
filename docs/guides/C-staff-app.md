@@ -108,14 +108,17 @@ or(not(equals(outputs('Current'), outputs('In_expected'))), empty(outputs('NewSt
 - Title `concat('T-', outputs('In_ticketId'))` · TicketID `outputs('In_ticketId')` · Action Value `outputs('In_action')`
 - FromStatus `outputs('Current')` · ToStatus `outputs('NewStatus')` · Comment `outputs('In_comment')`
 - ActorEmail `variables('CallerEmail')` · Source Value `App` · **Processed `Yes`**
+- **CEOPending** (Expression): `and(equals(outputs('Role'), 'A'), contains(createArray('wait', 'done', 'comment'), outputs('In_action')))`
+  (พนักงานถาม / ทำเสร็จ / เขียนความเห็น → บอทส่งเข้า LINE ของ CEO ทันที)
 
 **j) Stop sharing an item or a file** · Library `TicketHistory` · Id `body('Create_history')?['ID']`
 
 **k) Grant access to an item or a folder** · List `TicketHistory` · Id `body('Create_history')?['ID']` · Recipients `body('Get_ticket')?['AssigneeEmail']` · Roles Can view · Notify recipients No
 
-**l) Post message in a chat or channel** (Teams) · Post as Flow bot · Chat with Flow bot
-- Recipient (Expression) แจ้งอีกฝ่ายเสมอ:
-  `if(equals(outputs('Role'), 'A'), first(body('Get_ceo')?['value'])?['Value'], body('Get_ticket')?['AssigneeEmail'])`
+**l) Condition** ชื่อ `CEO acted` · ช่องซ้าย `outputs('Role')` · is equal to · `C`
+ฝั่ง True ใส่ **Post message in a chat or channel** (Teams) · Post as Flow bot · Chat with Flow bot · ฝั่ง False ว่าง
+(เมื่อพนักงานกด CEO ไม่ได้รับ Teams: เรื่องที่ต้องตอบหรือปิดงานไปทาง LINE ผ่าน `CEOPending` ส่วนรับทราบ/กำลังทำ ดูในสรุปเช้า)
+- Recipient (Expression): `body('Get_ticket')?['AssigneeEmail']`
 - Message (Expression):
   ```
   concat('🔔 T-', outputs('In_ticketId'), ': ', if(equals(outputs('In_action'), 'comment'), 'มีความเห็นใหม่', json('{"Acknowledged":"รับทราบแล้ว","InProgress":"กำลังทำ","WaitingCEO":"รอคุณ CEO ตอบ","Done":"ทำเสร็จแล้ว รอตรวจ","Closed":"ปิดงานแล้ว"}')?[outputs('NewStatus')]))
