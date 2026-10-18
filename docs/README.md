@@ -19,6 +19,7 @@
 | [guides/A-flow-onlineevent.md](guides/A-flow-onlineevent.md) | คู่มือ ก: สร้าง Flow `OnLineEvent` ทีละคลิก |
 | [guides/B-setup-lists.md](guides/B-setup-lists.md) | คู่มือ ข: สร้าง List ด้วยสคริปต์ และนำเข้ารายชื่อพนักงาน/วันหยุด |
 | [guides/C-staff-app.md](guides/C-staff-app.md) | คู่มือ ค: Flow `UpdateTicket` และแอป Power Apps สำหรับพนักงาน |
+| [guides/D-line-oa.md](guides/D-line-oa.md) | คู่มือ ง: ตั้งค่า LINE Official Account "DF สั่งงาน" |
 
 ## ข้อตัดสินใจที่ตกลงกันแล้ว
 1. **ผู้ใช้หลัก:** CEO (คุณสมชาย ประจักษ์สูตร์) สั่งงานและติดตามงาน พนักงานราว 80 คนรับงานและอัปเดต
