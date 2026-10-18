@@ -31,6 +31,8 @@ SortByColumns(
 - ตัวกรองย่อยตามสถานะ: `Filter(Tickets, IsOpen = true, Status.Value = drpStatus.Selected.Value)`
 - CEO กรองตามพนักงาน: `Filter(Tickets, IsOpen = true, Assignee.Email = drpPerson.Selected.Mail)` ⚠️ ตรวจคำเตือน Delegation
 - ป้ายเกินกำหนด: `If(ThisItem.DueDate < Today(), "เกินกำหนด", "")`
+- ชื่อผู้รับผิดชอบ: `Coalesce(ThisItem.Assignee.DisplayName, ThisItem.AssigneeEmail)` (งานจาก LINE จะมีแค่อีเมลจนกว่า Flow `OnLineEvent` ทำงานเสร็จ)
+- กรองตามพนักงานให้ใช้ `AssigneeEmail = Lower(drpPerson.Selected.Mail)` ซึ่ง Delegable แน่นอนกว่าคอลัมน์ Person
 
 ## ฟอร์มสร้างงาน (`scrNew`) — เป้าหมาย: เร็วพอ ๆ กับพิมพ์ LINE
 

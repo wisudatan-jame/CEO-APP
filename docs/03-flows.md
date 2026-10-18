@@ -18,7 +18,7 @@ Trigger: Power Apps (V2) — Inputs: `title` (text), `assigneeEmail` (text), `du
 1. Get `Config` → `CEO_EMAIL`
 2. **ตรวจ:** `CallerEmail` = `CEO_EMAIL` ถ้าไม่ใช่ → ตอบ `ok=false`, `message="ไม่มีสิทธิ์สั่งงาน"` แล้วจบ
 3. **ตรวจข้อมูล:** `title` ไม่ว่าง และยาวไม่เกิน 255, `priority` อยู่ใน Low/Normal/High, `dueDate` แปลงเป็นวันที่ได้และไม่ใช่อดีต, `assigneeEmail` มีอยู่จริง (Office 365 Users `Get user profile`) ถ้าไม่ผ่าน → ตอบ `ok=false` พร้อมเหตุผล
-4. Create item ใน `Tickets` (Status=`New`, IsOpen=`true`, OverdueNotified=`false`, NoAckNotified=`false`)
+4. Create item ใน `Tickets` (Status=`New`, IsOpen=`true`, OverdueNotified=`false`, NoAckNotified=`false`, Source=`App`, AssigneeEmail=`assigneeEmail` ตัวพิมพ์เล็ก, Assignee=`assigneeEmail`) และตั้ง PermsSet=`true` หลังข้อ 7
 5. **Stop sharing an item or a file** (Tickets, ID จากข้อ 4)
 6. **Grant access to an item or a folder** → ผู้รับผิดชอบ, Role = **Can view**
 7. **Grant access to an item or a folder** → CEO, Role = Can view (ถ้า CEO เป็น Site Owner อยู่แล้ว ข้ามได้)
@@ -35,7 +35,7 @@ Trigger: Power Apps (V2) — Inputs: `ticketId` (number), `action` (text), `expe
 
 1. Get item `Tickets` ตาม `ticketId` (ถ้าไม่พบ → `ok=false`)
 2. **ตรวจผู้กด:**
-   - Action ของผู้รับผิดชอบ (`ack`, `start`, `wait`, `done`): `CallerEmail` ต้องเท่ากับ `Assignee.Email` (ตัวพิมพ์เล็ก)
+   - Action ของผู้รับผิดชอบ (`ack`, `start`, `wait`, `done`): `CallerEmail` ต้องเท่ากับ `AssigneeEmail` (ตัวพิมพ์เล็ก)
    - Action ของ CEO (`reply`, `close`, `reopen`, `cancel`): `CallerEmail` ต้องเท่ากับ `CEO_EMAIL`
    - `comment`: เป็นได้ทั้งสองฝ่าย
 3. **ตรวจความขัดแย้ง:** ถ้า `Status` ปัจจุบัน ≠ `expectedStatus` → `ok=false`, `message="STALE"` (มีคนเปลี่ยนไปก่อนแล้ว หรือกดซ้ำ)
@@ -47,19 +47,27 @@ Trigger: Power Apps (V2) — Inputs: `ticketId` (number), `action` (text), `expe
 
 ตั้ง **Concurrency control** ของ Flow นี้ไม่จำเป็น เพราะข้อ 3 ป้องกันการเขียนทับแล้ว แต่ ⚠️ ทดสอบกดพร้อมกันสองเครื่องตามแผนทดสอบ
 
-## Flow 2b: `OnTicketFromLine` (Ticket ที่บอท LINE สร้าง)
-Trigger: SharePoint **When an item is created** (List `Tickets`) ⚠️ ตัวกระตุ้นนี้ตรวจเป็นรอบ คาดว่าหน่วง 1–5 นาที (ยอมรับแล้วสำหรับช่วงทดลอง)
-Trigger condition: `@and(equals(triggerBody()?['Source']?['Value'], 'LINE'), equals(triggerBody()?['PermsSet'], false))`
+## Flow 2b: `OnLineEvent` (เหตุการณ์ที่บอท LINE เขียนไว้)
+บอท (n8n) สร้าง Ticket ด้วย Graph ได้ แต่ตั้งสิทธิ์รายรายการและตั้งคอลัมน์ Person ไม่ได้ บอทจึงเขียน `TicketHistory` (`Source = LINE`, `Processed = false`) ทุกครั้ง แล้ว Flow นี้ทำส่วนที่เหลือ
 
-1. **Stop sharing an item** แล้ว **Grant access** ผู้รับผิดชอบแบบ Can view (เหมือน `CreateTicket` ข้อ 5–7)
-2. ตั้งสิทธิ์ของรายการ `TicketHistory` ที่ n8n สร้างไว้ (ค้นด้วย `TicketID`)
-3. แจ้งเตือนผู้รับผิดชอบ (ข้อความเดียวกับ `CreateTicket`)
-4. Update item: `PermsSet = true`
-5. Scope Catch: ส่งอีเมลหาผู้ดูแล **และ** ห้ามตั้ง `PermsSet = true` เพื่อให้แก้แล้วรันซ้ำได้
+Trigger: SharePoint **When an item is created** (List `TicketHistory`) ⚠️ ตัวกระตุ้นนี้ตรวจเป็นรอบ คาดว่าหน่วง 1–5 นาที (ยอมรับแล้วสำหรับช่วงทดลอง)
+Trigger condition: `@and(equals(triggerBody()?['Source']?['Value'], 'LINE'), equals(triggerBody()?['Processed'], false))`
 
-`CreateTicket` (จาก Power Apps) ตั้ง `Source = App` และ `PermsSet = true` เองตอนจบ จึงไม่ซ้ำกับ Flow นี้
+1. Get item `Tickets` ตาม `TicketID`
+2. ถ้า `Action = create`:
+   - Update item `Tickets`: `Assignee` = `AssigneeEmail` (Claims ของคอลัมน์ Person รับอีเมลได้)
+   - **Stop sharing an item** แล้ว **Grant access** ผู้รับผิดชอบแบบ Can view (เหมือน `CreateTicket` ข้อ 5–7)
+   - ถ้า `HasFiles = true`: Stop sharing + Grant access โฟลเดอร์ `TicketFiles/T-<ID>` แบบเดียวกัน
+   - แจ้งเตือนผู้รับผิดชอบ (ข้อความเดียวกับ `CreateTicket`)
+   - Update item `Tickets`: `PermsSet = true`
+3. ถ้า `Action = close` หรือ `reopen` (CEO กดจากสรุปใน LINE): แจ้งเตือนผู้รับผิดชอบ เช่น `T-<ID>: CEO ปิดงานแล้ว` / `T-<ID>: CEO ส่งกลับให้ทำต่อ`
+4. Stop sharing + Grant access รายการ `TicketHistory` นี้ให้ผู้รับผิดชอบ
+5. Update item `TicketHistory`: `Processed = true`
+6. Scope Catch: ส่งอีเมลหาผู้ดูแล **และห้ามตั้ง `Processed = true`** เพื่อให้แก้แล้วรันซ้ำได้
 
-**ตรวจรายวัน:** `DailyReminders` ต้องหารายการ `PermsSet eq 0` ที่สร้างนานกว่า 15 นาที แล้วส่งอีเมลหาผู้ดูแล (แปลว่า Flow 2b ไม่ทำงาน และพนักงานยังไม่เห็นงาน)
+`CreateTicket` (จาก Power Apps) ตั้ง `Source = App`, `AssigneeEmail` และ `PermsSet = true` เองตอนจบ จึงไม่ซ้ำกับ Flow นี้
+
+**ตรวจรายวัน:** `DailyReminders` ต้องหารายการ `TicketHistory` ที่ `Processed eq 0` และสร้างนานกว่า 15 นาที แล้วส่งอีเมลหาผู้ดูแล (แปลว่า Flow 2b ไม่ทำงาน และพนักงานยังไม่เห็นงาน)
 
 ## Flow 3: `DailyReminders` (ตามเวลา)
 Trigger: Recurrence ทุกวัน 08:00 Time zone = **(UTC+07:00) Bangkok, Hanoi, Jakarta**

@@ -1,0 +1,418 @@
+// Run: node --test n8n/test
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const lib = require('../src/lib.js');
+
+const SECRET = 'line-channel-secret';
+const CEO = 'Uceo000000000000000000000000000001';
+const SETTINGS = {
+  LINE_CHANNEL_SECRET: SECRET,
+  LINE_CHANNEL_ACCESS_TOKEN: 'line-token',
+  MS_TENANT_ID: 'tenant',
+  MS_CLIENT_ID: 'client',
+  MS_CLIENT_SECRET: 'secret',
+  SP_HOSTNAME: 'digitalfocusth.sharepoint.com',
+  SP_SITE_PATH: '/sites/CEO-Tickets',
+};
+
+// ---------- fakes ----------
+function fakeWorld(opts = {}) {
+  const lists = {
+    Config: [
+      { Title: 'CEO_EMAIL', Value: 'Ceo@DigitalFocus.co.th' },
+      { Title: 'CEO_LINE_USER_ID', Value: opts.ceoId === undefined ? CEO : opts.ceoId },
+      { Title: 'NOACK_HOURS', Value: '24' },
+      { Title: 'QUICK_ASSIGNEES', Value: 'pm@df.co.th,mkt@df.co.th' },
+    ],
+    Employees: [
+      { Title: 'อนันต์ ใจดี', FirstName: 'อนันต์', LastName: 'ใจดี', Nickname: 'เอ', Aliases: 'พี่เอ,เอ Sales', Email: 'A@df.co.th', Department: 'Sales', Active: true },
+      { Title: 'เอกชัย มั่นคง', FirstName: 'เอกชัย', LastName: 'มั่นคง', Nickname: 'เอก', Email: 'ek@df.co.th', Department: 'Presales', Active: true },
+      { Title: 'ปิยะ พีเอ็ม', FirstName: 'ปิยะ', Nickname: 'ปิ', Email: 'pm@df.co.th', Department: 'PM', Active: true },
+      { Title: 'มาลี การตลาด', FirstName: 'มาลี', Nickname: 'มะลิ', Email: 'mkt@df.co.th', Department: 'Marketing', Active: true },
+      { Title: 'อดีต พนักงาน', FirstName: 'อดีต', Nickname: 'เอ', Email: 'left@df.co.th', Department: 'Sales', Active: false },
+    ],
+    Holidays: (opts.holidays || []).map((d) => ({ Title: 'หยุด', Date: d })),
+    Tickets: [],
+    TicketHistory: [],
+  };
+  const items = {};
+  let nextId = 100;
+  for (const [name, rows] of Object.entries(lists)) {
+    items[name] = rows.map((fields) => ({ id: String(nextId++), createdDateTime: '2026-10-01T00:00:00Z', fields }));
+  }
+  if (opts.tickets) items.Tickets = opts.tickets;
+  const calls = { replies: [], pushes: [], uploads: [], tokenRequests: 0 };
+  const now = { value: opts.now || new Date('2026-10-19T03:00:00Z') }; // Mon 10:00 Bangkok
+
+  async function http(o) {
+    const url = o.url;
+    if (url.includes('login.microsoftonline.com')) {
+      calls.tokenRequests++;
+      assert.match(o.body, /grant_type=client_credentials/);
+      return JSON.stringify({ access_token: 'graph-token', expires_in: 3600 });
+    }
+    if (url.startsWith('https://api.line.me/v2/bot/message/reply')) {
+      if (opts.replyFails) throw new Error('Invalid reply token');
+      calls.replies.push(o.body);
+      return {};
+    }
+    if (url.startsWith('https://api.line.me/v2/bot/message/push')) {
+      calls.pushes.push(o.body);
+      return {};
+    }
+    if (url.startsWith('https://api-data.line.me/')) {
+      if (opts.contentFails) throw new Error('gone');
+      return new Uint8Array([1, 2, 3]).buffer;
+    }
+    assert.equal(o.headers.Authorization, 'Bearer graph-token');
+    const g = url.replace('https://graph.microsoft.com/v1.0', '');
+    if (g === '/sites/digitalfocusth.sharepoint.com:/sites/CEO-Tickets') return { id: 'site1' };
+    if (g === '/sites/site1/lists/TicketFiles/drive') return { id: 'drive1' };
+    let m = g.match(/^\/drives\/drive1\/root:\/(.+):\/content$/);
+    if (m) {
+      assert.equal(o.json, false);
+      calls.uploads.push({ path: m[1], type: o.headers['Content-Type'], size: o.body.length });
+      return { id: 'file' };
+    }
+    m = g.match(/^\/sites\/site1\/lists\/(\w+)\/items(\/(\d+))?(\/fields)?(\?.*)?$/);
+    if (!m) throw new Error(`unexpected url ${url}`);
+    const [, list, , id, fieldsPath] = m;
+    if (opts.failCreate === list && o.method === 'POST') throw new Error(`create ${list} failed`);
+    const rows = items[list];
+    if (o.method === 'GET' && !id) return { value: rows };
+    if (o.method === 'GET') return rows.find((r) => r.id === id);
+    if (o.method === 'POST') {
+      const row = { id: String(nextId++), createdDateTime: now.value.toISOString(), fields: Object.assign({}, o.body.fields) };
+      rows.push(row);
+      return row;
+    }
+    if (o.method === 'PATCH' && fieldsPath) {
+      const row = rows.find((r) => r.id === id);
+      Object.assign(row.fields, o.body);
+      return row.fields;
+    }
+    throw new Error(`unhandled ${o.method} ${url}`);
+  }
+
+  const ctx = { http, setting: (k) => SETTINGS[k], store: {}, now: () => now.value };
+  return { ctx, items, calls, now };
+}
+
+let eventSeq = 0;
+function signed(events) {
+  const raw = Buffer.from(JSON.stringify({ destination: 'Ubot', events }), 'utf8');
+  const sig = crypto.createHmac('sha256', SECRET).update(raw).digest('base64');
+  return { raw, headers: { 'x-line-signature': sig } };
+}
+function ev(type, extra, userId = CEO) {
+  eventSeq++;
+  return Object.assign({ type, webhookEventId: `E${eventSeq}`, replyToken: `R${eventSeq}`, source: { type: 'user', userId }, timestamp: 0 }, extra);
+}
+const textEv = (text, userId) => ev('message', { message: { type: 'text', id: `m${eventSeq}`, text } }, userId);
+const postbackEv = (data, params) => ev('postback', { postback: Object.assign({ data: lib.encodeData(data) }, params ? { params } : {}) });
+async function send(world, ...events) {
+  const { raw, headers } = signed(events);
+  return lib.handleWebhook(world.ctx, raw, headers);
+}
+const lastReply = (w) => w.calls.replies[w.calls.replies.length - 1].messages[0];
+const quick = (msg) => msg.quickReply.items.map((i) => i.action);
+const actionData = (a) => lib.decodeData(a.data);
+
+// ---------- crypto & dates ----------
+test('sha256 and HMAC match node crypto', () => {
+  for (const s of ['', 'abc', 'ภาษาไทย'.repeat(50), 'x'.repeat(1000)]) {
+    const b = Buffer.from(s);
+    assert.equal(Buffer.from(lib.sha256(new Uint8Array(b))).toString('hex'), crypto.createHash('sha256').update(b).digest('hex'));
+  }
+  const longKey = Buffer.from('k'.repeat(100));
+  const msg = Buffer.from('hello');
+  assert.equal(Buffer.from(lib.hmacSha256(new Uint8Array(longKey), new Uint8Array(msg))).toString('hex'), crypto.createHmac('sha256', longKey).update(msg).digest('hex'));
+});
+
+test('date helpers use Bangkok dates', () => {
+  assert.equal(lib.bkkYmd(new Date('2026-10-18T17:30:00Z')), '2026-10-19'); // 00:30 Bangkok
+  assert.equal(lib.spDate('2026-10-18T17:00:00Z'), '2026-10-19');
+  assert.equal(lib.spDate('2026-10-19T00:00:00Z'), '2026-10-19');
+  assert.equal(lib.spDate('2026-10-19'), '2026-10-19');
+  assert.equal(lib.fridayOf('2026-10-19'), '2026-10-23'); // Mon
+  assert.equal(lib.fridayOf('2026-10-23'), '2026-10-23'); // Fri
+  assert.equal(lib.fridayOf('2026-10-24'), '2026-10-30'); // Sat
+  assert.equal(lib.fridayOf('2026-10-25'), '2026-10-30'); // Sun
+  assert.equal(lib.mondayOf('2026-10-25'), '2026-10-19');
+  assert.equal(lib.thaiDate('2026-10-19'), 'จันทร์ 19 ต.ค.');
+});
+
+// ---------- security ----------
+test('rejects bad signature without calling anything', async () => {
+  const w = fakeWorld();
+  const { raw } = signed([textEv('x')]);
+  const r = await lib.handleWebhook(w.ctx, raw, { 'x-line-signature': 'forged' });
+  assert.deepEqual(r, { ok: false, reason: 'bad-signature' });
+  assert.equal(w.calls.tokenRequests, 0);
+  const r2 = await lib.handleWebhook(w.ctx, null, {});
+  assert.equal(r2.ok, false);
+});
+
+test('setup mode tells the sender their LINE user ID', async () => {
+  const w = fakeWorld({ ceoId: '' });
+  const r = await send(w, textEv('hello', 'Usomeone'));
+  assert.equal(r.results[0].setup, true);
+  assert.match(lastReply(w).text, /Usomeone/);
+});
+
+test('ignores anyone who is not the CEO', async () => {
+  const w = fakeWorld();
+  const r = await send(w, textEv('สั่งงานปลอม', 'Ustranger'));
+  assert.equal(r.results[0].ignored, 'not-ceo');
+  assert.equal(w.calls.replies.length, 0);
+  assert.equal(w.items.Tickets.length, 0);
+});
+
+test('duplicate webhook event is processed once', async () => {
+  const w = fakeWorld();
+  const e = textEv('งาน A');
+  await send(w, e);
+  const r = await send(w, e);
+  assert.equal(r.results[0].skipped, 'duplicate');
+  assert.equal(w.calls.replies.length, 1);
+});
+
+// ---------- happy path ----------
+test('text -> who -> when -> ticket created with history', async () => {
+  const w = fakeWorld();
+  await send(w, textEv('ส่งใบเสนอราคา Hikvision ให้ลูกค้า'));
+  let msg = lastReply(w);
+  assert.match(msg.text, /สั่งใคร/);
+  const people = quick(msg);
+  assert.equal(people[0].label, 'ปิ (PM)'); // from QUICK_ASSIGNEES fallback
+  assert.ok(people.some((a) => a.label === '🔍 คนอื่น'));
+  const draftId = actionData(people[0]).d;
+
+  await send(w, postbackEv({ a: 'who', d: draftId, e: 'pm@df.co.th' }));
+  msg = lastReply(w);
+  assert.match(msg.text, /คุณปิ/);
+  const when = quick(msg);
+  assert.deepEqual(when.map((a) => a.label), ['วันนี้', 'พรุ่งนี้', 'ศุกร์นี้', '📅 เลือกวัน', '❌ ยกเลิก']);
+  assert.equal(actionData(when[1]).v, '2026-10-20');
+  assert.equal(when[3].type, 'datetimepicker');
+  assert.equal(when[3].min, '2026-10-19');
+
+  const r = await send(w, postbackEv({ a: 'when', d: draftId, v: '2026-10-20' }));
+  const ticketId = r.results[0].created;
+  const t = w.items.Tickets.find((x) => Number(x.id) === ticketId).fields;
+  assert.equal(t.Title, 'ส่งใบเสนอราคา Hikvision ให้ลูกค้า');
+  assert.equal(t.AssigneeEmail, 'pm@df.co.th');
+  assert.equal(t.DueDate, '2026-10-20T00:00:00Z');
+  assert.equal(t.Status, 'New');
+  assert.equal(t.IsOpen, true);
+  assert.equal(t.Source, 'LINE');
+  assert.equal(t.PermsSet, false);
+  const h = w.items.TicketHistory[0].fields;
+  assert.deepEqual([h.TicketID, h.Action, h.Source, h.Processed, h.ActorEmail], [ticketId, 'create', 'LINE', false, 'ceo@digitalfocus.co.th']);
+  assert.match(lastReply(w).text, new RegExp(`✅ สั่งคุณปิแล้ว · T-${ticketId}`));
+  assert.match(lastReply(w).text, /อังคาร 20 ต.ค./);
+
+  // double tap on the same date button
+  await send(w, postbackEv({ a: 'when', d: draftId, v: '2026-10-20' }));
+  assert.equal(lastReply(w).text, `งานนี้สร้างแล้ว: T-${ticketId}`);
+  assert.equal(w.items.Tickets.length, 1);
+});
+
+test('date picker rejects past dates and accepts future ones', async () => {
+  const w = fakeWorld();
+  await send(w, textEv('งาน B'));
+  const d = actionData(quick(lastReply(w))[0]).d;
+  await send(w, postbackEv({ a: 'who', d, e: 'mkt@df.co.th' }));
+  await send(w, postbackEv({ a: 'date', d }, { date: '2026-10-01' }));
+  assert.equal(w.items.Tickets.length, 0);
+  assert.ok(w.calls.replies.some((b) => b.messages[0].text === 'เลือกวันที่ผ่านมาแล้วไม่ได้'));
+  await send(w, postbackEv({ a: 'date', d }, { date: '2026-11-02' }));
+  assert.equal(w.items.Tickets[0].fields.DueDate, '2026-11-02T00:00:00Z');
+});
+
+test('forwarded messages within 60s become details; later text starts a new task', async () => {
+  const w = fakeWorld();
+  await send(w, textEv('ตามงานลูกค้า ABC'), textEv('ข้อความที่ forward 1'), textEv('ข้อความที่ forward 2'));
+  assert.equal(w.calls.replies.length, 1);
+  w.now.value = new Date(w.now.value.getTime() + 120000);
+  await send(w, textEv('งานใหม่'));
+  assert.match(lastReply(w).text, /^ยกเลิกงานก่อนหน้า: "ตามงานลูกค้า ABC"/);
+  const d = actionData(quick(lastReply(w))[0]).d;
+  await send(w, postbackEv({ a: 'who', d, e: 'pm@df.co.th' }));
+  await send(w, postbackEv({ a: 'when', d, v: '2026-10-19' }));
+  assert.equal(w.items.Tickets[0].fields.Title, 'งานใหม่');
+  assert.equal(w.items.Tickets[0].fields.Details, undefined);
+});
+
+test('details keep forwarded text', async () => {
+  const w = fakeWorld();
+  await send(w, textEv('ตามงานลูกค้า ABC'), textEv('รายละเอียด 1'));
+  const d = actionData(quick(lastReply(w))[0]).d;
+  await send(w, postbackEv({ a: 'who', d, e: 'pm@df.co.th' }));
+  await send(w, postbackEv({ a: 'when', d, v: '2026-10-19' }));
+  assert.equal(w.items.Tickets[0].fields.Details, 'รายละเอียด 1');
+});
+
+test('search by nickname; prefixes stripped; inactive staff excluded', async () => {
+  const w = fakeWorld();
+  await send(w, textEv('ส่งเอกสารสเปกให้ลูกค้า'));
+  const d = actionData(quick(lastReply(w))[0]).d;
+  await send(w, postbackEv({ a: 'search', d }));
+  await send(w, textEv('พี่เอ'));
+  const found = quick(lastReply(w)).filter((a) => actionData(a).a === 'who');
+  assert.deepEqual(found.map((a) => actionData(a).e), ['a@df.co.th']); // exact nickname, not "เอก", not the inactive "เอ"
+  await send(w, textEv('ไม่มีคนนี้'));
+  assert.match(lastReply(w).text, /^ไม่พบ/);
+});
+
+test('images attach to the draft and upload after ticket creation', async () => {
+  const w = fakeWorld();
+  await send(w, textEv('ดูหน้างานตามรูป'));
+  const d = actionData(quick(lastReply(w))[0]).d;
+  await send(w, ev('message', { message: { type: 'image', id: 'img1', imageSet: { id: 's', index: 1, total: 2 } } }),
+    ev('message', { message: { type: 'image', id: 'img2', imageSet: { id: 's', index: 2, total: 2 } } }));
+  assert.equal(lastReply(w).text, '📎 แนบรูปแล้ว (2 รูป)');
+  await send(w, postbackEv({ a: 'who', d, e: 'a@df.co.th' }));
+  const r = await send(w, postbackEv({ a: 'when', d, v: '2026-10-21' }));
+  const id = r.results[0].created;
+  assert.deepEqual(w.calls.uploads.map((u) => u.path), [`T-${id}/photo-1.jpg`, `T-${id}/photo-2.jpg`]);
+  assert.equal(w.items.Tickets[0].fields.HasFiles, true);
+  assert.match(lastReply(w).text, /แนบรูป 2 รูป/);
+});
+
+test('image without a draft and LINE voice messages get guidance', async () => {
+  const w = fakeWorld();
+  await send(w, ev('message', { message: { type: 'image', id: 'i' } }));
+  assert.match(lastReply(w).text, /ส่งข้อความชื่องานก่อน/);
+  await send(w, ev('message', { message: { type: 'audio', id: 'a' } }));
+  assert.match(lastReply(w).text, /ไมค์บนแป้นพิมพ์/);
+});
+
+test('expired and cancelled buttons do nothing harmful', async () => {
+  const w = fakeWorld();
+  await send(w, postbackEv({ a: 'who', d: 'old', e: 'pm@df.co.th' }));
+  assert.match(lastReply(w).text, /หมดอายุ/);
+  await send(w, textEv('งาน C'));
+  const d = actionData(quick(lastReply(w))[0]).d;
+  await send(w, postbackEv({ a: 'cancel', d }));
+  await send(w, postbackEv({ a: 'who', d, e: 'pm@df.co.th' }));
+  assert.match(lastReply(w).text, /หมดอายุ/);
+  w.now.value = new Date(w.now.value.getTime() + 31 * 60000);
+  await send(w, textEv('งาน D'));
+  assert.doesNotMatch(lastReply(w).text, /ยกเลิกงานก่อนหน้า/);
+});
+
+test('falls back to push when the reply token has expired', async () => {
+  const w = fakeWorld({ replyFails: true });
+  await send(w, textEv('งาน E'));
+  assert.equal(w.calls.pushes.length, 1);
+  assert.equal(w.calls.pushes[0].to, CEO);
+});
+
+test('history failure still tells the CEO the ticket number, then fails the execution', async () => {
+  const w = fakeWorld({ failCreate: 'TicketHistory' });
+  await send(w, textEv('งาน F'));
+  const d = actionData(quick(lastReply(w))[0]).d;
+  await send(w, postbackEv({ a: 'who', d, e: 'pm@df.co.th' }));
+  await assert.rejects(() => send(w, postbackEv({ a: 'when', d, v: '2026-10-19' })), /history event failed/);
+  const texts = w.calls.replies.map((b) => b.messages[0].text);
+  assert.ok(texts.some((t) => /T-\d+/.test(t) && /ขัดข้อง/.test(t)));
+});
+
+// ---------- summaries ----------
+function ticket(id, f, created = '2026-10-19T01:00:00Z') {
+  return { id: String(id), createdDateTime: created, fields: Object.assign({ Title: `งาน ${id}`, IsOpen: true, Status: 'InProgress' }, f) };
+}
+function summaryWorld(extra) {
+  return fakeWorld(Object.assign({
+    tickets: [
+      ticket(1, { AssigneeEmail: 'a@df.co.th', DueDate: '2026-10-16T17:00:00Z' }), // due 17 Oct -> overdue
+      ticket(2, { AssigneeEmail: 'a@df.co.th', DueDate: '2026-10-18T17:00:00Z' }), // due today -> not overdue
+      ticket(3, { AssigneeEmail: 'pm@df.co.th', Status: 'WaitingCEO', DueDate: '2026-10-22' }),
+      ticket(4, { AssigneeEmail: 'pm@df.co.th', Status: 'Done', DueDate: '2026-10-22' }),
+      ticket(5, { AssigneeEmail: 'mkt@df.co.th', Status: 'New', DueDate: '2026-10-25' }, '2026-10-17T01:00:00Z'), // no ack > 24h
+      ticket(6, { AssigneeEmail: 'mkt@df.co.th', Status: 'Closed', IsOpen: false, ClosedAt: '2026-10-19T02:00:00Z' }, '2026-10-17T02:00:00Z'),
+    ],
+  }, extra));
+}
+
+test('summary counts overdue, waiting, done, no-ack and weekly totals', async () => {
+  const w = summaryWorld();
+  await send(w, textEv('สรุป'));
+  const msg = lastReply(w);
+  assert.match(msg.text, /เปิดอยู่ 5 งาน/);
+  assert.match(msg.text, /เลยกำหนด 1 · ⏳ รอคุณตอบ 1 · ✅ เสร็จรอคุณปิด 1/);
+  assert.match(msg.text, /ยังไม่รับทราบ 1/);
+  assert.match(msg.text, /สั่ง 4 · ปิดแล้ว 1/);
+  assert.equal(quick(msg).length, 4);
+});
+
+test('done list offers close/reopen, and stale status is refused', async () => {
+  const w = summaryWorld();
+  await send(w, postbackEv({ a: 'list', k: 'done', p: 0 }));
+  const acts = quick(lastReply(w));
+  assert.deepEqual(acts.map((a) => a.label), ['✅ ปิด T-4', '↩️ ส่งกลับ T-4']);
+  await send(w, postbackEv(actionData(acts[0])));
+  const t4 = w.items.Tickets.find((t) => t.id === '4').fields;
+  assert.equal(t4.Status, 'Closed');
+  assert.equal(t4.IsOpen, false);
+  assert.ok(t4.ClosedAt);
+  assert.equal(w.items.TicketHistory[0].fields.Action, 'close');
+  await send(w, postbackEv(actionData(acts[1])));
+  assert.match(lastReply(w).text, /ไปแล้ว/);
+  assert.equal(t4.Status, 'Closed');
+});
+
+test('overdue list shows days late', async () => {
+  const w = summaryWorld();
+  await send(w, postbackEv({ a: 'list', k: 'overdue', p: 0 }));
+  assert.match(lastReply(w).text, /T-1 คุณเอ · งาน 1 · เลย 2 วัน/);
+});
+
+test('daily summary pushes to the CEO and skips holidays', async () => {
+  const w = summaryWorld();
+  const r = await lib.dailySummary(w.ctx);
+  assert.equal(r.sent, true);
+  assert.equal(w.calls.pushes[0].to, CEO);
+  assert.match(w.calls.pushes[0].messages[0].text, /☀️ สรุปงาน จันทร์ 19 ต.ค./);
+  const h = summaryWorld({ holidays: ['2026-10-19'] });
+  assert.equal((await lib.dailySummary(h.ctx)).skipped, 'holiday');
+  assert.equal(h.calls.pushes.length, 0);
+});
+
+test('weekly summary lists people ordered by overdue', async () => {
+  const w = summaryWorld({ now: new Date('2026-10-23T10:00:00Z') }); // Fri 17:00 Bangkok
+  await lib.weeklySummary(w.ctx);
+  const text = w.calls.pushes[0].messages[0].text;
+  const lines = text.split('\n');
+  assert.match(lines[0], /สรุปรายคน จันทร์ 19 ต.ค. – ศุกร์ 23 ต.ค./);
+  assert.match(lines[1], /^• คุณเอ \(Sales\): สั่ง 2 · ปิด 0 · เปิด 2 · 🔴 2/);
+  assert.ok(lines.some((l) => /คุณมะลิ.*ปิด 1.*เฉลี่ย 2.0 วัน/.test(l)));
+});
+
+test('long messages are chunked under the LINE limit', () => {
+  const chunks = lib.chunkMessages('H', Array.from({ length: 300 }, (_, i) => `บรรทัด ${i} ${'ก'.repeat(30)}`), 4900);
+  assert.ok(chunks.length > 1);
+  for (const c of chunks) assert.ok(Array.from(c).length <= 4900);
+});
+
+// ---------- built workflow runs as an n8n Code node ----------
+test('built workflow code runs in a simulated n8n Code node', async () => {
+  const wfPath = path.join(__dirname, '..', 'ceo-line-bot.json');
+  const wf = JSON.parse(fs.readFileSync(wfPath, 'utf8'));
+  const node = wf.nodes.find((n) => n.name === 'Handle LINE events');
+  const w = fakeWorld();
+  const { raw, headers } = signed([textEv('งานจาก n8n')]);
+  const staticData = {};
+  const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+  const fn = new AsyncFunction('$input', '$vars', '$getWorkflowStaticData', node.parameters.jsCode);
+  const self = { helpers: { httpRequest: w.ctx.http, getBinaryDataBuffer: async () => raw } };
+  const out = await fn.call(self, { first: () => ({ json: { headers }, binary: { data: {} } }) }, SETTINGS, () => staticData);
+  assert.equal(out[0].json.ok, true);
+  assert.ok(staticData.drafts && Object.keys(staticData.drafts).length === 1);
+  assert.match(lastReply(w).text, /งานจาก n8n/);
+  assert.deepEqual(Object.keys(wf.connections).sort(), ['Friday 17:00', 'LINE Webhook', 'Weekdays 07:00']);
+});

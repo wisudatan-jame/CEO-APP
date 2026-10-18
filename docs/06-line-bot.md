@@ -1,6 +1,8 @@
 # บอท LINE สำหรับ CEO สั่งงาน (n8n)
 
 ## ภาพรวม
+ไฟล์ Workflow และวิธีติดตั้ง: [../n8n/README.md](../n8n/README.md)
+
 ```
 CEO พูดผ่านไมค์บนแป้นพิมพ์ → LINE OA "DF สั่งงาน" → n8n (Webhook)
    → ถามผู้รับผิดชอบ (ปุ่ม) → ถามวันส่ง (ปุ่ม) → สร้าง Ticket ใน SharePoint
@@ -31,7 +33,7 @@ CEO พูดผ่านไมค์บนแป้นพิมพ์ → LINE 
 
 - แตะปุ่มดูรายการ → แสดงไม่เกิน 10 รายการต่อข้อความ รูปแบบ `T-<ID> คุณ<ชื่อเล่น> · <ชื่องาน> · <สถานะ/เลยกำหนด X วัน>` ถ้ามีมากกว่านั้นมีปุ่ม [ดูเพิ่ม]
 - รายการ `Done` มีปุ่ม [✅ ปิดงาน] และ [↩️ ส่งกลับ] ให้ CEO ทำจาก LINE ได้ (n8n ตรวจสถานะปัจจุบันก่อนเปลี่ยน แบบเดียวกับ `UpdateTicket`)
-- ⚠️ การเปลี่ยนสถานะจาก LINE ต้องเขียน `TicketHistory` และแจ้งเตือนพนักงาน ให้ใช้วิธีเดียวกับ Flow `OnTicketFromLine` (n8n เขียน, Power Automate แจ้งเตือน) ออกแบบรายละเอียดตอนสร้าง Workflow
+- การปิดหรือส่งกลับจาก LINE: n8n แก้ `Tickets` และเขียน `TicketHistory` (`Action = close/reopen`, `Processed = false`) แล้ว Flow `OnLineEvent` แจ้งเตือนพนักงาน
 - **วันทำการ:** ข้ามเสาร์-อาทิตย์ และวันหยุดใน List `Holidays` (คอลัมน์ `Date`, `Title`) ที่ HR ดูแลปีละครั้ง ถ้าวันศุกร์เป็นวันหยุด ยังส่งสรุปรายสัปดาห์ตามปกติ
 - ข้อความสรุปเป็น Push message ใช้โควตา OA ราว 30 ข้อความต่อเดือน
 
@@ -56,7 +58,7 @@ CEO พูดผ่านไมค์บนแป้นพิมพ์ → LINE 
 
 ## ที่เก็บงานร่าง
 งานร่างหนึ่งชิ้น: `draftId`, ข้อความ, รูปที่แนบ, ผู้รับผิดชอบที่เลือก, เวลาเริ่ม
-⚠️ เลือกใน n8n ระหว่าง Data tables / Workflow static data / List `Drafts` ใน SharePoint ตามที่ n8n Cloud รองรับ
+ใช้ Workflow static data ของ n8n (ทำงานเฉพาะตอน Workflow เปิดใช้งาน ไม่ใช่ตอนกดทดสอบ) งานร่างหายได้ถ้ากดปุ่มพร้อมกันสองเครื่องเร็วมาก ซึ่งยอมรับได้เพราะมีผู้ใช้คนเดียว
 
 ## เชื่อม n8n → SharePoint (ตัดสินใจแล้ว: App Registration + `Sites.Selected`)
 n8n เขียนได้ **เฉพาะ Site `CEO-Tickets`** ผ่าน Microsoft Graph แบบ App-only (Client credentials)
@@ -75,5 +77,5 @@ n8n เขียนได้ **เฉพาะ Site `CEO-Tickets`** ผ่าน
 5. ส่ง **Tenant ID** และ **Application (client) ID** ให้ผู้พัฒนา (สองค่านี้ไม่ใช่ความลับ)
 
 ### หน้าที่ที่แบ่งกัน
-- **n8n:** อ่าน `Employees` และ `Config`, สร้างรายการใน `Tickets` (`Source = LINE`, `PermsSet = false`, `Status = New`, `IsOpen = true`) และ `TicketHistory` แล้วได้เลข Ticket ทันทีเพื่อตอบ CEO
-- **Power Automate (`OnTicketFromLine` ใน [03-flows.md](03-flows.md)):** ตั้งสิทธิ์รายรายการและแจ้งเตือนพนักงาน เพราะ Graph ตั้งสิทธิ์รายรายการของ List ไม่ได้โดยตรง พนักงานได้แจ้งเตือนช้าลงประมาณ 1–5 นาที (ยอมรับแล้ว)
+- **n8n:** อ่าน `Employees`, `Config`, `Holidays` และ `Tickets` สร้างรายการใน `Tickets` (`Source = LINE`, `PermsSet = false`, `Status = New`, `IsOpen = true`, `AssigneeEmail`) อัปโหลดรูปไป `TicketFiles/T-<ID>` และเขียน `TicketHistory` (`Processed = false`) แล้วตอบเลข Ticket ให้ CEO ทันที
+- **Power Automate (`OnLineEvent` ใน [03-flows.md](03-flows.md)):** ตั้งสิทธิ์รายรายการและแจ้งเตือนพนักงาน เพราะ Graph ตั้งสิทธิ์รายรายการของ List ไม่ได้โดยตรง พนักงานได้แจ้งเตือนช้าลงประมาณ 1–5 นาที (ยอมรับแล้ว)

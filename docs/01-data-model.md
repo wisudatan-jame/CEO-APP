@@ -10,7 +10,8 @@ Site: `CEO-Tickets` เป็น Communication site (ไม่ผูก Microsof
 | คอลัมน์ (ชื่อภายใน) | ชนิด | บังคับ | หมายเหตุ |
 |---|---|---|---|
 | `Title` | Single line text | ใช่ | ชื่องาน |
-| `Assignee` | Person (เลือกได้ 1 คน) | ใช่ | ผู้รับผิดชอบ 1 คนต่อ 1 ใบ |
+| `Assignee` | Person (เลือกได้ 1 คน) | ไม่ | ผู้รับผิดชอบ 1 คนต่อ 1 ใบ Flow ตั้งค่าจาก `AssigneeEmail` (Graph ตั้งคอลัมน์ Person ด้วยอีเมลไม่ได้ จึงห้ามตั้งเป็นบังคับ) |
+| `AssigneeEmail` | Single line text | ใช่ | อีเมลผู้รับผิดชอบ (ตัวพิมพ์เล็ก) **เป็นค่าหลัก** ที่ทุกช่องทางเขียน ตั้ง Index ด้วย |
 | `DueDate` | Date only | ใช่ | **ต้องเป็น Date only** เพื่อเลี่ยงบั๊กวันที่เลื่อนข้ามวันจากโซนเวลา |
 | `Priority` | Choice: `Low`, `Normal`, `High` | ใช่ | ค่าเริ่มต้น `Normal` แสดงผลเป็น ต่ำ/ปกติ/สูง |
 | `Status` | Choice (ดูตารางด้านล่าง) | ใช่ | ค่าเริ่มต้น `New` |
@@ -23,6 +24,7 @@ Site: `CEO-Tickets` เป็น Communication site (ไม่ผูก Microsof
 | `NoAckNotified` | Yes/No | ใช่ | ค่าเริ่มต้น `false` กันการเตือนซ้ำกรณีไม่กดรับทราบ |
 | `Source` | Choice: `App`, `LINE` | ใช่ | ช่องทางที่สร้าง Ticket |
 | `PermsSet` | Yes/No | ใช่ | Flow ตั้งเป็น `true` หลังตั้งสิทธิ์และแจ้งเตือนเสร็จ ใช้กันทำซ้ำ |
+| `HasFiles` | Yes/No | ใช่ | มีรูปแนบในโฟลเดอร์ `TicketFiles/T-<ID>` |
 
 ตั้ง **Require that items are checked out** = ปิด และเปิด **Item-level version history** (Versioning) เพื่อกู้ข้อมูลที่ถูกแก้ผิด
 อย่าใช้ Advanced settings → Item-level permissions แบบ **Only their own** เพราะกติกานั้นอิงจาก "ผู้สร้างรายการ" ซึ่งในระบบนี้คือ Flow/CEO ไม่ใช่ผู้รับผิดชอบ ให้คงค่าเริ่มต้นไว้ แล้วใช้สิทธิ์เฉพาะรายการที่ Flow ตั้งแทน
@@ -60,9 +62,26 @@ Site: `CEO-Tickets` เป็น Communication site (ไม่ผูก Microsof
 | `FromStatus` | Single line text | |
 | `ToStatus` | Single line text | |
 | `Comment` | Multiple lines (Plain text) | |
-| `ActorEmail` | Single line text | อีเมลที่ Flow ตรวจสอบเอง **ไม่รับค่าที่แอปส่งมาตรง ๆ** |
+| `ActorEmail` | Single line text | อีเมลที่ Flow ตรวจสอบเอง **ไม่รับค่าที่แอปส่งมาตรง ๆ** (จาก LINE = อีเมล CEO หลังตรวจ LINE user ID แล้ว) |
+| `Source` | Choice: `App`, `LINE` | ช่องทางของเหตุการณ์ |
+| `Processed` | Yes/No | เหตุการณ์จาก LINE รอ Flow `OnLineEvent` ตั้งสิทธิ์และแจ้งเตือน (`false`) / ทำแล้ว (`true`) |
 
 เฉพาะ Flow เท่านั้นที่เขียนได้ ผู้ใช้ทั่วไปไม่มีสิทธิ์เขียนหรือแก้ไข สิทธิ์รายการตั้งเหมือน Ticket ที่เกี่ยวข้อง
+
+## List: `Employees` (HR เป็นเจ้าของ)
+| คอลัมน์ | ชนิด | หมายเหตุ |
+|---|---|---|
+| `Title` | Single line text | ชื่อ-นามสกุล |
+| `FirstName` | Single line text | |
+| `LastName` | Single line text | |
+| `Nickname` | Single line text | ชื่อเล่นหลัก ใช้แสดงบนปุ่ม |
+| `Aliases` | Single line text | ชื่อเรียกอื่นคั่นด้วยจุลภาค เช่น `พี่เอ,เอ Sales` |
+| `Email` | Single line text | อีเมล M365 |
+| `Department` | Single line text | แสดงในปุ่ม เช่น `เอ (Sales)` เพื่อแยกชื่อเล่นซ้ำ |
+| `Active` | Yes/No | `false` เมื่อลาออก (บอทจะไม่ให้เลือก) |
+
+## Document library: `TicketFiles`
+รูปที่ CEO ส่งใน LINE เก็บที่โฟลเดอร์ `T-<ID>/photo-1.jpg` ... Flow `OnLineEvent` ให้สิทธิ์โฟลเดอร์กับผู้รับผิดชอบแบบเดียวกับ Ticket
 
 ## List: `Holidays`
 | คอลัมน์ | ชนิด | หมายเหตุ |
@@ -79,6 +98,8 @@ HR อัปเดตปีละครั้ง ใช้ข้ามวัน�
 | `OWNER_EMAIL` | อีเมลผู้ดูแลหลัก | ใช้ส่งแจ้งเตือนเมื่อ Flow ล้มเหลว |
 | `BACKUP_EMAIL` | อีเมลผู้ดูแลสำรอง | |
 | `NOACK_HOURS` | 24 | เตือนถ้าไม่รับทราบภายในกี่ชั่วโมง |
+| `CEO_LINE_USER_ID` | LINE user ID ของ CEO (`U...`) | บอทตอบเฉพาะคนนี้ เว้นว่างไว้ระหว่างตั้งค่า บอทจะบอก ID ของผู้ส่ง |
+| `QUICK_ASSIGNEES` | อีเมลคั่นด้วยจุลภาค | ปุ่มลัดช่วงแรกก่อนมีสถิติ (PM, การตลาด, Presales, Sales) |
 
 เก็บค่าตั้งไว้ที่เดียว เปลี่ยนคนโดยไม่ต้องแก้แอปและ Flow Config อ่านได้เฉพาะ Owners และ Flow
 
