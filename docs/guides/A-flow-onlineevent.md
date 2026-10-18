@@ -5,7 +5,9 @@ Flow นี้รับต่อจากบอท LINE: ตั้งสิท�
 รายละเอียดเชิงออกแบบอยู่ที่ [../03-flows.md](../03-flows.md) หัวข้อ Flow 2b
 
 > ⚠️ ชื่อเมนูอ้างอิงหน้าจอ Power Automate รุ่นใหม่ (New designer) ถ้าหน้าจอของคุณต่างไป ให้ค้นหาชื่อ Action ตามตัวหนังสือในคู่มือ
-> ช่องที่ต้องใส่ **Expression** ให้คลิกช่องนั้น → กดไอคอน **fx** (หรือ "Insert expression") → วางข้อความ → **Add**
+> ช่องที่ต้องใส่ **Expression** ให้คลิกช่องนั้น → กดไอคอน **fx** (หรือกด `/` → Insert expression) → วางข้อความ → **Add**
+> **ห้ามพิมพ์หรือวางสูตรลงในช่องตรง ๆ** ถ้าใส่ถูก ช่องจะเป็น **ป้ายสี** (มี `fx` หรือไอคอน SharePoint นำหน้า) ถ้าเห็นเป็นตัวหนังสือธรรมดา แปลว่าผิด (จะขึ้นเช่น "Enter a valid integer")
+> ค่าที่มีใน **Dynamic content (⚡)** เช่น `TicketID`, `ID`, `Title` ของ Trigger หรือ `AssigneeEmail` ของ Get ticket เลือกจาก ⚡ ได้เลย ได้ผลเหมือน Expression และพลาดน้อยกว่า
 
 > **สร้างใน Environment หลักของบริษัทเท่านั้น:** มุมขวาบนของ make.powerautomate.com / make.powerapps.com ต้องเป็น Environment ชื่อ `Digital Focus (default)` หรือชื่อบริษัทที่มีคำว่า default **ห้ามสร้างใน Environment ส่วนตัวแบบ Developer** (ชื่อมักเป็น `<ชื่อคุณ>'s Environment`) เพราะ Microsoft ประกาศยกเลิก Developer environment แบบ unmanaged และ Power Apps Developer Plan: เริ่มระงับ 15 ธ.ค. 2026 และเริ่มลบ 15 ม.ค. 2027 ⚠️ ตรวจชื่อ Environment ก่อนเริ่มทุกครั้ง
 
