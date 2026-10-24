@@ -19,7 +19,7 @@
 |---|---|
 | ทุกวันทำการ | ไม่ต้องทำอะไร ถ้ามีอีเมล Error จาก Flow ให้ตรวจภายในวันนั้น |
 | ทุกสัปดาห์ | ตรวจว่าได้รับอีเมล `HealthCheck` วันจันทร์ ถ้าไม่ได้ เปิด Run history |
-| ทุกเดือน | ตรวจ Run history ของทุก Flow, ตรวจรายชื่อ Site Owners, ตรวจ Connection ที่มีสถานะ Error |
+| ทุกเดือน | ตรวจ Run history ของทุก Flow, ตรวจสิทธิ์ Site ตาม[คู่มือ จ](guides/E-site-lockdown.md) ข้อ 1.2 (Owners 3 คน, Members/Visitors ว่าง, ไม่มี Everyone), ตรวจ Connection ที่มีสถานะ Error |
 | ทุกไตรมาส | ทดสอบหมวด 1 (ความลับ) ใน [04-test-plan.md](04-test-plan.md) ซ้ำ |
 | ทุก 5 เดือน (หรือเมื่อได้อีเมลเตือน) | ต่ออายุ SharePoint webhook: เปิด Site `CEO-Tickets` → Console → รัน `setup/create-webhook.js` ถ้าลืม CEO จะไม่ได้แจ้งเตือนทันทีเมื่อพนักงานถามหรือทำเสร็จ |
 | ก่อนวันหมดอายุ 1 เดือน | ต่ออายุ Client secret ของ App `DGF-CEO-Bot-n8n` (Global Admin สร้างใหม่และกรอกลง n8n) ถ้าลืม บอท LINE จะสร้างงานไม่ได้ทันทีที่หมดอายุ |
