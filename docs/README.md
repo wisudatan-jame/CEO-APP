@@ -54,8 +54,9 @@
 
 25. **AI ตอบคำถาม CEO (ขอบเขตแรก):** ตอบจาก (A) ข้อมูลงานใน SharePoint และ (E) ปฏิทิน M365 ของ CEO เท่านั้น AI อ่านอย่างเดียว ห้ามสร้าง/แก้ข้อมูล และต้องอ้างเลขงาน (T-xx) ทุกครั้ง ถ้าไม่มีข้อมูลให้ตอบว่าไม่ทราบ ห้ามเดา · ยอดขาย SAP B1, สต็อก, Platform บริหารโครงการ ไว้ทีหลัง
 
+26. **ผู้ให้บริการ AI:** OpenAI API บนบัญชีเดียวกับ ChatGPT ของ CEO (ระบบนี้เป็นของ CEO โดยตรง) ค่า API แยกจากค่าสมาชิก ChatGPT · CEO เชิญผู้พัฒนาและคุณ Suchada เป็น Owner ของ Organization · ผู้พัฒนาสร้าง Project `CEO-LINE-Bot` ตั้งวงเงินรายเดือน และสร้าง API key ใส่ n8n โดยตรง
+
 ## เรื่องที่ยังเปิดอยู่
-- ⚠️ เลือกผู้ให้บริการ AI สำหรับตอบคำถาม CEO (ต้องเป็นบัญชี API แบบธุรกิจที่ไม่นำข้อมูลไปเทรน)
 - ⚠️ สิทธิ์อ่านปฏิทิน CEO: Graph `Calendars.Read` แบบ Application (ต้องให้ Global Admin Consent) **และจำกัดให้อ่านได้เฉพาะกล่องจดหมาย CEO** ด้วย Exchange Application Access Policy (ผู้พัฒนาเป็น Exchange Admin ทำเองได้)
 - ⚠️ ผู้มีสิทธิ์ Global Admin / SharePoint Admin ของ Tenant (ผู้ใช้ปัจจุบันมีสิทธิ์ Exchange Admin และ User Admin เท่านั้น) ใช้สร้าง SharePoint Site และปลด/ตรวจนโยบายการสร้างแอป
 - ตัดสินใจเรื่องบัญชีบริการ (Service account) สำหรับเป็นเจ้าของ Flow ดู [05-handover.md](05-handover.md)
