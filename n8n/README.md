@@ -14,7 +14,7 @@
 
 ## สิ่งที่ต้องมีก่อน
 1. Site `CEO-Tickets` พร้อม List `Tickets`, `TicketHistory`, `Employees`, `Config`, `Holidays` และ Library `TicketFiles` ตาม [../docs/01-data-model.md](../docs/01-data-model.md) (ชื่อ List และชื่อคอลัมน์ภายในต้องตรงทุกตัวอักษร)
-2. App Registration `DF-CEO-Bot-n8n` ที่ Global Admin ตั้งให้ ([../docs/06-line-bot.md](../docs/06-line-bot.md))
+2. App Registration `DGF-CEO-Bot-n8n` ที่ Global Admin ตั้งให้ ([../docs/06-line-bot.md](../docs/06-line-bot.md))
 3. LINE Official Account ใหม่ เปิด Messaging API แล้ว
 4. Flow `OnLineEvent` ใน Power Automate ([../docs/03-flows.md](../docs/03-flows.md)) มิฉะนั้นงานจาก LINE จะไม่ถูกตั้งสิทธิ์และพนักงานจะไม่ได้แจ้งเตือน
 
@@ -26,7 +26,7 @@ Workflow อ่านค่าเหล่านี้จาก **n8n Variables*
 | `LINE_CHANNEL_SECRET` | LINE Developers → Channel → Basic settings → Channel secret |
 | `LINE_CHANNEL_ACCESS_TOKEN` | Messaging API → Channel access token (long-lived) |
 | `MS_TENANT_ID` | Tenant ID จาก Global Admin |
-| `MS_CLIENT_ID` | Application (client) ID ของ `DF-CEO-Bot-n8n` |
+| `MS_CLIENT_ID` | Application (client) ID ของ `DGF-CEO-Bot-n8n` |
 | `MS_CLIENT_SECRET` | Client secret (Global Admin กรอกเอง ห้ามส่งทางแชต) |
 | `SP_HOSTNAME` | `digitalfocusth.sharepoint.com` |
 | `SP_SITE_PATH` | `/sites/CEO-Tickets` |

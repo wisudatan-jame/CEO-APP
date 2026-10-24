@@ -85,7 +85,7 @@ n8n เขียนได้ **เฉพาะ Site `CEO-Tickets`** ผ่าน
 ทำหลังจากสร้าง Site `CEO-Tickets` แล้ว
 
 **ผู้พัฒนาทำเอง** (ผู้ใช้ทั่วไปสร้าง App Registration ได้)
-1. entra.microsoft.com → **App registrations** → **New registration** ชื่อ `DF-CEO-Bot-n8n` แบบ Single tenant
+1. entra.microsoft.com → **App registrations** → **New registration** ชื่อ `DGF-CEO-Bot-n8n` แบบ Single tenant
 2. **API permissions** → Add → Microsoft Graph → **Application permissions** → `Sites.Selected`
 3. **Certificates & secrets** → New client secret อายุ 24 เดือน แล้ว**กรอกลง n8n โดยตรง** ห้ามส่งทางแชตหรืออีเมล จดวันหมดอายุไว้ใน [05-handover.md](05-handover.md)
 
@@ -95,7 +95,7 @@ n8n เขียนได้ **เฉพาะ Site `CEO-Tickets`** ผ่าน
    - `GET https://graph.microsoft.com/v1.0/sites/digitalfocusth.sharepoint.com:/sites/CEO-Tickets` → จด `id`
    - `POST https://graph.microsoft.com/v1.0/sites/{id}/permissions`
      ```json
-     {"roles": ["write"], "grantedToIdentities": [{"application": {"id": "<Application (client) ID>", "displayName": "DF-CEO-Bot-n8n"}}]}
+     {"roles": ["write"], "grantedToIdentities": [{"application": {"id": "<Application (client) ID>", "displayName": "DGF-CEO-Bot-n8n"}}]}
      ```
 6. ถ้าข้อ 5 ยังไม่ได้ทำ บอทจะได้ Error `403` / `accessDenied` ตอนอ่าน List
 
