@@ -5,6 +5,15 @@ $ErrorActionPreference = 'Stop'
 $envFile = Join-Path $PSScriptRoot '.env'
 if (-not (Test-Path $envFile)) { Write-Host 'Missing .env - run install-n8n.ps1 first.' -ForegroundColor Red; exit 1 }
 
+# A second n8n cannot start while another one (often in a forgotten window) still holds the port.
+$busy = Get-NetTCPConnection -LocalPort 5678 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($busy) {
+    $p = Get-Process -Id $busy.OwningProcess -ErrorAction SilentlyContinue
+    Write-Host "Port 5678 is already used by $($p.ProcessName) (PID $($busy.OwningProcess)) - n8n is probably running in another window." -ForegroundColor Red
+    Write-Host "Close that window, or run:  Stop-Process -Id $($busy.OwningProcess)   then run this script again."
+    exit 1
+}
+
 $log = Join-Path $env:TEMP 'ceo-n8n-tunnel.log'
 Remove-Item $log -ErrorAction SilentlyContinue
 Get-Process cloudflared -ErrorAction SilentlyContinue | Stop-Process -Force
