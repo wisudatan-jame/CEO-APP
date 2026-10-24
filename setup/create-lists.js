@@ -24,7 +24,7 @@ const CEO_TICKETS_SCHEMA = [
   {
     title: 'TicketHistory', template: 100, fields: [
       '<Field Type="Number" Name="TicketID" DisplayName="TicketID" Required="TRUE" Indexed="TRUE" Decimals="0" />',
-      choice('Action', ['create', 'ack', 'start', 'wait', 'reply', 'done', 'reopen', 'close', 'cancel', 'comment', 'due_change'], null, true),
+      choice('Action', ['create', 'ack', 'start', 'wait', 'reply', 'done', 'reopen', 'close', 'cancel', 'comment', 'due_change', 'reassign'], null, true),
       '<Field Type="Text" Name="FromStatus" DisplayName="FromStatus" />',
       '<Field Type="Text" Name="ToStatus" DisplayName="ToStatus" />',
       '<Field Type="Note" Name="Comment" DisplayName="Comment" RichText="FALSE" NumLines="4" />',

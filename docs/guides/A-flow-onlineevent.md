@@ -40,6 +40,8 @@ SharePoint → **Get item** → เปลี่ยนชื่อเป็น `G
 - Id (Expression): `triggerBody()?['TicketID']`
 
 ### 3.2 Condition: งานใหม่หรือไม่
+> ถ้าจะใช้การโอนงาน ให้ทำตามข้อ 6 ด้วย (เปลี่ยนเงื่อนไขนี้ให้รับ `reassign`)
+
 Control → **Condition**
 - ช่องซ้าย (Expression): `triggerBody()?['Action']?['Value']`
 - ตัวเปรียบเทียบ: **is equal to**
@@ -142,3 +144,43 @@ SharePoint **Update item** ชื่อ `Mark processed`
 ## 6. หลังสร้างเสร็จ
 - เพิ่มคุณ Suchada เป็น **Co-owner** ของ Flow: หน้า Flow → **Share** / **Edit** ส่วน Owners
 - เมื่อแก้ Flow ที่ล้มเหลวแล้ว รายการที่ยังเป็น `Processed = No` จะไม่ถูกทำใหม่เอง (Trigger ทำงานเฉพาะตอนสร้าง) ให้ไปที่ Run ที่ล้มเหลว → **Resubmit**
+
+## 6. เพิ่มการโอนงาน (`reassign`)
+CEO โอนงานค้างของคนที่ลาออกให้คนอื่นจาก LINE ได้ (พิมพ์ "โอนงาน" หรือแตะปุ่มในสรุปเช้า) บอทเปลี่ยน `AssigneeEmail` เป็นคนใหม่ ตั้ง `Status = New`, `PermsSet = No` แล้วเขียนประวัติ `Action = reassign` Flow นี้ต้องย้ายสิทธิ์ให้คนใหม่และตัดสิทธิ์คนเดิม ทำครั้งเดียว ใช้เวลาประมาณ 20 นาที
+
+### 6.1 เพิ่มตัวเลือกในคอลัมน์ (ทำก่อนใช้งาน มิฉะนั้นบอทเขียนประวัติไม่ได้)
+List `TicketHistory` → คลิกหัวคอลัมน์ **Action** → **Column settings** → **Edit** → **+ Add choice** → พิมพ์ `reassign` → **Save**
+
+### 6.2 แก้ Flow `OnLineEvent`
+1. **Condition ข้อ 3.2** (งานใหม่หรือไม่) เปลี่ยนเป็น
+   - ช่องซ้าย (Expression): `contains(createArray('create','reassign'), triggerBody()?['Action']?['Value'])`
+   - ตัวเปรียบเทียบ: **is equal to** · ช่องขวา (Expression): `true`
+
+   ฝั่ง True เดิม (a–e) ใช้กับการโอนได้เลย: Stop sharing ตัดสิทธิ์คนเดิมออกทั้งหมด แล้ว Grant ให้คนใหม่ ทั้งงานและโฟลเดอร์รูป
+2. **หลัง b) Grant assignee** (ยังอยู่ฝั่ง True) เพิ่ม **Condition** ชื่อ `Is reassign`
+   - ช่องซ้าย (Expression): `triggerBody()?['Action']?['Value']` · **is equal to** · ช่องขวา: `reassign`
+   - ฝั่ง True ใส่ตามลำดับ:
+     1. SharePoint **Get items** ชื่อ `Get old history` · List Name: `TicketHistory` · Filter Query (Expression): `concat('TicketID eq ', triggerBody()?['TicketID'])` · Top Count: `500`
+     2. Control **Apply to each** ชื่อ `Reshare history` · Select an output (Expression): `body('Get_old_history')?['value']` ข้างในใส่:
+        - **Stop sharing an item or a file** · Library Name: `TicketHistory` · Id (Expression): `items('Reshare_history')?['ID']`
+        - **Grant access to an item or a folder** · Library or List: `TicketHistory` · Id: เหมือนข้างบน · Recipients (Expression): `body('Get_ticket')?['AssigneeEmail']` · Roles: Can view · Notify recipients: No
+   - ฝั่ง False: ว่าง
+
+   คนใหม่จึงเห็นประวัติเดิมทั้งหมดของงาน และคนเดิมเห็นไม่ได้อีก
+3. **d) Notify new task** เปลี่ยน Message (Expression) เป็น
+   ```
+   concat(if(equals(triggerBody()?['Action']?['Value'], 'reassign'), '🔁 CEO โอนงานให้คุณ: T-', '📌 งานใหม่จาก CEO: T-'), triggerBody()?['TicketID'], ' (ส่ง ', formatDateTime(addHours(body('Get_ticket')?['DueDate'], 7), 'dd/MM/yyyy'), ') เปิดดู: https://digitalfocusth.sharepoint.com/sites/CEO-Tickets/Lists/Tickets/DispForm.aspx?ID=', triggerBody()?['TicketID'])
+   ```
+4. **Save**
+
+### 6.3 ทดสอบ
+1. สั่งงานให้พนักงานทดสอบ A (ส่งรูปแนบด้วย) รอให้ `PermsSet = Yes`
+2. ใน List `Employees` ตั้ง A เป็น `Active = No` แล้วรอ 5 นาที
+3. LINE พิมพ์ "สรุป" ต้องเห็น `👋 งานค้างของคนที่ลาออก` และปุ่ม `🔁 โอนงาน...`
+4. แตะปุ่ม → แตะหรือพูดชื่อ B → **✅ ยืนยันโอน**
+5. ผลที่ต้องได้ภายใน 5 นาที
+   - [ ] B ได้ข้อความ Teams `🔁 CEO โอนงานให้คุณ: T-...` และเปิดลิงก์ได้ เห็นประวัติเดิมและรูป
+   - [ ] งานนั้น: Manage access มีแค่ B (ไม่มี A) · `Status = New` · `PermsSet = Yes` · `Assignee` เป็น B
+   - [ ] A เปิดลิงก์เดิมแล้วขึ้น Access denied
+6. ตั้ง A กลับเป็น `Active = Yes` ถ้าเป็นบัญชีทดสอบ
+

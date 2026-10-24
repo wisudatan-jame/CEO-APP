@@ -58,7 +58,7 @@ Site: `CEO-Tickets` เป็น Communication site (ไม่ผูก Microsof
 |---|---|---|
 | `Title` | Single line text | ตั้งเป็น `T-<TicketID>` |
 | `TicketID` | Number | ID ของ Ticket |
-| `Action` | Choice: `create`, `ack`, `start`, `wait`, `reply`, `done`, `reopen`, `close`, `cancel`, `comment`, `due_change` | |
+| `Action` | Choice: `create`, `ack`, `start`, `wait`, `reply`, `done`, `reopen`, `close`, `cancel`, `comment`, `due_change`, `reassign` (CEO โอนงานจาก LINE) | |
 | `FromStatus` | Single line text | |
 | `ToStatus` | Single line text | |
 | `Comment` | Multiple lines (Plain text) | |

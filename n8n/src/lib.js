@@ -452,6 +452,7 @@ function helpText() {
     'ส่งรูปก่อนหรือหลังข้อความชื่องานก็ได้ (ก่อนเลือกวันส่ง)',
     'ส่งทีละข้อความ รอบอทตอบก่อนส่งข้อความถัดไป',
     'พิมพ์ "สรุป" เพื่อดูภาพรวม · "ยกเลิก" เพื่อยกเลิกงานที่กำลังสร้าง',
+    'พิมพ์ "โอนงาน" เพื่อโอนงานของคนที่ลาออกให้คนอื่น',
   ].join('\n');
 }
 
@@ -485,6 +486,17 @@ async function onMessage(ctx, ev, cfg) {
     if (!t) return { skipped: 'empty' };
     if (t === 'สรุป') return replySummary(ctx, ev, cfg);
     const pendingReply = currentReply(ctx);
+    const transfer = currentTransfer(ctx);
+    if (t === 'ยกเลิก' && transfer) {
+      delete ctx.store.transfer;
+      await lineReply(ctx, ev, textMsg('ยกเลิกการโอนงานแล้ว'));
+      return { transferCancelled: transfer.id };
+    }
+    if (/^โอนงาน/.test(t)) return onTransferCommand(ctx, ev, t.replace(/^โอนงาน(ของ)?\s*/, '').trim());
+    if (transfer) {
+      const picked = await onTransferTo(ctx, ev, transfer, t);
+      if (picked) return picked;
+    }
     if (t === 'ยกเลิก' && pendingReply) {
       delete ctx.store.replyTo;
       await lineReply(ctx, ev, textMsg(`ยกเลิกการตอบ T-${pendingReply.ticketId} แล้ว`));
@@ -535,6 +547,7 @@ async function onMessage(ctx, ev, cfg) {
       lastTextAt: nowMs,
     };
     drafts(ctx)[userId] = dr;
+    delete ctx.store.transfer; // a new task ends any half-finished transfer
     if (dr.images.length) notice += `📎 แนบรูปที่ส่งไว้ ${dr.images.length} รูป\n`;
     if (ev.moreText && !notice) return { draft: dr.id, stage: 'who' };
     return askWho(ctx, ev, dr, notice);
@@ -743,6 +756,20 @@ async function onPostback(ctx, ev, cfg) {
   if (p.a === 'list') return replyList(ctx, ev, p.k, Number(p.p || 0));
   if (p.a === 'close' || p.a === 'reopen') return changeStatus(ctx, ev, cfg, p.a, Number(p.t), p.s);
   if (p.a === 'replyto') return startReply(ctx, ev, Number(p.t));
+  if (p.a === 'xfer') return startTransfer(ctx, ev, p.f);
+  if (p.a === 'xcancel') {
+    delete ctx.store.transfer;
+    await lineReply(ctx, ev, textMsg('ยกเลิกการโอนงานแล้ว'));
+    return { transferCancelled: true };
+  }
+  if (p.a === 'xto' || p.a === 'xgo') {
+    const x = currentTransfer(ctx);
+    if (!x || x.id !== p.x) {
+      await lineReply(ctx, ev, textMsg('รายการโอนนี้ทำไปแล้วหรือหมดอายุ พิมพ์ "โอนงาน" เพื่อเริ่มใหม่'));
+      return { transferExpired: p.x };
+    }
+    return p.a === 'xto' ? confirmTransfer(ctx, ev, x, p.e) : runTransfer(ctx, ev, cfg, x, p.e);
+  }
   if (p.a === 'replycancel') {
     delete ctx.store.replyTo;
     await lineReply(ctx, ev, textMsg(`ยกเลิกการตอบ T-${p.t} แล้ว`));
@@ -871,6 +898,145 @@ async function changeStatus(ctx, ev, cfg, action, ticketId, expected) {
   return { changed: ticketId, to };
 }
 
+// ---------- Transfer the open work of someone who left ----------
+const TRANSFER_TTL_MS = 30 * 60 * 1000;
+
+function currentTransfer(ctx) {
+  const x = ctx.store.transfer;
+  if (x && ctx.now().getTime() - x.at > TRANSFER_TTL_MS) {
+    delete ctx.store.transfer;
+    return null;
+  }
+  return x || null;
+}
+
+// Open tickets whose assignee is no longer an active employee, grouped by person.
+function leaverGroups(tickets, employees) {
+  const active = new Set(employees.filter((e) => e.active).map((e) => e.email));
+  const groups = new Map();
+  for (const t of tickets) {
+    if (!t.isOpen || !t.assignee || active.has(t.assignee)) continue;
+    if (!groups.has(t.assignee)) groups.set(t.assignee, []);
+    groups.get(t.assignee).push(t);
+  }
+  return [...groups.entries()].map(([email, list]) => ({ email, emp: employees.find((e) => e.email === email), tickets: list }));
+}
+
+function transferButton(g) {
+  const name = g.emp ? g.emp.nick || g.emp.first || g.emp.full : g.email.split('@')[0];
+  return qrPostback(`🔁 โอนงาน${name}`, { a: 'xfer', f: g.email }, `โอนงาน${personName(g.emp, g.email)}`);
+}
+
+// "โอนงาน" alone lists leavers; "โอนงานแตน" picks anyone, active or not.
+async function onTransferCommand(ctx, ev, rest) {
+  const employees = await getEmployees(ctx);
+  const tickets = await getTickets(ctx);
+  if (!rest) {
+    const groups = leaverGroups(tickets, employees);
+    if (!groups.length) {
+      await lineReply(ctx, ev, textMsg('ไม่มีงานค้างของคนที่ลาออก\nถ้าจะโอนงานของคนที่ยังทำงานอยู่ พิมพ์ "โอนงาน" ตามด้วยชื่อ เช่น "โอนงานแตน"'));
+      return { transfer: 'none' };
+    }
+    const lines = groups.map((g) => `• ${personName(g.emp, g.email)} ${g.tickets.length} งาน`);
+    await lineReply(ctx, ev, textMsg(`👋 งานค้างของคนที่ลาออก\n${lines.join('\n')}\nโอนงานของใคร?`, groups.slice(0, 12).map(transferButton)));
+    return { transfer: 'pick-from', groups: groups.length };
+  }
+  const everyone = employees.map((e) => Object.assign({}, e, { active: true }));
+  const r = findAssignee(everyone, rest);
+  if (r.people.length === 1 && r.exact) return startTransfer(ctx, ev, r.people[0].email);
+  if (r.people.length) {
+    const items = r.people.slice(0, 12).map((e) => transferButton({ email: e.email, emp: e }));
+    await lineReply(ctx, ev, textMsg(`พบ ${r.people.length} คน โอนงานของใคร?`, items));
+    return { transfer: 'pick-from', people: r.people.length };
+  }
+  await lineReply(ctx, ev, textMsg(`ไม่พบชื่อ "${truncate(rest, 40)}" ในรายชื่อพนักงาน`));
+  return { transfer: 'not-found' };
+}
+
+async function startTransfer(ctx, ev, fromEmail) {
+  const from = lower(fromEmail);
+  const employees = await getEmployees(ctx);
+  const fromEmp = employees.find((e) => e.email === from);
+  const open = (await getTickets(ctx)).filter((t) => t.isOpen && t.assignee === from).sort((a, b) => a.id - b.id);
+  if (!open.length) {
+    await lineReply(ctx, ev, textMsg(`${personName(fromEmp, from)}ไม่มีงานค้าง`));
+    return { transfer: 'nothing', from };
+  }
+  const x = { id: newId(), from, at: ctx.now().getTime() };
+  ctx.store.transfer = x;
+  const people = (await quickPeople(ctx, await getConfig(ctx))).filter((e) => e.email !== from);
+  const items = people.map((e) => qrPostback(personLabel(e), { a: 'xto', x: x.id, e: e.email }, `โอนให้${personName(e)}`));
+  items.push(qrPostback('❌ ยกเลิก', { a: 'xcancel' }, 'ยกเลิกการโอน'));
+  const lines = open.slice(0, 10).map((t) => `T-${t.id} ${truncate(t.title, 40)}`);
+  if (open.length > 10) lines.push(`... และอีก ${open.length - 10} งาน`);
+  await lineReply(ctx, ev, textMsg(`🔁 งานค้างของ${personName(fromEmp, from)} ${open.length} งาน\n${lines.join('\n')}\n\nโอนให้ใคร? (แตะ หรือพิมพ์/พูดชื่อ)`, items));
+  return { transfer: x.id, from, count: open.length };
+}
+
+// Name typed while the bot asks "โอนให้ใคร?". Returns null when the text is not a name.
+async function onTransferTo(ctx, ev, x, text) {
+  const r = findAssignee(await getEmployees(ctx), text);
+  // Only a clean name counts here, so "สั่งแตนทำรายงาน" still starts a new task.
+  const people = r.exact ? r.people.filter((e) => e.email !== x.from) : [];
+  if (people.length === 1) return confirmTransfer(ctx, ev, x, people[0].email);
+  if (people.length) {
+    const items = people.slice(0, 11).map((e) => qrPostback(personLabel(e), { a: 'xto', x: x.id, e: e.email }, `โอนให้${personName(e)}`));
+    items.push(qrPostback('❌ ยกเลิก', { a: 'xcancel' }, 'ยกเลิกการโอน'));
+    await lineReply(ctx, ev, textMsg(`พบ ${people.length} คน โอนให้ใคร?`, items));
+    return { transfer: x.id, search: people.length };
+  }
+  if (r.explicit && !r.people.length && chars(r.query).length <= 20) {
+    await lineReply(ctx, ev, textMsg(`ไม่พบชื่อ "${truncate(r.query, 40)}" ในรายชื่อพนักงาน พิมพ์ชื่อใหม่ หรือ "ยกเลิก"`));
+    return { transfer: x.id, search: 'none' };
+  }
+  return null;
+}
+
+async function confirmTransfer(ctx, ev, x, toEmail) {
+  const employees = await getEmployees(ctx);
+  const to = employees.find((e) => e.email === lower(toEmail) && e.active);
+  if (!to || to.email === x.from) {
+    await lineReply(ctx, ev, textMsg('โอนให้คนนี้ไม่ได้ (ลาออกแล้ว หรือเป็นคนเดิม) เลือกใหม่อีกครั้ง'));
+    return { transfer: x.id, invalidTo: toEmail };
+  }
+  const count = (await getTickets(ctx)).filter((t) => t.isOpen && t.assignee === x.from).length;
+  const fromEmp = employees.find((e) => e.email === x.from);
+  await lineReply(ctx, ev, textMsg(
+    `ยืนยันโอน ${count} งาน\nจาก ${personName(fromEmp, x.from)} → ${personName(to)}\n\nทุกงานเริ่มใหม่เป็น "ใหม่" (ผู้รับต้องกดรับทราบ) วันส่งเดิม และ${personName(fromEmp, x.from)}จะดูงานเหล่านี้ไม่ได้อีก`,
+    [qrPostback('✅ ยืนยันโอน', { a: 'xgo', x: x.id, e: to.email }, 'ยืนยันโอน'), qrPostback('❌ ยกเลิก', { a: 'xcancel' }, 'ยกเลิกการโอน')],
+  ));
+  return { transfer: x.id, confirm: to.email, count };
+}
+
+async function runTransfer(ctx, ev, cfg, x, toEmail) {
+  delete ctx.store.transfer; // a second tap on "ยืนยัน" finds nothing to do
+  const to = lower(toEmail);
+  const employees = await getEmployees(ctx);
+  const fromEmp = employees.find((e) => e.email === x.from);
+  const toEmp = employees.find((e) => e.email === to);
+  const open = (await getTickets(ctx)).filter((t) => t.isOpen && t.assignee === x.from).sort((a, b) => a.id - b.id);
+  const moved = [];
+  const failed = [];
+  for (const t of open) {
+    try {
+      await updateFields(ctx, 'Tickets', t.id, { AssigneeEmail: to, Status: 'New', PermsSet: false, NoAckNotified: false });
+      await createItem(ctx, 'TicketHistory', {
+        Title: `T-${t.id}`, TicketID: t.id, Action: 'reassign', FromStatus: t.status, ToStatus: 'New',
+        Comment: `โอนจาก ${x.from} ให้ ${to}`, ActorEmail: lower(cfg.CEO_EMAIL), Source: 'LINE', Processed: false,
+      });
+      moved.push(t.id);
+    } catch (e) {
+      failed.push(t.id);
+    }
+  }
+  const lines = [`✅ โอน ${moved.length} งานจาก${personName(fromEmp, x.from)}ให้${personName(toEmp, to)}แล้ว`];
+  if (moved.length) lines.push(moved.map((id) => `T-${id}`).join(', '), `${personName(toEmp, to)}จะได้รับแจ้งเตือนภายในไม่กี่นาที`);
+  if (failed.length) lines.push(`⚠️ โอนไม่สำเร็จ: ${failed.map((id) => `T-${id}`).join(', ')} ลองพิมพ์ "โอนงาน" อีกครั้ง`);
+  await lineReply(ctx, ev, textMsg(lines.join('\n')));
+  if (failed.length) throw new Error(`transfer ${x.from} -> ${to}: failed ${failed.join(',')}`);
+  return { transferred: moved, from: x.from, to };
+}
+
 // ---------- Summaries ----------
 function computeStats(tickets, now, noAckHours) {
   const today = bkkYmd(now);
@@ -896,17 +1062,25 @@ function summaryMessage(s, heading) {
     `🔴 เลยกำหนด ${s.overdue.length} · ⏳ รอคุณตอบ ${s.waiting.length} · ✅ เสร็จรอคุณปิด ${s.done.length}`,
     `🆕 ยังไม่รับทราบ ${s.noAck.length}`,
     `📈 สัปดาห์นี้ สั่ง ${s.createdWeek.length} · ปิดแล้ว ${s.closedWeek.length}`,
-  ].join('\n');
+  ];
+  const leavers = s.leavers || [];
+  if (leavers.length) {
+    text.push(`👋 งานค้างของคนที่ลาออก ${leavers.reduce((n, g) => n + g.tickets.length, 0)} งาน: ${leavers.map((g) => personName(g.emp, g.email)).join(', ')}`);
+  }
   const items = [];
   if (s.overdue.length) items.push(qrPostback(`🔴 เลยกำหนด ${s.overdue.length}`, { a: 'list', k: 'overdue', p: 0 }, 'ดูงานเลยกำหนด'));
   if (s.waiting.length) items.push(qrPostback(`⏳ รอผม ${s.waiting.length}`, { a: 'list', k: 'waiting', p: 0 }, 'ดูงานรอผม'));
   if (s.done.length) items.push(qrPostback(`✅ รอปิด ${s.done.length}`, { a: 'list', k: 'done', p: 0 }, 'ดูงานรอปิด'));
   if (s.noAck.length) items.push(qrPostback(`🆕 ยังไม่รับทราบ ${s.noAck.length}`, { a: 'list', k: 'noack', p: 0 }, 'ดูงานยังไม่รับทราบ'));
-  return textMsg(text, items);
+  for (const g of leavers.slice(0, 8)) items.push(transferButton(g));
+  return textMsg(text.join('\n'), items);
 }
 
 async function loadStats(ctx, cfg) {
-  return computeStats(await getTickets(ctx), ctx.now(), Number(cfg.NOACK_HOURS || 24));
+  const tickets = await getTickets(ctx);
+  const s = computeStats(tickets, ctx.now(), Number(cfg.NOACK_HOURS || 24));
+  s.leavers = leaverGroups(tickets, await getEmployees(ctx));
+  return s;
 }
 
 async function replySummary(ctx, ev, cfg) {
@@ -1124,7 +1298,7 @@ async function weeklySummary(ctx) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     sha256, hmacSha256, verifyLineSignature, bkkYmd, addDays, fridayOf, mondayOf, spDate, thaiDate,
-    encodeData, decodeData, matchEmployees, findAssignee, parseDueText, computeStats, weeklyLines, chunkMessages, truncate,
+    encodeData, decodeData, matchEmployees, findAssignee, leaverGroups, parseDueText, computeStats, weeklyLines, chunkMessages, truncate,
     handleWebhook, dailySummary, weeklySummary, checkSharePointCall, notifyCeoOfStaffUpdates,
   };
 }

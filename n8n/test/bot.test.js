@@ -363,6 +363,68 @@ test('due date typed or spoken at "ส่งเมื่อไร?"', async () =
   assert.equal(lib.parseDueText('เดือนหน้า', y), null);
 });
 
+test('leaver: summary flags their open work; CEO transfers all of it to someone else', async () => {
+  const w = fakeWorld();
+  const old = '2026-10-01T00:00:00Z';
+  w.items.Tickets = [
+    { id: '1', createdDateTime: old, fields: { Title: 'งาน 1', AssigneeEmail: 'left@df.co.th', Status: 'InProgress', IsOpen: true, DueDate: '2026-10-25T00:00:00Z' } },
+    { id: '2', createdDateTime: old, fields: { Title: 'งาน 2', AssigneeEmail: 'left@df.co.th', Status: 'WaitingCEO', IsOpen: true } },
+    { id: '3', createdDateTime: old, fields: { Title: 'ปิดแล้ว', AssigneeEmail: 'left@df.co.th', Status: 'Closed', IsOpen: false } },
+    { id: '4', createdDateTime: old, fields: { Title: 'ของคนอื่น', AssigneeEmail: 'pm@df.co.th', Status: 'New', IsOpen: true } },
+  ];
+  await send(w, textEv('สรุป'));
+  let msg = lastReply(w);
+  assert.match(msg.text, /👋 งานค้างของคนที่ลาออก 2 งาน: คุณเอ/);
+  const btn = quick(msg).find((a) => actionData(a).a === 'xfer');
+  assert.equal(actionData(btn).f, 'left@df.co.th');
+
+  await send(w, postbackEv(actionData(btn)));
+  msg = lastReply(w);
+  assert.match(msg.text, /งานค้างของคุณเอ 2 งาน\nT-1 งาน 1\nT-2 งาน 2/);
+  const x = actionData(quick(msg)[0]).x;
+
+  await send(w, textEv('มะลิ')); // typed name
+  msg = lastReply(w);
+  assert.match(msg.text, /^ยืนยันโอน 2 งาน\nจาก คุณเอ → คุณมะลิ/);
+  const go = quick(msg)[0];
+  assert.deepEqual(actionData(go), { a: 'xgo', x, e: 'mkt@df.co.th' });
+
+  const r = await send(w, postbackEv(actionData(go)));
+  assert.deepEqual(r.results[0].transferred, [1, 2]);
+  const t1 = w.items.Tickets.find((t) => t.id === '1').fields;
+  assert.deepEqual([t1.AssigneeEmail, t1.Status, t1.PermsSet, t1.DueDate], ['mkt@df.co.th', 'New', false, '2026-10-25T00:00:00Z']);
+  assert.equal(w.items.Tickets.find((t) => t.id === '3').fields.AssigneeEmail, 'left@df.co.th');
+  assert.equal(w.items.Tickets.find((t) => t.id === '4').fields.AssigneeEmail, 'pm@df.co.th');
+  const h = w.items.TicketHistory.map((i) => i.fields);
+  assert.deepEqual(h.map((f) => [f.TicketID, f.Action, f.FromStatus, f.ToStatus, f.Source, f.Processed]),
+    [[1, 'reassign', 'InProgress', 'New', 'LINE', false], [2, 'reassign', 'WaitingCEO', 'New', 'LINE', false]]);
+  assert.match(lastReply(w).text, /✅ โอน 2 งานจากคุณเอให้คุณมะลิแล้ว\nT-1, T-2/);
+
+  // double tap on confirm does nothing
+  await send(w, postbackEv(actionData(go)));
+  assert.match(lastReply(w).text, /ทำไปแล้วหรือหมดอายุ/);
+  assert.equal(w.items.TicketHistory.length, 2);
+  await send(w, textEv('โอนงาน'));
+  assert.match(lastReply(w).text, /^ไม่มีงานค้างของคนที่ลาออก/);
+});
+
+test('transfer by name, cancel, and a new task is not mistaken for the transfer target', async () => {
+  const w = fakeWorld();
+  w.items.Tickets = [{ id: '7', createdDateTime: '2026-10-01T00:00:00Z', fields: { Title: 'x', AssigneeEmail: 'pm@df.co.th', Status: 'New', IsOpen: true } }];
+  await send(w, textEv('โอนงานปิ'));
+  assert.match(lastReply(w).text, /งานค้างของคุณปิ 1 งาน/);
+  assert.ok(quick(lastReply(w)).every((a) => actionData(a).e !== 'pm@df.co.th')); // cannot transfer to the same person
+  await send(w, textEv('ยกเลิก'));
+  assert.equal(lastReply(w).text, 'ยกเลิกการโอนงานแล้ว');
+
+  await send(w, textEv('โอนงานของปิ'));
+  await send(w, textEv('สั่งมะลิทำสไลด์ขาย')); // a task, not a name
+  assert.match(lastReply(w).text, /สั่งใคร\?/);
+  assert.equal(w.items.Tickets[0].fields.AssigneeEmail, 'pm@df.co.th');
+  await send(w, textEv('โอนงานสมศรี'));
+  assert.match(lastReply(w).text, /^ไม่พบชื่อ "สมศรี"/);
+});
+
 test('expired and cancelled buttons do nothing harmful', async () => {
   const w = fakeWorld();
   await send(w, postbackEv({ a: 'who', d: 'old', e: 'pm@df.co.th' }));
