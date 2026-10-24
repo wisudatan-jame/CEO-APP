@@ -25,7 +25,9 @@
    | Number | `ticketId` | ใช่ |
    | Text | `action` | ใช่ |
    | Text | `expectedStatus` | ใช่ |
-   | Text | `comment` | ใช่ (แอปส่ง `""` เมื่อไม่มีความเห็น ถ้าตั้งเป็น Optional แอปต้องส่งค่าแบบ Record `{comment: ...}` ซึ่งสับสนง่าย) |
+   | Text | `comment` | ไม่บังคับก็ได้ |
+
+   > แอปเรียก Flow แบบระบุชื่อค่าทุกตัวในวงเล็บปีกกา (ข้อ 2.4) จึงไม่ขึ้นกับว่าแต่ละ Input ติ๊ก **Make the field required** หรือไม่ ชื่อที่แอปเห็นเป็นชื่อภายในตามลำดับที่สร้าง: `number` = ticketId, `text` = action, `text_1` = expectedStatus, `text_2` = comment ⚠️ ถ้าสร้าง Input ต่างลำดับ ให้พิมพ์ `UpdateTicket.Run(` ในแอปแล้วดูชื่อจากกล่องคำแนะนำ
 
 ### 1.2 อ่านค่า Input และตัวตนผู้กด (นอก Scope)
 1. **Initialize variable** · Name `CallerEmail` · Type String · Value (Expression):
@@ -196,7 +198,7 @@ or(not(equals(outputs('Current'), outputs('In_expected'))), empty(outputs('NewSt
 - `btnAck` → `"ack"` · `btnStart` → `"start"` · `btnWait` → `"wait"` · `btnDone` → `"done"` · `btnComment` → `"comment"`
 ```powerfx
 Set(varBusy, true);
-Set(varResult, UpdateTicket.Run(varTicket.ID, "ack", varTicket.Status.Value, txtComment.Text));
+Set(varResult, UpdateTicket.Run({number: varTicket.ID, text: "ack", text_1: varTicket.Status.Value, text_2: txtComment.Text}));
 Set(varBusy, false);
 If(varResult.ok = "true",
     Notify("บันทึกแล้ว", NotificationType.Success); Reset(txtComment),
