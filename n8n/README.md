@@ -68,7 +68,7 @@ Workflow อ่านค่าเหล่านี้จาก **n8n Variables*
 ### ค. นำบอทเข้า n8n (ครั้งแรก)
 1. **Workflows → Import from File** → `ceo-line-bot.json`
 2. Settings ของ Workflow: Timezone `Asia/Bangkok` (ตั้งไว้ในไฟล์แล้ว)
-3. **Publish** (n8n 2.x ใช้ปุ่ม Publish มุมขวาบนแทน Active และบันทึกอัตโนมัติ ไม่มีปุ่ม Save · งานร่างและการกันข้อความซ้ำทำงานเฉพาะเมื่อ Active ไม่ใช่ตอนกด Test)
+3. **Publish** (n8n 2.x ใช้ปุ่ม Publish มุมขวาบนแทน Active และบันทึกอัตโนมัติ ไม่มีปุ่ม Save · งานร่างและการกันข้อความซ้ำทำงานเฉพาะหลัง Publish ไม่ใช่ตอนกด Execute workflow)
 4. LINE Developers → Messaging API → Webhook URL = `<URL ของ Tunnel>/webhook/ceo-line-bot` → **Verify** → เปิด **Use webhook** (ดู [../docs/guides/D-line-oa.md](../docs/guides/D-line-oa.md))
 5. ส่งข้อความหา OA แล้วดู n8n → **Executions**: มี Execution ใหม่ = ต่อกันแล้ว · ผล `bad-signature` = `LINE_CHANNEL_SECRET` ผิด · Error `403/accessDenied` = รอ Global Admin ให้สิทธิ์ SharePoint (ติดตั้งถูกแล้ว)
 
