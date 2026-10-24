@@ -53,7 +53,7 @@ OA Manager → Settings → **Account settings / ตั้งค่าบัญ�
 ## 7. ตั้ง Webhook (ทำหลัง n8n รันพร้อม Tunnel แล้ว)
 แท็บ **Messaging API** → **Webhook settings**
 1. **Webhook URL:** `<URL ของ n8n>/webhook/ceo-line-bot` (ดู [../../n8n/README.md](../../n8n/README.md))
-2. กด **Verify** → ต้องขึ้น **Success** (n8n ต้อง Activate Workflow แล้ว)
+2. กด **Verify** → ต้องขึ้น **Success** (n8n ต้อง Publish Workflow แล้ว)
 3. เปิด **Use webhook**
 4. **Webhook redelivery:** เปิดได้ (บอทกันข้อความซ้ำไว้แล้ว)
 

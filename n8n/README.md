@@ -68,16 +68,16 @@ Workflow อ่านค่าเหล่านี้จาก **n8n Variables*
 ### ค. นำบอทเข้า n8n (ครั้งแรก)
 1. **Workflows → Import from File** → `ceo-line-bot.json`
 2. Settings ของ Workflow: Timezone `Asia/Bangkok` (ตั้งไว้ในไฟล์แล้ว)
-3. **Activate** (งานร่างและการกันข้อความซ้ำทำงานเฉพาะเมื่อ Active ไม่ใช่ตอนกด Test)
+3. **Publish** (n8n 2.x ใช้ปุ่ม Publish มุมขวาบนแทน Active และบันทึกอัตโนมัติ ไม่มีปุ่ม Save · งานร่างและการกันข้อความซ้ำทำงานเฉพาะเมื่อ Active ไม่ใช่ตอนกด Test)
 4. LINE Developers → Messaging API → Webhook URL = `<URL ของ Tunnel>/webhook/ceo-line-bot` → **Verify** → เปิด **Use webhook** (ดู [../docs/guides/D-line-oa.md](../docs/guides/D-line-oa.md))
 5. ส่งข้อความหา OA แล้วดู n8n → **Executions**: มี Execution ใหม่ = ต่อกันแล้ว · ผล `bad-signature` = `LINE_CHANNEL_SECRET` ผิด · Error `403/accessDenied` = รอ Global Admin ให้สิทธิ์ SharePoint (ติดตั้งถูกแล้ว)
 
 ## SharePoint webhook (ให้ CEO ได้แจ้งเตือนเมื่อพนักงานอัปเดต)
-ทำหลังจาก Workflow เปิดใช้งาน (Active) แล้ว เพราะ SharePoint จะเรียก URL ยืนยันทันทีตอนสร้าง
+ทำหลังจาก Workflow เปิดใช้งาน (Publish) แล้ว เพราะ SharePoint จะเรียก URL ยืนยันทันทีตอนสร้าง
 1. เปิด Site `CEO-Tickets` ด้วยบัญชี Owner → F12 → Console
 2. วางเนื้อหาไฟล์ [`../setup/create-webhook.js`](../setup/create-webhook.js) → Enter
 3. ใส่ URL `<URL ของ n8n>/webhook/ceo-sp-hook` และค่า `SP_WEBHOOK_CLIENT_STATE`
-4. ต้องเห็น `สร้าง webhook ... หมดอายุ ...` และ `เสร็จแล้ว` ถ้าเห็น Error ว่ายืนยัน URL ไม่ผ่าน ให้ตรวจว่า Workflow Active และ URL ถูกต้อง
+4. ต้องเห็น `สร้าง webhook ... หมดอายุ ...` และ `เสร็จแล้ว` ถ้าเห็น Error ว่ายืนยัน URL ไม่ผ่าน ให้ตรวจว่า Workflow ถูก Publish แล้ว และ URL ถูกต้อง
 5. **รันซ้ำทุก 5 เดือน** หรือเมื่อเปลี่ยน URL ของ n8n (เช่น ตอนย้ายจากโน้ตบุ๊กไป n8n Cloud) สคริปต์ลบของเดิมแล้วสร้างใหม่ให้
 
 ## หา LINE user ID ของ CEO
