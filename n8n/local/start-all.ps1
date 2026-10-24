@@ -9,8 +9,23 @@ $log = Join-Path $env:TEMP 'ceo-n8n-tunnel.log'
 Remove-Item $log -ErrorAction SilentlyContinue
 Get-Process cloudflared -ErrorAction SilentlyContinue | Stop-Process -Force
 Write-Host 'Starting Cloudflare Tunnel...'
-$tunnelExe = Join-Path $PSScriptRoot 'cloudflared.exe'
-if (-not (Test-Path $tunnelExe)) { $tunnelExe = 'cloudflared' }
+# A just-installed cloudflared is not on this window's PATH yet, so refresh PATH and check the usual install folders.
+$env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
+$candidates = @(
+    (Join-Path $PSScriptRoot 'cloudflared.exe'),
+    "${env:ProgramFiles(x86)}\cloudflared\cloudflared.exe",
+    "$env:ProgramFiles\cloudflared\cloudflared.exe"
+)
+$tunnelExe = $candidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+if (-not $tunnelExe) {
+    $cmd = Get-Command cloudflared -ErrorAction SilentlyContinue
+    if ($cmd) { $tunnelExe = $cmd.Source }
+}
+if (-not $tunnelExe) {
+    Write-Host 'cloudflared not found. Close PowerShell, open a new one and try again, or put cloudflared.exe in this folder.' -ForegroundColor Red
+    exit 1
+}
+Write-Host "Using $tunnelExe"
 Start-Process $tunnelExe -ArgumentList 'tunnel', '--url', 'http://localhost:5678' -RedirectStandardError $log -NoNewWindow
 
 $url = $null
