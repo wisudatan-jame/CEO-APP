@@ -39,4 +39,8 @@ Write-Host "Webhook base: $env:WEBHOOK_URL"
 Write-Host "LINE webhook URL:       $($env:WEBHOOK_URL)webhook/ceo-line-bot"
 Write-Host "SharePoint webhook URL: $($env:WEBHOOK_URL)webhook/ceo-sp-hook"
 
+# n8n 2.x renamed WEBHOOK_URL; .env keeps the old key so existing files still work.
+$env:N8N_WEBHOOK_URL = $env:WEBHOOK_URL
+Remove-Item Env:WEBHOOK_URL -ErrorAction SilentlyContinue
+
 n8n start
