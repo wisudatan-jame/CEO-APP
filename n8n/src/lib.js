@@ -8,6 +8,7 @@ const TZ_OFFSET_MS = 7 * 3600 * 1000; // Asia/Bangkok, no DST
 const DRAFT_TTL_MS = 30 * 60 * 1000;
 const APPEND_WINDOW_MS = 60 * 1000; // forwarded messages arriving together become details
 const SEEN_TTL_MS = 24 * 3600 * 1000;
+const PENDING_IMAGES_TTL_MS = 10 * 60 * 1000; // photos sent before the task text wait this long for it
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_IMAGES = 5;
 const MAX_QUICK_PEOPLE = 8;
@@ -380,7 +381,11 @@ async function handleWebhook(ctx, raw, headers) {
   const body = JSON.parse(Buffer.from(raw).toString('utf8'));
   const results = [];
   const errors = [];
-  for (const ev of body.events || []) {
+  const events = body.events || [];
+  for (let i = 0; i < events.length; i++) {
+    const ev = events[i];
+    // Several texts in one delivery (e.g. forwarded together): answer only the last one.
+    ev.moreText = isText(events[i + 1]) && isText(ev) && events[i + 1].source.userId === ev.source.userId;
     try {
       results.push(await handleEvent(ctx, ev));
     } catch (e) {
@@ -397,6 +402,10 @@ async function handleWebhook(ctx, raw, headers) {
     throw new Error(`CEO LINE Bot: ${errors.length} event(s) failed: ${results.filter((r) => r.error).map((r) => r.error).join(' | ')}`);
   }
   return { ok: true, results };
+}
+
+function isText(ev) {
+  return !!(ev && ev.type === 'message' && ev.message && ev.message.type === 'text' && ev.source);
 }
 
 function alreadySeen(ctx, eventId) {
@@ -437,10 +446,11 @@ function helpText() {
   return [
     'วิธีสั่งงาน',
     '1) กดไมค์บนแป้นพิมพ์ แล้วพูดชื่องาน ตรวจข้อความแล้วกดส่ง',
-    '2) แตะเลือกผู้รับผิดชอบ',
-    '3) แตะเลือกวันส่ง',
+    '2) แตะหรือพูดชื่อผู้รับผิดชอบ เช่น "สั่งแตนบัญชี"',
+    '3) แตะหรือพูดวันส่ง เช่น "พรุ่งนี้" "ศุกร์นี้"',
     '',
-    'ส่งรูปตามหลังข้อความเพื่อแนบกับงานได้',
+    'ส่งรูปก่อนหรือหลังข้อความชื่องานก็ได้ (ก่อนเลือกวันส่ง)',
+    'ส่งทีละข้อความ รอบอทตอบก่อนส่งข้อความถัดไป',
     'พิมพ์ "สรุป" เพื่อดูภาพรวม · "ยกเลิก" เพื่อยกเลิกงานที่กำลังสร้าง',
   ].join('\n');
 }
@@ -448,6 +458,12 @@ function helpText() {
 function drafts(ctx) {
   ctx.store.drafts = ctx.store.drafts || {};
   return ctx.store.drafts;
+}
+function takePendingImages(ctx, userId, nowMs) {
+  const all = ctx.store.pendingImages || {};
+  const p = all[userId];
+  delete all[userId];
+  return p && nowMs - p.at < PENDING_IMAGES_TTL_MS ? p.ids : [];
 }
 function currentDraft(ctx, userId) {
   const d = drafts(ctx)[userId];
@@ -476,6 +492,7 @@ async function onMessage(ctx, ev, cfg) {
     }
     if (t === 'ยกเลิก') {
       if (dr) delete drafts(ctx)[userId];
+      takePendingImages(ctx, userId, nowMs);
       await lineReply(ctx, ev, textMsg(dr ? `ยกเลิกแล้ว: "${truncate(dr.title, 60)}"` : 'ไม่มีงานที่กำลังสร้าง'));
       return { cancelled: !!dr };
     }
@@ -485,10 +502,24 @@ async function onMessage(ctx, ev, cfg) {
     }
     if (pendingReply) return sendReply(ctx, ev, cfg, pendingReply, t);
     if (dr && dr.stage === 'search') return onSearch(ctx, ev, dr, t);
-    if (dr && dr.stage === 'who' && nowMs - dr.lastTextAt < APPEND_WINDOW_MS) {
-      dr.details.push(t);
-      dr.lastTextAt = nowMs;
-      return { appended: dr.id };
+    if (dr && dr.stage === 'who') {
+      const picked = await onTypedWho(ctx, ev, dr, t);
+      if (picked) return picked;
+      if (nowMs - dr.lastTextAt < APPEND_WINDOW_MS) {
+        dr.details.push(t);
+        dr.lastTextAt = nowMs;
+        // Quick-reply buttons vanish once the CEO sends anything, so offer them again.
+        if (!ev.moreText) await askWho(ctx, ev, dr, `➕ เพิ่มเป็นรายละเอียดงานแล้ว (${dr.details.length} ข้อความ)\n\n`);
+        return { appended: dr.id };
+      }
+    }
+    if (dr && dr.stage === 'when') {
+      const date = parseDueText(t, bkkYmd(ctx.now()));
+      if (date) return createTicketFromDraft(ctx, ev, cfg, dr, date);
+      if (/^ส่ง/.test(t) && chars(t).length <= 20) {
+        const emp = (await getEmployees(ctx)).find((e) => e.email === dr.assignee);
+        return askWhen(ctx, ev, dr, emp, `ไม่เข้าใจวันส่ง "${truncate(t, 20)}" แตะปุ่มหรือ 📅 เลือกวัน\n\n`);
+      }
     }
     let notice = '';
     if (dr) notice = `ยกเลิกงานก่อนหน้า: "${truncate(dr.title, 60)}"\n\n`;
@@ -497,21 +528,37 @@ async function onMessage(ctx, ev, cfg) {
       id: newId(),
       title,
       details: chars(t).length > 255 ? [t] : [],
-      images: [],
+      images: takePendingImages(ctx, userId, nowMs),
       assignee: null,
       stage: 'who',
       createdAt: nowMs,
       lastTextAt: nowMs,
     };
     drafts(ctx)[userId] = dr;
+    if (dr.images.length) notice += `📎 แนบรูปที่ส่งไว้ ${dr.images.length} รูป\n`;
+    if (ev.moreText && !notice) return { draft: dr.id, stage: 'who' };
     return askWho(ctx, ev, dr, notice);
   }
 
   if (m.type === 'image') {
     const isLastOfSet = !m.imageSet || m.imageSet.index === m.imageSet.total;
     if (!dr) {
-      if (isLastOfSet) await lineReply(ctx, ev, textMsg('ส่งข้อความชื่องานก่อน แล้วค่อยส่งรูปเพื่อแนบกับงาน'));
-      return { image: 'no-draft' };
+      // Photo first, text after: keep the photos for the next task.
+      const all = (ctx.store.pendingImages = ctx.store.pendingImages || {});
+      const p = all[userId] && nowMs - all[userId].at < PENDING_IMAGES_TTL_MS ? all[userId] : { ids: [] };
+      if (p.ids.length >= MAX_IMAGES) {
+        if (isLastOfSet) await lineReply(ctx, ev, textMsg(`แนบรูปได้สูงสุด ${MAX_IMAGES} รูปต่องาน`));
+        return { image: 'limit' };
+      }
+      p.ids.push(m.id);
+      p.at = nowMs;
+      all[userId] = p;
+      if (isLastOfSet) {
+        const last = ctx.store.lastCreated;
+        const justMade = last && last.at && nowMs - last.at < PENDING_IMAGES_TTL_MS ? `งาน T-${last.ticketId} สร้างไปแล้ว รูปนี้จะไม่แนบกับ T-${last.ticketId}\n` : '';
+        await lineReply(ctx, ev, textMsg(`📎 รับรูปแล้ว (${p.ids.length} รูป)\n${justMade}พิมพ์หรือพูดชื่องานต่อได้เลย รูปจะแนบกับงานที่สั่งภายใน 10 นาที`));
+      }
+      return { image: 'pending', count: p.ids.length };
     }
     if (dr.images.length >= MAX_IMAGES) {
       if (isLastOfSet) await lineReply(ctx, ev, textMsg(`แนบรูปได้สูงสุด ${MAX_IMAGES} รูปต่องาน`));
@@ -562,6 +609,89 @@ async function askWho(ctx, ev, dr, notice) {
   return { draft: dr.id, stage: 'who' };
 }
 
+const ASSIGN_PREFIX = /^(สั่งงาน|สั่ง|มอบหมายให้|มอบให้|ให้)\s*/;
+const HONORIFIC = /^(คุณ|พี่|น้อง|นางสาว|นาย|นาง)\s*/;
+const DEPT_WORDS = [
+  ['บัญชี', 'account'], ['การเงิน', 'finance'], ['การตลาด', 'marketing', 'มาร์เก็ตติ้ง'],
+  ['hr', 'เอชอาร์', 'บุคคล'], ['pm', 'พีเอ็ม'], ['product', 'โปรดักส์', 'โปรดักท์', 'โปรดัก'],
+  ['iot', 'ไอโอที'], ['ขาย', 'sales', 'เซลส์', 'เซล'],
+];
+
+function deptMatches(rest, dept) {
+  const r = lower(rest).replace(/^(ฝ่าย|แผนก|ทีม)/, '').replace(/\s+/g, '');
+  const d = lower(dept).replace(/\s+/g, '');
+  if (chars(r).length < 2 || !d) return false;
+  if (d.includes(r) || r.includes(d)) return true;
+  return DEPT_WORDS.some((w) => w.some((x) => d.includes(x)) && w.some((x) => r.includes(x)));
+}
+
+// "สั่งแตนบัญชี" -> name "แตน" + department "บัญชี". Thai has no spaces, so match names as prefixes.
+function findAssignee(employees, text) {
+  let q = lower(text).replace(/\s+/g, ' ').trim();
+  const explicit = ASSIGN_PREFIX.test(q);
+  q = q.replace(ASSIGN_PREFIX, '').replace(HONORIFIC, '').trim();
+  const all = [];
+  for (const e of employees) {
+    if (!e.active) continue;
+    let best = null;
+    for (const raw of [e.nick, e.first, e.full].concat(e.aliases)) {
+      const n = lower(raw).replace(HONORIFIC, '').trim();
+      if (n && q.startsWith(n) && (!best || chars(n).length > best.len)) best = { len: chars(n).length, rest: q.slice(n.length).trim() };
+    }
+    if (best) all.push(Object.assign({ e }, best));
+  }
+  // "เอกบัญชี" also starts with "เอ": only the longest name counts, so the leftover is really the department.
+  const longest = Math.max(0, ...all.map((h) => h.len));
+  const hits = all.filter((h) => h.len === longest);
+  const withDept = hits.filter((h) => h.rest && deptMatches(h.rest, h.e.dept));
+  if (withDept.length) return { people: withDept.map((h) => h.e), exact: true, explicit, query: q };
+  const nameOnly = hits.filter((h) => !h.rest);
+  if (nameOnly.length) return { people: nameOnly.map((h) => h.e), exact: true, explicit, query: q };
+  if (explicit && hits.length) return { people: hits.map((h) => h.e), exact: false, explicit, query: q };
+  return { people: [], exact: false, explicit, query: q };
+}
+
+async function offerPeople(ctx, ev, dr, people, text) {
+  const items = people.slice(0, 11).map((e) => qrPostback(personLabel(e), { a: 'who', d: dr.id, e: e.email }, `สั่ง${personName(e)}`));
+  items.push(qrPostback('❌ ยกเลิก', { a: 'cancel', d: dr.id }, 'ยกเลิก'));
+  await lineReply(ctx, ev, textMsg(text, items));
+  return { search: people.length };
+}
+
+// Name typed or spoken while the bot is asking "สั่งใคร?". Returns null when the text is not a name.
+async function onTypedWho(ctx, ev, dr, t) {
+  const r = findAssignee(await getEmployees(ctx), t);
+  if (r.people.length === 1 && r.exact) {
+    dr.assignee = r.people[0].email;
+    dr.stage = 'when';
+    return askWhen(ctx, ev, dr, r.people[0]);
+  }
+  if (r.people.length) {
+    const text = r.exact ? `พบ ${r.people.length} คน เลือกคนที่ต้องการ` : `ไม่พบ "${truncate(r.query, 40)}" ตรงทุกคำ คนที่ชื่อใกล้เคียง:`;
+    return offerPeople(ctx, ev, dr, r.people, text);
+  }
+  if (r.explicit) {
+    await askWho(ctx, ev, dr, `ไม่พบชื่อ "${truncate(r.query, 40)}" ในรายชื่อพนักงาน แตะเลือกด้านล่าง หรือ 🔍 คนอื่น\n\n`);
+    return { search: 'none' };
+  }
+  return null;
+}
+
+const THAI_DAYS = [['อาทิตย์'], ['จันทร์'], ['อังคาร'], ['พุธ'], ['พฤหัสบดี', 'พฤหัส'], ['ศุกร์'], ['เสาร์']];
+
+// "พรุ่งนี้", "ส่งศุกร์นี้", "วันจันทร์หน้า" -> YYYY-MM-DD, or null.
+function parseDueText(text, today) {
+  const q = String(text).replace(/\s+/g, '').replace(/^(ส่ง|ภายใน|ก่อน)+/, '');
+  const simple = { 'วันนี้': 0, 'พรุ่งนี้': 1, 'มะรืน': 2, 'มะรืนนี้': 2 };
+  if (Object.prototype.hasOwnProperty.call(simple, q)) return addDays(today, simple[q]);
+  const m = q.replace(/^วัน/, '').match(/^(.+?)(นี้|หน้า)?$/);
+  if (!m) return null;
+  const day = THAI_DAYS.findIndex((names) => names.includes(m[1]));
+  if (day < 0) return null;
+  if (m[2] === 'หน้า') return addDays(mondayOf(addDays(today, 7)), (day + 6) % 7);
+  return addDays(today, (day - dayOfWeek(today) + 7) % 7);
+}
+
 function matchEmployees(employees, query) {
   const q = lower(query).replace(/^(คุณ|พี่|น้อง|นาย|นางสาว|นาง)\s*/, '');
   if (!q) return [];
@@ -577,7 +707,9 @@ function matchEmployees(employees, query) {
 }
 
 async function onSearch(ctx, ev, dr, query) {
-  const found = matchEmployees(await getEmployees(ctx), query).slice(0, 11);
+  const employees = await getEmployees(ctx);
+  const r = findAssignee(employees, query);
+  const found = (r.people.length ? r.people : matchEmployees(employees, query)).slice(0, 11);
   const cancel = qrPostback('❌ ยกเลิก', { a: 'cancel', d: dr.id }, 'ยกเลิก');
   if (!found.length) {
     await lineReply(ctx, ev, textMsg(`ไม่พบ "${truncate(query, 40)}" ลองพิมพ์หรือพูดชื่อเล่นหรือชื่อจริงอีกครั้ง`, [cancel]));
@@ -589,7 +721,7 @@ async function onSearch(ctx, ev, dr, query) {
   return { search: found.length };
 }
 
-async function askWhen(ctx, ev, dr, emp) {
+async function askWhen(ctx, ev, dr, emp, notice) {
   const today = bkkYmd(ctx.now());
   const tomorrow = addDays(today, 1);
   const friday = fridayOf(today);
@@ -600,7 +732,7 @@ async function askWhen(ctx, ev, dr, emp) {
   if (friday !== today && friday !== tomorrow) items.push(qrPostback('ศุกร์นี้', { a: 'when', d: dr.id, v: friday }, 'ส่งศุกร์นี้'));
   items.push(qrDatePicker('📅 เลือกวัน', { a: 'date', d: dr.id }, tomorrow, today));
   items.push(qrPostback('❌ ยกเลิก', { a: 'cancel', d: dr.id }, 'ยกเลิก'));
-  await lineReply(ctx, ev, textMsg(`👤 ${personName(emp, dr.assignee)}\nส่งเมื่อไร?`, items));
+  await lineReply(ctx, ev, textMsg(`${notice || ''}👤 ${personName(emp, dr.assignee)}\nส่งเมื่อไร?`, items));
   return { draft: dr.id, stage: 'when' };
 }
 
@@ -682,7 +814,7 @@ async function createTicketFromDraft(ctx, ev, cfg, dr, date) {
   const ticketId = await createItem(ctx, 'Tickets', fields);
   // From here on the ticket exists: never let a later failure hide its number from the CEO.
   delete drafts(ctx)[userId];
-  ctx.store.lastCreated = { draftId: dr.id, ticketId };
+  ctx.store.lastCreated = { draftId: dr.id, ticketId, at: ctx.now().getTime() };
 
   let uploaded = 0;
   let failedImages = 0;
@@ -992,7 +1124,7 @@ async function weeklySummary(ctx) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     sha256, hmacSha256, verifyLineSignature, bkkYmd, addDays, fridayOf, mondayOf, spDate, thaiDate,
-    encodeData, decodeData, matchEmployees, computeStats, weeklyLines, chunkMessages, truncate,
+    encodeData, decodeData, matchEmployees, findAssignee, parseDueText, computeStats, weeklyLines, chunkMessages, truncate,
     handleWebhook, dailySummary, weeklySummary, checkSharePointCall, notifyCeoOfStaffUpdates,
   };
 }

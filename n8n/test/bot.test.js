@@ -291,12 +291,76 @@ test('images attach to the draft and upload after ticket creation', async () => 
   assert.match(lastReply(w).text, /แนบรูป 2 รูป/);
 });
 
-test('image without a draft and LINE voice messages get guidance', async () => {
+test('photos sent before the text attach to the next task; voice messages get guidance', async () => {
   const w = fakeWorld();
-  await send(w, ev('message', { message: { type: 'image', id: 'i' } }));
-  assert.match(lastReply(w).text, /ส่งข้อความชื่องานก่อน/);
+  await send(w, ev('message', { message: { type: 'image', id: 'i1', imageSet: { id: 's', index: 1, total: 2 } } }),
+    ev('message', { message: { type: 'image', id: 'i2', imageSet: { id: 's', index: 2, total: 2 } } }));
+  assert.match(lastReply(w).text, /^📎 รับรูปแล้ว \(2 รูป\)/);
+  await send(w, textEv('หาข้อมูลจากรูป'));
+  assert.match(lastReply(w).text, /^📎 แนบรูปที่ส่งไว้ 2 รูป/);
+  const d = actionData(quick(lastReply(w))[0]).d;
+  await send(w, postbackEv({ a: 'who', d, e: 'pm@df.co.th' }));
+  const r = await send(w, postbackEv({ a: 'when', d, v: '2026-10-20' }));
+  assert.equal(r.results[0].images, 2);
+  assert.equal(w.items.Tickets[0].fields.HasFiles, true);
+
+  // photos right after a ticket: say they will not join it
+  await send(w, ev('message', { message: { type: 'image', id: 'i3' } }));
+  assert.match(lastReply(w).text, new RegExp(`T-${r.results[0].created} สร้างไปแล้ว`));
+  // stale photos are dropped
+  w.now.value = new Date(w.now.value.getTime() + 11 * 60000);
+  await send(w, textEv('งานไม่มีรูป'));
+  assert.doesNotMatch(lastReply(w).text, /📎/);
+
   await send(w, ev('message', { message: { type: 'audio', id: 'a' } }));
   assert.match(lastReply(w).text, /ไมค์บนแป้นพิมพ์/);
+});
+
+test('name typed or spoken at "สั่งใคร?": exact, with department, wrong department, unknown', async () => {
+  const w = fakeWorld();
+  await send(w, textEv('งาน 1'));
+  await send(w, textEv('สั่งคุณมะลิ'));
+  assert.match(lastReply(w).text, /คุณมะลิ\nส่งเมื่อไร/);
+
+  await send(w, textEv('งาน 2'));
+  await send(w, textEv('สั่งเอกพรีเซล'));
+  assert.match(lastReply(w).text, /คุณเอก\nส่งเมื่อไร/); // not "เอ" although "เอกพรีเซล" starts with "เอ"
+
+  await send(w, textEv('งาน 3'));
+  await send(w, textEv('สั่งเอบัญชี')); // เอ is in Sales, not accounting
+  let msg = lastReply(w);
+  assert.match(msg.text, /ไม่พบ "เอบัญชี" ตรงทุกคำ/);
+  assert.deepEqual(quick(msg).filter((a) => actionData(a).a === 'who').map((a) => actionData(a).e), ['a@df.co.th']);
+
+  await send(w, textEv('สั่งสมศรี'));
+  msg = lastReply(w);
+  assert.match(msg.text, /^ไม่พบชื่อ "สมศรี"/);
+  assert.ok(quick(msg).some((a) => a.label === '🔍 คนอื่น'));
+
+  // a detail that merely starts like a nickname is not a person
+  const r = await send(w, textEv('เอกสารแนบตามที่คุยกัน'));
+  assert.equal(r.results[0].appended !== undefined, true);
+  assert.match(lastReply(w).text, /^➕ เพิ่มเป็นรายละเอียดงานแล้ว/);
+});
+
+test('due date typed or spoken at "ส่งเมื่อไร?"', async () => {
+  const w = fakeWorld(); // Mon 19 Oct 2026
+  await send(w, textEv('งาน A'));
+  await send(w, textEv('สั่งปิ'));
+  await send(w, textEv('ส่งวันพุธหน้า'));
+  assert.equal(w.items.Tickets[0].fields.DueDate, '2026-10-28T00:00:00Z');
+  await send(w, textEv('งาน B'));
+  await send(w, textEv('สั่งปิ'));
+  await send(w, textEv('ส่งเมื่อไหร่ก็ได้'));
+  assert.match(lastReply(w).text, /^ไม่เข้าใจวันส่ง/);
+  assert.equal(w.items.Tickets.length, 1);
+  const y = '2026-10-19';
+  assert.equal(lib.parseDueText('พรุ่งนี้', y), '2026-10-20');
+  assert.equal(lib.parseDueText('ศุกร์นี้', y), '2026-10-23');
+  assert.equal(lib.parseDueText('วันจันทร์', y), '2026-10-19');
+  assert.equal(lib.parseDueText('ส่งพฤหัส', y), '2026-10-22');
+  assert.equal(lib.parseDueText('จันทร์หน้า', y), '2026-10-26');
+  assert.equal(lib.parseDueText('เดือนหน้า', y), null);
 });
 
 test('expired and cancelled buttons do nothing harmful', async () => {
