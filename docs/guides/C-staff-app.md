@@ -210,6 +210,40 @@ Set(varTicket, LookUp(Tickets, ID = varTicket.ID))
 
 `btnWait` ควรบังคับให้พิมพ์คำถาม: ตั้ง DisplayMode เป็น `If(varBusy || IsBlank(Trim(txtComment.Text)), DisplayMode.Disabled, DisplayMode.Edit)`
 
+### 2.4.1 รูปแบบหน้าตา
+ตั้งสีไว้ที่เดียวด้วย Named formulas แล้วทุก Control อ้างชื่อสี เปลี่ยนสีทั้งแอปได้ในจุดเดียว (เปลี่ยน `clrPrimary` เป็นสีแบรนด์ Digital Focus เมื่อได้รหัสสีจริง)
+
+**App → Formulas**
+```powerfx
+clrPrimary = ColorValue("#1F4E79");
+clrBg = ColorValue("#F3F5F8");
+clrText = ColorValue("#1B1B1B");
+clrMuted = ColorValue("#6B7280");
+clrLine = ColorValue("#E2E6EB");
+clrDanger = ColorValue("#C62828");
+clrSuccess = ColorValue("#2E7D32");
+```
+
+**หน้า `scrDetail`** (ใช้กับ `scrTickets` แบบเดียวกันได้)
+| Control | Property |
+|---|---|
+| `scrDetail` | Fill `clrBg` |
+| Rectangle ใหม่ `recHeader` (Insert → Shapes → Rectangle) ส่งไปหลังสุด: คลิกขวา → Reorder → Send to back | X `0` · Y `0` · Width `Parent.Width` · Height `100` · Fill `clrPrimary` |
+| `icoBack` | Color `Color.White` · Width/Height `40` · Y `30` |
+| `lblDTitle` | Color `Color.White` · Size `18` · FontWeight `FontWeight.Semibold` · Y `10` · Height `80` · VerticalAlign `VerticalAlign.Middle` |
+| `lblDDue` | Size `14` · FontWeight `FontWeight.Semibold` · Color `If(varTicket.DueDate < Today(), clrDanger, clrMuted)` |
+| `lblDDetails` | Size `14` · Color `clrText` · Fill `Color.White` · PaddingLeft/Right/Top/Bottom `12` · BorderColor `clrLine` · BorderThickness `1` |
+| `txtComment` | Size `14` · BorderColor `clrLine` · Fill `Color.White` |
+| ปุ่มหลัก `btnAck` `btnStart` | Fill `clrPrimary` · Color `Color.White` · Size `15` · Height `50` |
+| `btnDone` | Fill `clrSuccess` · Color `Color.White` · Size `15` · Height `50` |
+| ปุ่มรอง `btnWait` `btnComment` `btnPhotos` | Fill `Color.White` · Color `clrPrimary` · BorderColor `clrPrimary` · BorderThickness `2` · Size `15` · Height `50` |
+| ทุกปุ่ม | DisabledFill `ColorFade(Self.Fill, 60%)` · มุมโค้ง: RadiusTopLeft/TopRight/BottomLeft/BottomRight `10` |
+| `galHistory` | Fill `Color.White` · TemplatePadding `0` |
+| `lblHist` | Size `12` · Color `clrMuted` · Height `Parent.TemplateHeight - 1` |
+| Rectangle ในแกลเลอรี `recHistLine` | X `16` · Y `Parent.TemplateHeight - 1` · Width `Parent.TemplateWidth - 32` · Height `1` · Fill `clrLine` |
+
+> Control แบบ **Modern** ใช้ชื่อ Property ต่างจากตาราง: สีตัวอักษร `FontColor` · ขนาด `FontSize` · มุมโค้ง `BorderRadius` · ปุ่มใช้ `Appearance` (Primary / Secondary / Outline) และ `BasePaletteColor` = `clrPrimary` แทน Fill · Text input ใช้ `.Value` แทน `.Text`
+
 ### 2.5 บันทึก เผยแพร่ และแชร์
 1. **Save** → **Publish**
 2. **Share** → เพิ่มพนักงานกลุ่มทดลองก่อน (PM, การตลาด, Presales, Sales, คุณ Suchada) แบบ **User** (ไม่ใช่ Co-owner ยกเว้นคุณ Suchada)
