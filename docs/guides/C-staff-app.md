@@ -129,7 +129,9 @@ or(not(equals(outputs('Current'), outputs('In_expected'))), empty(outputs('NewSt
 **m) Respond to a PowerApp or flow** · `ok` = `true` · `id` = `outputs('In_ticketId')` · `message` = `outputs('NewStatus')`
 
 ### 1.4 Scope `Catch`
-เหมือนคู่มือ ก ข้อ 4 (Run after: has failed, has timed out) เปลี่ยน Subject เป็น `concat('[CEO-APP] UpdateTicket ล้มเหลว T-', outputs('In_ticketId'))` และเพิ่ม **Respond to a PowerApp or flow** (`ok` = `false`, `message` = `ระบบขัดข้อง ลองใหม่อีกครั้ง`) **ก่อน** Terminate Failed
+เหมือนคู่มือ ก ข้อ 4 (Run after: has failed, has timed out) เปลี่ยน Subject เป็น `concat('[CEO-APP] UpdateTicket ล้มเหลว T-', outputs('In_ticketId'))` และเพิ่ม **Respond to a PowerApp or flow** (`ok` = `false`, `id` = `outputs('In_ticketId')`, `message` = `ระบบขัดข้อง ลองใหม่อีกครั้ง`) **ก่อน** Terminate Failed
+
+> ⚠️ ทุกการ์ด **Respond to a PowerApp or flow** ใน Flow เดียวกัน (ใน Rejected, ท้าย Try และใน Catch) ต้องมี Output **ชื่อและชนิดเหมือนกันทุกใบ**: `ok`, `id`, `message` เป็น Text ทั้ง 3 ตัว เรียงลำดับเดียวกัน ถ้าใบใดขาดหรือชนิดต่าง Power Automate จะไม่ยอมบันทึก
 
 ### 1.5 สิทธิ์การรัน
 หน้า Flow → **Run only users** → Connections ของ SharePoint, Teams และ Outlook เลือก **Use this connection** (ของเจ้าของ Flow) ไม่ใช่ "Provided by run-only user" เพื่อให้พนักงานที่มีสิทธิ์อ่านอย่างเดียวยังอัปเดตงานผ่าน Flow ได้
