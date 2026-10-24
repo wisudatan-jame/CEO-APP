@@ -25,7 +25,7 @@
    | Number | `ticketId` | ใช่ |
    | Text | `action` | ใช่ |
    | Text | `expectedStatus` | ใช่ |
-   | Text | `comment` | ไม่ (คลิก … ของ Input → Make the field optional) |
+   | Text | `comment` | ใช่ (แอปส่ง `""` เมื่อไม่มีความเห็น ถ้าตั้งเป็น Optional แอปต้องส่งค่าแบบ Record `{comment: ...}` ซึ่งสับสนง่าย) |
 
 ### 1.2 อ่านค่า Input และตัวตนผู้กด (นอก Scope)
 1. **Initialize variable** · Name `CallerEmail` · Type String · Value (Expression):
