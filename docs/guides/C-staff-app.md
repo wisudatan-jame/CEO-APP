@@ -225,7 +225,7 @@ Set(varTicket, LookUp(Tickets, ID = varTicket.ID))
 | `btnDone` | `If(varTicket.Status.Value in ["Done", "Closed"], "✓ ทำเสร็จแล้ว", "ทำเสร็จแล้ว")` | `If(varBusy \|\| varTicket.Status.Value <> "InProgress", DisplayMode.Disabled, DisplayMode.Edit)` | `If(varTicket.Status.Value in ["Done", "Closed"], clrSuccess, ColorFade(Self.Fill, 60%))` |
 | `btnComment` | `"ส่งความเห็น"` | `If(varBusy \|\| IsBlank(Trim(txtComment.Text)), DisplayMode.Disabled, DisplayMode.Edit)` | `ColorFade(Self.Fill, 60%)` |
 
-ทุกปุ่ม: **Visible** `true` · **DisabledColor** `If(Self.DisabledFill = clrSuccess \|\| Self.DisabledFill = clrPrimary, Color.White, ColorFade(Self.Color, 40%))` · **DisabledBorderColor** = `Self.DisabledFill`
+ทุกปุ่ม: **Visible** `true` · **DisabledBorderColor** `Self.DisabledFill` · **DisabledColor**: `btnAck` `btnStart` `btnDone` = `Color.White` · `btnWait` = `If(varTicket.Status.Value = "WaitingCEO", Color.White, ColorFade(clrIndigo, 50%))` · `btnComment` = `ColorFade(clrIndigo, 50%)`
 `galHistory` Y กลับเป็น `btnComment.Y + 70` (ไม่ต้องคำนวณช่องว่างแล้ว)
 
 **ถาม CEO ต่างจากส่งความเห็นอย่างไร**
