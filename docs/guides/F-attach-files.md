@@ -69,7 +69,7 @@
 **h) Stop sharing** · Library `TicketHistory` · Id `body('Create_history')?['ID']`
 **i) Grant access** · List `TicketHistory` · Id เหมือน h) · Recipients `body('Get_ticket')?['AssigneeEmail']` · Can view · Notify No
 
-**j) Respond to a PowerApp or flow** · `ok` = `true` · `id` = `outputs('In_ticketId')` · `message` = `outputs('File_name')`
+**j) Respond to a PowerApp or flow** · `ok` = `true` (พิมพ์เป็นข้อความ ไม่ต้องกด fx) · `id` = `outputs('In_ticketId')` · `message` = `outputs('File_name')`
 
 ### 1.4 Scope `Catch`
 เหมือน [คู่มือ ค ข้อ 1.4](C-staff-app.md) และ[คู่มือ ก ข้อ 4](A-flow-onlineevent.md) (Get admins → Select `Admin emails` แบบโหมดข้อความ → Send an email To = `join(body('Admin_emails'), ';')` · Run after: has failed, has timed out · อีเมลผู้ดูแล Subject `concat('[CEO-APP] AttachTicketFile ล้มเหลว T-', outputs('In_ticketId'))`) และ **Respond** `ok` = `false` · `id` = `outputs('In_ticketId')` · `message` = `ส่งไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง` ก่อน Terminate Failed
@@ -122,9 +122,9 @@ Set(varUpload,
     ForAll(attFiles.Attachments As f,
         AttachTicketFile.Run(varTicket.ID, {contentBytes: f.Value, name: f.Name})));
 Set(varBusy, false);
-If(CountIf(varUpload, ok = "true") = CountRows(varUpload),
+If(CountIf(varUpload, Lower(ok) = "true") = CountRows(varUpload),
     Notify("ส่งไฟล์แล้ว " & CountRows(varUpload) & " ไฟล์", NotificationType.Success); Reset(attFiles),
-    Notify("ส่งไม่สำเร็จบางไฟล์: " & First(Filter(varUpload, ok <> "true")).message, NotificationType.Error));
+    Notify("ส่งไม่สำเร็จบางไฟล์: " & First(Filter(varUpload, Lower(ok) <> "true")).message, NotificationType.Error));
 Refresh(Tickets);
 Refresh(TicketHistory);
 Set(varTicket, LookUp(Tickets, ID = varTicket.ID))
