@@ -29,6 +29,7 @@ Flow นี้รับต่อจากบอท LINE: ตั้งสิท�
    @and(equals(triggerBody()?['Source']?['Value'], 'LINE'), equals(triggerBody()?['Processed'], false))
    ```
    เงื่อนไขนี้ทำให้ Flow ทำงานเฉพาะเหตุการณ์จากบอทที่ยังไม่ได้ทำ (กันการทำงานซ้ำและไม่ไปยุ่งกับงานจากแอป)
+   > เมื่อทำหน้า CEO ใน Power Apps ([คู่มือ ซ](H-ceo-app.md)) ให้เปลี่ยนเป็น `@equals(triggerBody()?['Processed'], false)` เพื่อรับงานที่ CEO สั่งหรือตอบจากแอปด้วย
 
 ## 3. Scope "Try"
 **+ (ใต้ Trigger)** → **Add an action** → ค้นหา `Scope` → เลือก **Scope** → เปลี่ยนชื่อเป็น `Try` (คลิกชื่อการ์ดแล้วพิมพ์)
