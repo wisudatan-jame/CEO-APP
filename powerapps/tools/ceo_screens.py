@@ -229,11 +229,11 @@ Set(varPickDue, false);
             ('lblCDFilesEmpty', in_box(label('If(varTicket.HasFiles, "มีไฟล์ในโฟลเดอร์งาน (รูปที่สั่งผ่าน LINE)", "ยังไม่มีไฟล์")', Height=40, Size=13,
                                              Color='clrMuted', Visible='!galCDFiles.Visible'))),
         ], '34 + 8 + If(galCDFiles.Visible, galCDFiles.Height, 40) + 24', LayoutGap=8)),
-        history_card('galCDHistory', 'recCDHistLine', 'lblCDHist', 'lblCDHistHead', 'conCDHist', 'คุณ'),
+        history_card('galCDHistory', 'recCDHistLine', 'lblCDHist', 'lblCDHistHead', 'conCDHist', 'คุณ', who),
         ('conCDAction', card([
             ('txtCeo', in_box({'type': 'Classic/TextInput@2.3.2', 'props': {
                 'Default': '""', 'Mode': 'TextMode.MultiLine', 'Height': 52, 'Font': FONT, 'Size': 14,
-                'HintText': f'"ข้อความถึง" & {who} & " (ไม่ผ่าน / ตอบ / ติดตาม ใส่ได้) เช่น ขอเพิ่มเงื่อนไขการต่ออายุสัญญา"',
+                'HintText': f'"ข้อความถึง " & {who} & " (ไม่ผ่าน / ตอบ / ติดตาม ใส่ได้) เช่น ขอเพิ่มเงื่อนไขการต่ออายุสัญญา"',
                 'BorderColor': 'clrLine', 'BorderThickness': 2, 'Fill': 'Color.White', 'HoverFill': 'Color.White',
                 'RadiusTopLeft': 10, 'RadiusTopRight': 10, 'RadiusBottomLeft': 10, 'RadiusBottomRight': 10}})),
             ('conCDDue', in_box(hbox([
@@ -252,7 +252,7 @@ Set(varPickDue, false);
             ], Height=50))),
         ], '52 + If(varPickDue, 50 + 10, 0) + 56 + 50 + 2 * 10 + 24')),
     ], X=0, Y=94, Width='Parent.Width', Height=f'Parent.Height - 94 - {TAB_H}', Fill='clrBg', LayoutGap=10,
-       PaddingTop=12, PaddingBottom=16, PaddingLeft=20, PaddingRight=20, LayoutOverflowY='LayoutOverflow.Scroll')
+       PaddingTop=12, PaddingBottom=12, PaddingLeft=20, PaddingRight=20, LayoutOverflowY='LayoutOverflow.Scroll')
     children = header('CD') + [('conCDBody', body)] + tabs('CD', CEO_TABS, 'List')
     on_visible = 'Set(varPickDue, false);\nIf(IsEmpty(colEmp), ClearCollect(colEmp, Filter(Employees, Active = true)));\nRefresh(TicketHistory);\n' + HIST_LOAD
     return screen('scrCeoDetail', {'Fill': 'clrBg', 'OnVisible': on_visible}, children)

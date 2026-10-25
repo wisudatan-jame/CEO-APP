@@ -48,7 +48,7 @@ Screens:
             LayoutDirection: =LayoutDirection.Vertical
             LayoutAlignItems: =LayoutAlignItems.Stretch
             PaddingTop: =12
-            PaddingBottom: =16
+            PaddingBottom: =12
             PaddingLeft: =20
             PaddingRight: =20
             LayoutGap: =10
@@ -589,9 +589,10 @@ Screens:
                   RadiusTopRight: =20
                   RadiusBottomLeft: =20
                   RadiusBottomRight: =20
-                  FillPortions: =0
+                  FillPortions: =1
                   AlignInContainer: =AlignInContainer.Stretch
-                  Height: =34 + 10 + 92 + 24 + 4
+                  Height: =176 + 4
+                  LayoutMinHeight: =180
                 Children:
                   - conconCDHistHead:
                       Control: GroupContainer@1.3.0
@@ -629,7 +630,7 @@ Screens:
                         - lblCDHistHeadCount:
                             Control: Label@2.5.1
                             Properties:
-                              Text: =If(CountRows(varHist) > 2, (varHistPos + 1) & "–" & Min(varHistPos + 2, CountRows(varHist)) & " / " & CountRows(varHist), "")
+                              Text: =If(CountRows(varHist) > Max(1, RoundDown(galCDHistory.Height / 54, 0)), (varHistPos + 1) & "–" & Min(varHistPos + Max(1, RoundDown(galCDHistory.Height / 54, 0)), CountRows(varHist)) & " / " & CountRows(varHist), "")
                               Font: =Font.'Open Sans'
                               Size: =12
                               Color: =clrMuted
@@ -647,7 +648,7 @@ Screens:
                             Properties:
                               Icon: =Icon.ChevronUp
                               Color: =If(varHistPos > 0, clrPrimary, clrLine)
-                              OnSelect: =If(varHistPos > 0, Set(varHistPos, varHistPos - 2))
+                              OnSelect: =If(varHistPos > 0, Set(varHistPos, Max(0, varHistPos - Max(1, RoundDown(galCDHistory.Height / 54, 0)))))
                               Width: =40
                               Height: =34
                               PaddingTop: =6
@@ -662,8 +663,8 @@ Screens:
                             Control: Classic/Icon@2.5.0
                             Properties:
                               Icon: =Icon.ChevronDown
-                              Color: =If(varHistPos + 2 < CountRows(varHist), clrPrimary, clrLine)
-                              OnSelect: =If(varHistPos + 2 < CountRows(varHist), Set(varHistPos, varHistPos + 2))
+                              Color: =If(varHistPos + Max(1, RoundDown(galCDHistory.Height / 54, 0)) < CountRows(varHist), clrPrimary, clrLine)
+                              OnSelect: =If(varHistPos + Max(1, RoundDown(galCDHistory.Height / 54, 0)) < CountRows(varHist), Set(varHistPos, varHistPos + Max(1, RoundDown(galCDHistory.Height / 54, 0))))
                               Width: =40
                               Height: =34
                               PaddingTop: =6
@@ -678,13 +679,15 @@ Screens:
                       Control: Gallery@2.15.0
                       Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
                       Properties:
-                        Items: =LastN(FirstN(varHist, varHistPos + 2), Max(Min(2, CountRows(varHist) - varHistPos), 0))
-                        TemplateSize: =46
+                        Items: =LastN(FirstN(varHist, varHistPos + Max(1, RoundDown(galCDHistory.Height / 54, 0))), Max(Min(Max(1, RoundDown(galCDHistory.Height / 54, 0)), CountRows(varHist) - varHistPos), 0))
+                        TemplateSize: =54
                         Fill: =Color.Transparent
                         ShowScrollbar: =false
-                        Height: =92
-                        FillPortions: =0
+                        BorderThickness: =0
+                        FillPortions: =1
                         AlignInContainer: =AlignInContainer.Stretch
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
                       Children:
                         - lblCDHistWhen:
                             Control: Label@2.5.1
@@ -698,15 +701,15 @@ Screens:
                               Width: =150
                               Height: =Parent.TemplateHeight - 1
                               VerticalAlign: =VerticalAlign.Top
-                              PaddingTop: =12
+                              PaddingTop: =8
                               OnSelect: =Select(Parent)
                         - lblCDHist:
                             Control: Label@2.5.1
                             Properties:
                               Text: |-
                                 =With({a: Lower(ThisItem.ActorEmail)},
-                                    If(IsBlank(a), "",
-                                        a in ceoEmails, "คุณ",
+                                    If(a = Lower(varTicket.AssigneeEmail) || (IsBlank(a) && ThisItem.Action.Value in ["ack", "start", "wait", "done"]), With({n: LookUp(colEmp, Lower(Email) = varTicket.AssigneeEmail).Nickname}, If(IsBlank(n), First(Split(varTicket.AssigneeEmail, "@")).Value, "คุณ" & n)),
+                                        IsBlank(a) || a in ceoEmails, "คุณ",
                                         With({n: LookUp(Employees, Email = ThisItem.ActorEmail).Nickname}, If(IsBlank(n), First(Split(a, "@")).Value, "คุณ" & n))) & ": ") & With({c: ThisItem.Comment},
                                     If(StartsWith(c, "📎 แนบไฟล์"), "แนบไฟล์ " & Mid(c, Find(": ", c) + 18),
                                         ThisItem.Action.Value = "comment", c,
@@ -721,7 +724,7 @@ Screens:
                               Width: =Parent.TemplateWidth - 158
                               Height: =Parent.TemplateHeight - 1
                               VerticalAlign: =VerticalAlign.Top
-                              PaddingTop: =12
+                              PaddingTop: =8
                               OnSelect: =Select(Parent)
                         - recCDHistLine:
                             Control: Rectangle@2.3.0
@@ -764,7 +767,7 @@ Screens:
                         Font: =Font.'Open Sans'
                         Size: =14
                         HintText: |-
-                          ="ข้อความถึง" & With({n: LookUp(colEmp, Lower(Email) = varTicket.AssigneeEmail).Nickname}, If(IsBlank(n), First(Split(varTicket.AssigneeEmail, "@")).Value, "คุณ" & n)) & " (ไม่ผ่าน / ตอบ / ติดตาม ใส่ได้) เช่น ขอเพิ่มเงื่อนไขการต่ออายุสัญญา"
+                          ="ข้อความถึง " & With({n: LookUp(colEmp, Lower(Email) = varTicket.AssigneeEmail).Nickname}, If(IsBlank(n), First(Split(varTicket.AssigneeEmail, "@")).Value, "คุณ" & n)) & " (ไม่ผ่าน / ตอบ / ติดตาม ใส่ได้) เช่น ขอเพิ่มเงื่อนไขการต่ออายุสัญญา"
                         BorderColor: =clrLine
                         BorderThickness: =2
                         Fill: =Color.White

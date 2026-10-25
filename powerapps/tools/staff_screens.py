@@ -115,13 +115,15 @@ Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID",
     return [(n, in_box(c, 1)) for n, c in [('btnDone', btnDone), ('btnWait', btnWait)]], \
            [(n, in_box(c, 1)) for n, c in [('btnAck', btnAck), ('btnStart', btnStart), ('btnComment', btnComment)]]
 
-HIST_ROW = 46
+HIST_ROW = 54
 
-def history_card(gal_name, line_name, lbl_name, head_name, card_name, me_word):
-    """Latest activity, two rows at a time with up/down arrows instead of a scrollbar (as tall as the mockup's box)."""
+def history_card(gal_name, line_name, lbl_name, head_name, card_name, ceo_word, assignee_word):
+    """Latest activity. The card takes the page's leftover height (so the last button row ends at the bottom edge);
+    it shows as many rows as fit and the up/down arrows page by that many instead of a scrollbar."""
+    staff_acts = '["ack", "start", "wait", "done"]'
     who = f'''With({{a: Lower(ThisItem.ActorEmail)}},
-    If(IsBlank(a), "",
-        a in ceoEmails, "{me_word}",
+    If(a = Lower(varTicket.AssigneeEmail) || (IsBlank(a) && ThisItem.Action.Value in {staff_acts}), {assignee_word},
+        IsBlank(a) || a in ceoEmails, "{ceo_word}",
         With({{n: LookUp(Employees, Email = ThisItem.ActorEmail).Nickname}}, If(IsBlank(n), First(Split(a, "@")).Value, "คุณ" & n))) & ": ")'''
     what = '''With({c: ThisItem.Comment},
     If(StartsWith(c, "📎 แนบไฟล์"), "แนบไฟล์ " & Mid(c, Find(": ", c) + 18),
@@ -129,29 +131,31 @@ def history_card(gal_name, line_name, lbl_name, head_name, card_name, me_word):
         Switch(ThisItem.Action.Value, "create", "สั่งงาน", "ack", "รับทราบ", "start", "เริ่มทำ", "wait", "ถาม", "reply", "ตอบ", "done", "ทำเสร็จแล้ว",
             "reopen", "ส่งกลับให้ทำต่อ", "close", "ผ่าน ปิดงาน", "cancel", "ยกเลิกงาน", "due_change", "เลื่อนวันส่ง", "reassign", "โอนงาน", ThisItem.Action.Value) &
         If(IsBlank(c), "", " """ & c & """")))'''
-    page = 'LastN(FirstN(varHist, varHistPos + 2), Max(Min(2, CountRows(varHist) - varHistPos), 0))'
-    up_ok, down_ok = 'varHistPos > 0', 'varHistPos + 2 < CountRows(varHist)'
+    k = f'Max(1, RoundDown({gal_name}.Height / {HIST_ROW}, 0))'  # rows that fit
+    page = f'LastN(FirstN(varHist, varHistPos + {k}), Max(Min({k}, CountRows(varHist) - varHistPos), 0))'
+    up_ok, down_ok = 'varHistPos > 0', f'varHistPos + {k} < CountRows(varHist)'
     arrow = lambda key, icon, ok, onselect: (f'ico{card_name}{key}', in_box({'type': 'Classic/Icon@2.5.0', 'props': {
         'Icon': icon, 'Color': f'If({ok}, clrPrimary, clrLine)', 'OnSelect': f'If({ok}, {onselect})',
         'Width': 40, 'Height': 34, 'PaddingTop': 6, 'PaddingBottom': 6, 'PaddingLeft': 8, 'PaddingRight': 8}}, 0, LayoutMinWidth=40))
     gal = gallery(page, [
         (f'{lbl_name}When', label('Text(ThisItem.Created, "d mmm hh:mm", "th-TH")', X=0, Y=0, Width=150, Height='Parent.TemplateHeight - 1', Size=12,
-                                  Color='clrMuted', VerticalAlign='VerticalAlign.Top', PaddingTop=12, OnSelect='Select(Parent)')),
+                                  Color='clrMuted', VerticalAlign='VerticalAlign.Top', PaddingTop=8, OnSelect='Select(Parent)')),
         (lbl_name, label(who + ' & ' + what, X=158, Y=0, Width='Parent.TemplateWidth - 158', Height='Parent.TemplateHeight - 1', Size=12,
-                         VerticalAlign='VerticalAlign.Top', PaddingTop=12, OnSelect='Select(Parent)')),
+                         VerticalAlign='VerticalAlign.Top', PaddingTop=8, OnSelect='Select(Parent)')),
         (line_name, rect(X=0, Y=0, Width='Parent.TemplateWidth', Height=1, Fill='clrLine', OnSelect='Select(Parent)')),
-    ], TemplateSize=HIST_ROW, Fill='Color.Transparent', ShowScrollbar='false', Height=2 * HIST_ROW)
+    ], TemplateSize=HIST_ROW, Fill='Color.Transparent', ShowScrollbar='false')
+    min_h = 34 + 10 + 2 * HIST_ROW + 24 + 4
     return (card_name, card([
         (f'con{card_name}Head', in_box(hbox([
             (head_name, in_box(label('"ความเคลื่อนไหวล่าสุด"', Height=34, Size=15, FontWeight='FontWeight.Bold', VerticalAlign='VerticalAlign.Top', PaddingTop=2), 1)),
-            (f'{head_name}Count', in_box(label('If(CountRows(varHist) > 2, (varHistPos + 1) & "–" & Min(varHistPos + 2, CountRows(varHist)) & " / " & CountRows(varHist), "")',
+            (f'{head_name}Count', in_box(label(f'If(CountRows(varHist) > {k}, (varHistPos + 1) & "–" & Min(varHistPos + {k}, CountRows(varHist)) & " / " & CountRows(varHist), "")',
                                                Width=110, Height=34, Size=12, Color='clrMuted', Align='Align.Right', VerticalAlign='VerticalAlign.Top', PaddingTop=6),
                                          0, LayoutMinWidth=110)),
-            arrow('Up', 'Icon.ChevronUp', up_ok, 'Set(varHistPos, varHistPos - 2)'),
-            arrow('Down', 'Icon.ChevronDown', down_ok, 'Set(varHistPos, varHistPos + 2)'),
+            arrow('Up', 'Icon.ChevronUp', up_ok, f'Set(varHistPos, Max(0, varHistPos - {k}))'),
+            arrow('Down', 'Icon.ChevronDown', down_ok, f'Set(varHistPos, varHistPos + {k})'),
         ], Height=34, LayoutGap=4))),
-        (gal_name, in_box(gal)),
-    ], f'34 + 10 + {2 * HIST_ROW} + 24'))
+        (gal_name, list_in(gal)),
+    ], min_h - 4, FillPortions=1, LayoutMinHeight=min_h))
 
 STAFF_STATUS = 'Switch({s}, "New", "ใหม่", "Acknowledged", "รับทราบแล้ว", "InProgress", "กำลังทำ", "WaitingCEO", "รอ CEO ตอบ", "Done", "รอ CEO ตรวจ", "Closed", "ปิดแล้ว", {s})'
 
@@ -218,7 +222,7 @@ Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID",
                                         DisplayMode='If(varBusy || IsEmpty(attFiles.Attachments) || !varTicket.IsOpen, DisplayMode.Disabled, DisplayMode.Edit)',
                                         DisabledFill='ColorFade(clrAccent, 60%)', DisabledColor='Color.White'))),
         ], '34 + 8 + If(galSentFiles.Visible, galSentFiles.Height + 8, 0) + 96 + 8 + 50 + 24', LayoutGap=8)),
-        history_card('galHistory', 'recHistLine', 'lblHist', 'lblHistHead', 'conDHist', 'CEO'),
+        history_card('galHistory', 'recHistLine', 'lblHist', 'lblHistHead', 'conDHist', 'CEO', '"คุณ"'),
         ('conDAction', card([
             ('txtComment', in_box({'type': 'Classic/TextInput@2.3.2', 'props': {
                 'Default': '""', 'Mode': 'TextMode.MultiLine', 'Height': 52, 'Font': FONT, 'Size': 14,
@@ -229,7 +233,7 @@ Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID",
             ('conDSmall', in_box(hbox(small, Height=50))),
         ], '52 + 56 + 50 + 2 * 10 + 24')),
     ], X=0, Y=94, Width='Parent.Width', Height=f'Parent.Height - 94 - {TAB_H}', Fill='clrBg', LayoutGap=10,
-       PaddingTop=12, PaddingBottom=16, PaddingLeft=20, PaddingRight=20, LayoutOverflowY='LayoutOverflow.Scroll')
+       PaddingTop=12, PaddingBottom=12, PaddingLeft=20, PaddingRight=20, LayoutOverflowY='LayoutOverflow.Scroll')
     children = [
         ('recHeader', rect(Fill='clrPrimary', Height=90, Width='Parent.Width')),
         ('recHeaderLine', rect(Fill='clrAccent', Height=4, Width='Parent.Width', Y=90)),

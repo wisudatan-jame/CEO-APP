@@ -95,10 +95,12 @@ def hbox(children, **p):
     return {'type': 'GroupContainer@1.3.0', 'variant': 'AutoLayout', 'props': props, 'children': children}
 
 def card(children, height, **p):
-    return vbox(children, Fill='Color.White', BorderColor='clrLine', BorderThickness=2,
-                RadiusTopLeft=20, RadiusTopRight=20, RadiusBottomLeft=20, RadiusBottomRight=20,
-                PaddingTop=12, PaddingBottom=12, PaddingLeft=18, PaddingRight=18,
-                FillPortions=0, AlignInContainer='AlignInContainer.Stretch', Height=f'{height} + 4', **p)  # + top/bottom border
+    props = dict(Fill='Color.White', BorderColor='clrLine', BorderThickness=2,
+                 RadiusTopLeft=20, RadiusTopRight=20, RadiusBottomLeft=20, RadiusBottomRight=20,
+                 PaddingTop=12, PaddingBottom=12, PaddingLeft=18, PaddingRight=18,
+                 FillPortions=0, AlignInContainer='AlignInContainer.Stretch', Height=f'{height} + 4')  # + top/bottom border
+    props.update(p)
+    return vbox(children, **props)
 
 def panel(children, x, y, w, h, **p):
     """White rounded box placed on the screen; lists sit inside one so their position never depends on the gallery's own X."""
