@@ -211,6 +211,31 @@ Set(varTicket, LookUp(Tickets, ID = varTicket.ID))
 
 `btnWait` ควรบังคับให้พิมพ์คำถาม: ตั้ง DisplayMode เป็น `If(varBusy || IsBlank(Trim(txtComment.Text)), DisplayMode.Disabled, DisplayMode.Edit)`
 
+### 2.4.0 ปุ่มสถานะแสดงตลอด (ทำแล้วขึ้นทึบ ไม่หายไป)
+ปุ่มสถานะ 4 ปุ่มแสดงทุกครั้ง (**Visible** = `true`) และไม่ต้องเลื่อนตำแหน่งตามสถานะ
+- **ทำแล้ว** ปุ่มทึบสีเขียว มีเครื่องหมาย ✓ กดไม่ได้
+- **ทำได้ตอนนี้** สีปกติ กดได้
+- **ยังไม่ถึงขั้นนี้** สีจาง กดไม่ได้
+
+| ปุ่ม | Text | DisplayMode | DisabledFill |
+|---|---|---|---|
+| `btnAck` | `If(varTicket.Status.Value = "New", "รับทราบ", "✓ รับทราบแล้ว")` | `If(varBusy \|\| varTicket.Status.Value <> "New", DisplayMode.Disabled, DisplayMode.Edit)` | `If(varTicket.Status.Value <> "New", clrSuccess, ColorFade(Self.Fill, 60%))` |
+| `btnStart` | `If(varTicket.Status.Value in ["InProgress", "Done", "Closed"], "✓ เริ่มทำแล้ว", "เริ่มทำ")` | `If(varBusy \|\| !(varTicket.Status.Value in ["New", "Acknowledged"]), DisplayMode.Disabled, DisplayMode.Edit)` | `If(varTicket.Status.Value in ["InProgress", "Done", "Closed"], clrSuccess, ColorFade(Self.Fill, 60%))` |
+| `btnWait` | `If(varTicket.Status.Value = "WaitingCEO", "⏳ รอ CEO ตอบ", "ถาม CEO")` | `If(varBusy \|\| IsBlank(Trim(txtComment.Text)) \|\| !(varTicket.Status.Value in ["New", "Acknowledged", "InProgress"]), DisplayMode.Disabled, DisplayMode.Edit)` | `If(varTicket.Status.Value = "WaitingCEO", clrPrimary, ColorFade(Self.Fill, 60%))` |
+| `btnDone` | `If(varTicket.Status.Value in ["Done", "Closed"], "✓ ทำเสร็จแล้ว", "ทำเสร็จแล้ว")` | `If(varBusy \|\| varTicket.Status.Value <> "InProgress", DisplayMode.Disabled, DisplayMode.Edit)` | `If(varTicket.Status.Value in ["Done", "Closed"], clrSuccess, ColorFade(Self.Fill, 60%))` |
+| `btnComment` | `"ส่งความเห็น"` | `If(varBusy \|\| IsBlank(Trim(txtComment.Text)), DisplayMode.Disabled, DisplayMode.Edit)` | `ColorFade(Self.Fill, 60%)` |
+
+ทุกปุ่ม: **Visible** `true` · **DisabledColor** `If(Self.DisabledFill = clrSuccess \|\| Self.DisabledFill = clrPrimary, Color.White, ColorFade(Self.Color, 40%))` · **DisabledBorderColor** = `Self.DisabledFill`
+`galHistory` Y กลับเป็น `btnComment.Y + 70` (ไม่ต้องคำนวณช่องว่างแล้ว)
+
+**ถาม CEO ต่างจากส่งความเห็นอย่างไร**
+| | ถาม CEO | ส่งความเห็น |
+|---|---|---|
+| ใช้เมื่อ | ติดปัญหา ต้องให้ CEO ตัดสินใจก่อนทำต่อ | แจ้งความคืบหน้าหรือข้อมูลเพิ่ม ไม่ต้องรอคำตอบ |
+| สถานะงาน | เปลี่ยนเป็น ⏳ รอ CEO (งานหยุดรอ) | ไม่เปลี่ยน |
+| CEO ได้รับ | LINE พร้อมปุ่ม [💬 ตอบ] และนับใน "รอคุณตอบ" ของสรุปเช้า | LINE แจ้งให้ทราบ |
+| หลัง CEO ตอบ | งานกลับเป็น 🔧 กำลังทำ อัตโนมัติ | – |
+
 ### 2.4.1 รูปแบบหน้าตา
 ตั้งสีไว้ที่เดียวด้วย Named formulas แล้วทุก Control อ้างชื่อสี เปลี่ยนสีทั้งแอปได้ในจุดเดียว (เปลี่ยน `clrPrimary` เป็นสีแบรนด์ Digital Focus เมื่อได้รหัสสีจริง)
 
