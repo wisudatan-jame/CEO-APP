@@ -343,7 +343,7 @@ Screens:
             X: =24
             Y: =500
             Width: =Parent.Width - 48
-            Height: =Min(12 + 34 + 6 + Max(CountRows(galCPeople.AllItems), 1) * 76 + 8 + 4, Parent.Height - 96 - 12 - conCGroups.Height - 12 - Self.Y)
+            Height: =Min(12 + 34 + 6 + Max(CountRows(galCPeople.AllItems), 1) * 68 + 8 + 4, Parent.Height - 96 - 12 - conCGroups.Height - 12 - Self.Y)
           Children:
             - conCPeopleHead:
                 Control: GroupContainer@1.3.0
@@ -401,7 +401,7 @@ Screens:
                                 With({d: Filter(varClosed30, AssigneeEmail = who, !IsBlank(DoneAt))},
                                     If(CountRows(d) > 0, Average(d, DateDiff(Created, DoneAt, TimeUnit.Hours)) / 24, 0)))),
                         "LateCount", SortOrder.Descending, "OpenCount", SortOrder.Descending)
-                  TemplateSize: =76
+                  TemplateSize: =68
                   OnSelect: =Set(varFilter, "person"); Set(varPerson, ThisItem.AssigneeEmail); Navigate(scrCeoTickets)
                   Fill: =Color.Transparent
                   BorderThickness: =0
@@ -423,10 +423,10 @@ Screens:
                         Color: =clrPrimary
                         BorderColor: =clrAccent
                         BorderThickness: =0
-                        RadiusTopLeft: =26
-                        RadiusTopRight: =26
-                        RadiusBottomLeft: =26
-                        RadiusBottomRight: =26
+                        RadiusTopLeft: =24
+                        RadiusTopRight: =24
+                        RadiusBottomLeft: =24
+                        RadiusBottomRight: =24
                         HoverFill: =ColorFade(Self.Fill, -10%)
                         HoverColor: =Self.Color
                         HoverBorderColor: =Self.BorderColor
@@ -434,9 +434,9 @@ Screens:
                         PressedColor: =Self.Color
                         PressedBorderColor: =Self.BorderColor
                         X: =0
-                        Y: =12
-                        Width: =52
-                        Height: =52
+                        Y: =10
+                        Width: =48
+                        Height: =48
                   - lblCPName:
                       Control: Label@2.5.1
                       Properties:
@@ -445,9 +445,9 @@ Screens:
                         Font: =Font.'Open Sans'
                         Size: =14
                         Color: =clrText
-                        X: =66
-                        Y: =8
-                        Width: =Parent.TemplateWidth - 66 - 200
+                        X: =62
+                        Y: =4
+                        Width: =Parent.TemplateWidth - 62 - 200
                         Height: =32
                         FontWeight: =FontWeight.Semibold
                         Wrap: =false
@@ -459,9 +459,9 @@ Screens:
                         Font: =Font.'Open Sans'
                         Size: =12
                         Color: =clrMuted
-                        X: =66
-                        Y: =40
-                        Width: =Parent.TemplateWidth - 66 - 200
+                        X: =62
+                        Y: =34
+                        Width: =Parent.TemplateWidth - 62 - 200
                         Height: =28
                         OnSelect: =Select(Parent)
                   - lblCPOpen:
@@ -631,7 +631,6 @@ Screens:
                         Width: =Parent.TemplateWidth
                         Height: =1
                         Fill: =clrLine
-                        Visible: =CountRows(galCGroups.AllItems) > 1
                         OnSelect: =Select(Parent)
       - recTabLineCH:
           Control: Rectangle@2.3.0
