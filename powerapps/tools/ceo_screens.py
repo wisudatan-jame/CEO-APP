@@ -261,6 +261,7 @@ def scr_ceo_create():
     on_visible = """ClearCollect(colEmp, Filter(Employees, Active = true));
 If(IsBlank(varNDue), Set(varNDue, DateAdd(Today(), 1, TimeUnit.Days)));
 Set(varNPickAll, false);
+Set(varNCal, false);
 Set(varRecentT, Filter(Tickets, Created >= DateAdd(Today(), -60, TimeUnit.Days)));
 Set(varFreq, FirstN(SortByColumns(AddColumns(GroupBy(varRecentT, AssigneeEmail, Rows), Cnt, CountRows(Rows)), "Cnt", SortOrder.Descending), 4))"""
     create = f'''Set(varBusy, true);
@@ -287,34 +288,39 @@ Reset(txtNTitle); Reset(txtNDetails); Reset(attNew); Clear(colPick); Set(varNMgr
     summary = ('If(varNMgr, "สั่งหัวหน้า/ผู้จัดการ " & CountRows(Filter(colEmp, IsManager = true)) & " คน", '
                'IsEmpty(colPick), "ยังไม่ได้เลือกคน", "สั่งคุณ" & Concat(colPick, Coalesce(Nickname, FirstName), ", คุณ")) & '
                '" · ส่ง " & Text(varNDue, "dddd d mmmm", "th-TH")')
-    monday = 'DateAdd(Today(), If(Mod(9 - Weekday(Today()), 7) = 0, 7, Mod(9 - Weekday(Today()), 7)), TimeUnit.Days)'
     friday = 'DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days)'
     w4 = CHIP_W.format(g=36, n=4)
     chip_label = 'Coalesce(ThisItem.Nickname, ThisItem.FirstName) & If(IsBlank(ThisItem.Department), "", " (" & ThisItem.Department & ")")'
     # "สั่งใคร": frequent people (+ anyone already picked) as chips, then "หัวหน้า/ผู้จัดการ" and "คนอื่น…" continuing the same 3-column flow
-    WHO_Y, ROW, COLS = 480, 62, 3
+    WHO_Y, ROW, COLS = 498, 62, 3
     col_w = f'(Parent.Width - 48) / {COLS}'
     n = 'CountRows(galNWho.AllItems)'
     who_rows = f'RoundUp(({n} + 2) / {COLS}, 0)'
     extra = lambda j: dict(X=f'24 + Mod({n} + {j}, {COLS}) * {col_w} + 4', Y=f'{WHO_Y} + RoundDown(({n} + {j}) / {COLS}, 0) * {ROW} + 4',
                            Width=f'{col_w} - 8', Height=ROW - 8, Size=12)
     after_who = f'{WHO_Y} + {who_rows} * {ROW}'
-    days = [('Today', '"วันนี้"', 'Today()'), ('Tmr', '"พรุ่งนี้"', 'DateAdd(Today(), 1, TimeUnit.Days)'), ('Fri', '"ศุกร์นี้"', friday), ('Mon', '"จันทร์หน้า"', monday)]
+    days = [('Today', '"วันนี้"', 'Today()'), ('Tmr', '"พรุ่งนี้"', 'DateAdd(Today(), 1, TimeUnit.Days)'), ('Fri', '"ศุกร์นี้"', friday)]
     day_ctrls = [(f'btnNDay{k}', chip(t, f'varNDue = {d}', f'Set(varNDue, {d})', X=f'24 + {i} * ({w4} + 12)', Y='lblNWhenHead.Y + 38', Width=w4))
                  for i, (k, t, d) in enumerate(days)]
+    custom = '!(varNDue in [' + ', '.join(d for _, _, d in days) + '])'
+    day_ctrls.append(('btnNDayPick', chip(f'If({custom}, Text(varNDue, "ddd d mmm", "th-TH"), "เลือกวัน…")', custom,
+                                          'Set(varNPickAll, false); Set(varCalMonth, Date(Year(varNDue), Month(varNDue), 1)); Set(varNCal, true)',
+                                          X=f'24 + 3 * ({w4} + 12)', Y='lblNWhenHead.Y + 38', Width=w4)))
     tin = lambda hint, h: {'type': 'Classic/TextInput@2.3.2', 'props': {
         'Default': '""', 'HintText': hint, 'Height': h, 'Font': FONT, 'Size': 15, 'BorderColor': 'clrLine', 'BorderThickness': 2,
         'Fill': 'Color.White', 'HoverFill': 'Color.White', 'X': 24, 'Width': 'Parent.Width - 48',
         'RadiusTopLeft': 10, 'RadiusTopRight': 10, 'RadiusBottomLeft': 10, 'RadiusBottomRight': 10}}
     title_in = tin('"เช่น เตรียมสไลด์ประชุมบอร์ด"', 60); title_in['props']['Y'] = 248
-    det_in = tin('""', 76); det_in['props'].update(Y=350, Mode='TextMode.MultiLine')
+    det_in = tin('""', 100); det_in['props'].update(Y=350, Mode='TextMode.MultiLine')
     att = {'type': 'Attachments@2.3.0', 'props': {
         'Items': 'Blank()', 'MaxAttachments': 5, 'MaxAttachmentSize': 10, 'NoAttachmentsText': '""', 'DisplayMode': 'DisplayMode.Edit',
-        'AddAttachmentText': '"แนบรูปหรือไฟล์"', 'Font': FONT, 'Size': 13, 'Color': 'clrPrimary', 'Fill': 'Color.White',
+        'AddAttachmentText': '"แนบรูปหรือไฟล์ (ไม่บังคับ)"', 'Font': FONT, 'Size': 14, 'FontWeight': 'FontWeight.Bold', 'Color': 'clrPrimary', 'Fill': 'Color.White',
+        # the add link sits under the file list; while there are no files, pad it into the middle of the box
+        'PaddingLeft': 'If(IsEmpty(Self.Attachments), (Self.Width - 290) / 2, 12)', 'PaddingTop': 'If(IsEmpty(Self.Attachments), (Self.Height - 40) / 2, 8)',
         'BorderColor': 'clrLine', 'BorderThickness': 2, 'BorderStyle': 'BorderStyle.Dashed', 'ItemFill': 'clrBg', 'ItemColor': 'clrText',
-        'ItemHoverFill': 'clrLine', 'HoverFill': 'clrBg', 'X': 24, 'Y': 'btnNDayToday.Y + 64', 'Width': 'Parent.Width - 48', 'Height': 76}}
-    who_items = ('SortByColumns(Filter(colEmp As e, Lower(e.Email) in varFreq.AssigneeEmail || !IsBlank(LookUp(colPick, Email = e.Email))), '
-                 '"Nickname", SortOrder.Ascending)')
+        'ItemHoverFill': 'clrLine', 'HoverFill': 'clrBg', 'X': 24, 'Y': 'btnNDayToday.Y + 64', 'Width': 'Parent.Width - 48', 'Height': 100}}
+    who_items = ('FirstN(SortByColumns(AddColumns(colEmp, Rank, If(Email in colPick.Email, 0, Lower(Email) in varFreq.AssigneeEmail, 1, 2)), '
+                 '"Rank", SortOrder.Ascending, "Nickname", SortOrder.Ascending), 7)')
     find = 'Trim(txtNFind.Text)'
     all_items = (f'SortByColumns(Filter(colEmp, IsBlank({find}) || {find} in Nickname || {find} in FirstName || {find} in Department), '
                  '"Nickname", SortOrder.Ascending)')
@@ -341,6 +347,35 @@ Reset(txtNTitle); Reset(txtNDetails); Reset(attNew); Clear(colPick); Set(varNMgr
         ], TemplateSize=68, OnSelect=toggle))),
     ], 24, 150, 'Parent.Width - 48', f'Parent.Height - {TAB_H} - 16 - Self.Y', Visible='varNPickAll', LayoutGap=10,
        DropShadow='DropShadow.Semibold', PaddingTop=14, PaddingBottom=8)
+    first = 'Date(Year(Today()), Month(Today()), 1)'
+    week = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']
+    cal_btn = lambda name, text, onselect, ok: (name, in_box(button(text, f'If({ok}, {onselect})', Width=56, Height=50, Size=20, FontWeight='FontWeight.Bold',
+        Fill='Color.White', Color=f'If({ok}, clrPrimary, clrLine)', BorderColor='clrLine', BorderThickness=2,
+        RadiusTopLeft=25, RadiusTopRight=25, RadiusBottomLeft=25, RadiusBottomRight=25), 0, LayoutMinWidth=56))
+    day = 'ThisItem.Value'
+    calendar = panel([
+        ('conNCalHead', in_box(hbox([
+            cal_btn('btnNCalPrev', '"‹"', 'Set(varCalMonth, DateAdd(varCalMonth, -1, TimeUnit.Months))', f'varCalMonth > {first}'),
+            ('lblNCalMonth', in_box(label('Text(varCalMonth, "mmmm yyyy", "th-TH")', Height=50, Size=16, FontWeight='FontWeight.Bold',
+                                          Color='clrPrimary', Align='Align.Center'), 1)),
+            cal_btn('btnNCalNext', '"›"', 'Set(varCalMonth, DateAdd(varCalMonth, 1, TimeUnit.Months))', 'true'),
+            ('btnNCalClose', in_box(button('"ปิด"', 'Set(varNCal, false)', Width=100, Height=50, Size=14, Fill='Color.White', Color='clrPrimary',
+                                           BorderColor='clrLine', BorderThickness=2), 0, LayoutMinWidth=100)),
+        ], Height=50, LayoutGap=8))),
+        ('conNCalWeek', in_box(hbox([(f'lblNCalW{i}', in_box(label(f'"{w}"', Height=30, Size=12, Color='clrMuted', Align='Align.Center'), 1))
+                                     for i, w in enumerate(week)], Height=30, LayoutGap=0))),
+        ('galNCal', list_in(gallery('ForAll(Sequence(42), DateAdd(varCalMonth, Value - Weekday(varCalMonth), TimeUnit.Days))', [
+            ('btnNCalDay', button(f'Day({day})', f'Set(varNDue, {day}); Set(varNCal, false)', X=6, Y=4, Width='Parent.TemplateWidth - 12',
+                                  Height='Parent.TemplateHeight - 8', Size=14, FontWeight=f'If({day} = Today(), FontWeight.Bold, FontWeight.Normal)',
+                                  Fill=f'If({day} = varNDue, clrPrimary, Color.White)',
+                                  Color=f'If({day} = varNDue, Color.White, Month({day}) <> Month(varCalMonth), clrMuted, clrText)',
+                                  BorderColor=f'If({day} = Today(), clrAccent, Color.White)', BorderThickness=2,
+                                  DisplayMode=f'If({day} < Today(), DisplayMode.Disabled, DisplayMode.Edit)',
+                                  DisabledFill='Color.White', DisabledColor='clrLine', DisabledBorderColor='Color.White',
+                                  RadiusTopLeft=24, RadiusTopRight=24, RadiusBottomLeft=24, RadiusBottomRight=24)),
+        ], TemplateSize=62, WrapCount=7, ShowScrollbar='false'))),
+    ], 24, 'lblNWhenHead.Y - 380', 'Parent.Width - 48', 14 + 50 + 10 + 30 + 10 + 6 * 62 + 8 + 4, Visible='varNCal', LayoutGap=10,
+       DropShadow='DropShadow.Semibold', PaddingTop=14, PaddingBottom=8)
     children = header('CN') + [
         ('lblNHead', label('"สั่งงาน"', X=24, Y=104, Width='Parent.Width - 48', Height=46, Size=20, FontWeight='FontWeight.Bold', Color='clrPrimary')),
         ('btnNNote', button('"ปกติสั่งผ่าน LINE ได้เร็วกว่า หน้านี้ใช้เมื่อบอท LINE ไม่ตอบ"', 'false', X=24, Y=152, Width='Parent.Width - 48', Height=48,
@@ -351,7 +386,7 @@ Reset(txtNTitle); Reset(txtNDetails); Reset(attNew); Clear(colPick); Set(varNMgr
         ('txtNTitle', title_in),
         ('lblNDetailsHead', label('"รายละเอียด (ไม่บังคับ)"', X=24, Y=314, Width=300, Height=32, Size=13, FontWeight='FontWeight.Semibold')),
         ('txtNDetails', det_in),
-        ('lblNWhoHead', label('"สั่งใคร"', X=24, Y=440, Width=200, Height=34, Size=13, FontWeight='FontWeight.Semibold')),
+        ('lblNWhoHead', label('"สั่งใคร"', X=24, Y=460, Width=200, Height=34, Size=13, FontWeight='FontWeight.Semibold')),
         ('conNWho', area([('galNWho', list_in(gallery(who_items, [
             ('btnNWho', button(chip_label, toggle,
                                X=4, Y=4, Width='Parent.TemplateWidth - 8', Height='Parent.TemplateHeight - 8', Size=12,
@@ -367,13 +402,14 @@ Reset(txtNTitle); Reset(txtNDetails); Reset(attNew); Clear(colPick); Set(varNMgr
         ('lblNWhenHead', label('"ส่งเมื่อไร"', X=24, Y=f'{after_who} + 6', Width=200, Height=34, Size=13, FontWeight='FontWeight.Semibold')),
     ] + day_ctrls + [
         ('attNew', att),
-        ('lblNSummary', label(summary, X=24, Y='attNew.Y + attNew.Height + 6', Width='Parent.Width - 48', Height=52, Size=13, Color='clrPrimary',
+        ('lblNSummary', label(summary, X=24, Y='attNew.Y + attNew.Height + 4', Width='Parent.Width - 48', Height=44, Size=13, Color='clrPrimary',
                               FontWeight='FontWeight.Semibold')),
-        ('btnNCreate', button('"สั่งงาน"', create, X=24, Y=f'Parent.Height - {TAB_H} - 92', Width='Parent.Width - 48', Height=80, Size=16, FontWeight='FontWeight.Bold',
+        ('btnNCreate', button('"สั่งงาน"', create, X=24, Y=f'Parent.Height - {TAB_H} - 84', Width='Parent.Width - 48', Height=72, Size=16, FontWeight='FontWeight.Bold',
                               RadiusTopLeft=16, RadiusTopRight=16, RadiusBottomLeft=16, RadiusBottomRight=16,
                               DisplayMode='If(varBusy || IsBlank(Trim(txtNTitle.Text)) || (!varNMgr && IsEmpty(colPick)) || varNDue < Today(), DisplayMode.Disabled, DisplayMode.Edit)',
                               DisabledFill='ColorFade(clrAccent, 60%)', DisabledColor='Color.White')),
         ('conNPicker', picker),
+        ('conNCal', calendar),
     ] + tabs('CN', CEO_TABS, 'New')
     return screen('scrCeoCreate', {'Fill': 'clrBg', 'OnVisible': on_visible}, children)
 

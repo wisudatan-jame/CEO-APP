@@ -6,6 +6,7 @@ Screens:
         =ClearCollect(colEmp, Filter(Employees, Active = true));
         If(IsBlank(varNDue), Set(varNDue, DateAdd(Today(), 1, TimeUnit.Days)));
         Set(varNPickAll, false);
+        Set(varNCal, false);
         Set(varRecentT, Filter(Tickets, Created >= DateAdd(Today(), -60, TimeUnit.Days)));
         Set(varFreq, FirstN(SortByColumns(AddColumns(GroupBy(varRecentT, AssigneeEmail, Rows), Cnt, CountRows(Rows)), "Cnt", SortOrder.Descending), 4))
     Children:
@@ -130,7 +131,7 @@ Screens:
           Properties:
             Default: =""
             HintText: =""
-            Height: =76
+            Height: =100
             Font: =Font.'Open Sans'
             Size: =15
             BorderColor: =clrLine
@@ -153,7 +154,7 @@ Screens:
             Size: =13
             Color: =clrText
             X: =24
-            Y: =440
+            Y: =460
             Width: =200
             Height: =34
             FontWeight: =FontWeight.Semibold
@@ -172,7 +173,7 @@ Screens:
             Fill: =Color.Transparent
             BorderThickness: =0
             X: =24
-            Y: =480
+            Y: =498
             Width: =Parent.Width - 48
             Height: =RoundUp(CountRows(galNWho.AllItems) / 3, 0) * 62
           Children:
@@ -180,7 +181,7 @@ Screens:
                 Control: Gallery@2.15.0
                 Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
                 Properties:
-                  Items: =SortByColumns(Filter(colEmp As e, Lower(e.Email) in varFreq.AssigneeEmail || !IsBlank(LookUp(colPick, Email = e.Email))), "Nickname", SortOrder.Ascending)
+                  Items: =FirstN(SortByColumns(AddColumns(colEmp, Rank, If(Email in colPick.Email, 0, Lower(Email) in varFreq.AssigneeEmail, 1, 2)), "Rank", SortOrder.Ascending, "Nickname", SortOrder.Ascending), 7)
                   TemplateSize: =62
                   WrapCount: =3
                   ShowScrollbar: =false
@@ -245,7 +246,7 @@ Screens:
             PressedBorderColor: =Self.BorderColor
             Height: =54
             X: =24 + Mod(CountRows(galNWho.AllItems) + 0, 3) * (Parent.Width - 48) / 3 + 4
-            Y: =480 + RoundDown((CountRows(galNWho.AllItems) + 0) / 3, 0) * 62 + 4
+            Y: =498 + RoundDown((CountRows(galNWho.AllItems) + 0) / 3, 0) * 62 + 4
             Width: =(Parent.Width - 48) / 3 - 8
       - btnNMore:
           Control: Classic/Button@2.2.0
@@ -271,7 +272,7 @@ Screens:
             PressedBorderColor: =Self.BorderColor
             Height: =54
             X: =24 + Mod(CountRows(galNWho.AllItems) + 1, 3) * (Parent.Width - 48) / 3 + 4
-            Y: =480 + RoundDown((CountRows(galNWho.AllItems) + 1) / 3, 0) * 62 + 4
+            Y: =498 + RoundDown((CountRows(galNWho.AllItems) + 1) / 3, 0) * 62 + 4
             Width: =(Parent.Width - 48) / 3 - 8
       - lblNWhenHead:
           Control: Label@2.5.1
@@ -281,7 +282,7 @@ Screens:
             Size: =13
             Color: =clrText
             X: =24
-            Y: =480 + RoundUp((CountRows(galNWho.AllItems) + 2) / 3, 0) * 62 + 6
+            Y: =498 + RoundUp((CountRows(galNWho.AllItems) + 2) / 3, 0) * 62 + 6
             Width: =200
             Height: =34
             FontWeight: =FontWeight.Semibold
@@ -363,16 +364,16 @@ Screens:
             X: =24 + 2 * ((Parent.Width - 48 - 36) / 4 + 12)
             Y: =lblNWhenHead.Y + 38
             Width: =(Parent.Width - 48 - 36) / 4
-      - btnNDayMon:
+      - btnNDayPick:
           Control: Classic/Button@2.2.0
           Properties:
-            Text: ="จันทร์หน้า"
-            OnSelect: =Set(varNDue, DateAdd(Today(), If(Mod(9 - Weekday(Today()), 7) = 0, 7, Mod(9 - Weekday(Today()), 7)), TimeUnit.Days))
+            Text: =If(!(varNDue in [Today(), DateAdd(Today(), 1, TimeUnit.Days), DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days)]), Text(varNDue, "ddd d mmm", "th-TH"), "เลือกวัน…")
+            OnSelect: =Set(varNPickAll, false); Set(varCalMonth, Date(Year(varNDue), Month(varNDue), 1)); Set(varNCal, true)
             Font: =Font.'Open Sans'
             Size: =14
             FontWeight: =FontWeight.Semibold
-            Fill: =If(varNDue = DateAdd(Today(), If(Mod(9 - Weekday(Today()), 7) = 0, 7, Mod(9 - Weekday(Today()), 7)), TimeUnit.Days), clrPrimary, Color.White)
-            Color: =If(varNDue = DateAdd(Today(), If(Mod(9 - Weekday(Today()), 7) = 0, 7, Mod(9 - Weekday(Today()), 7)), TimeUnit.Days), Color.White, clrPrimary)
+            Fill: =If(!(varNDue in [Today(), DateAdd(Today(), 1, TimeUnit.Days), DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days)]), clrPrimary, Color.White)
+            Color: =If(!(varNDue in [Today(), DateAdd(Today(), 1, TimeUnit.Days), DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days)]), Color.White, clrPrimary)
             BorderColor: =clrLine
             BorderThickness: =2
             RadiusTopLeft: =26
@@ -397,11 +398,14 @@ Screens:
             MaxAttachmentSize: =10
             NoAttachmentsText: =""
             DisplayMode: =DisplayMode.Edit
-            AddAttachmentText: ="แนบรูปหรือไฟล์"
+            AddAttachmentText: ="แนบรูปหรือไฟล์ (ไม่บังคับ)"
             Font: =Font.'Open Sans'
-            Size: =13
+            Size: =14
+            FontWeight: =FontWeight.Bold
             Color: =clrPrimary
             Fill: =Color.White
+            PaddingLeft: =If(IsEmpty(Self.Attachments), (Self.Width - 290) / 2, 12)
+            PaddingTop: =If(IsEmpty(Self.Attachments), (Self.Height - 40) / 2, 8)
             BorderColor: =clrLine
             BorderThickness: =2
             BorderStyle: =BorderStyle.Dashed
@@ -412,7 +416,7 @@ Screens:
             X: =24
             Y: =btnNDayToday.Y + 64
             Width: =Parent.Width - 48
-            Height: =76
+            Height: =100
       - lblNSummary:
           Control: Label@2.5.1
           Properties:
@@ -421,9 +425,9 @@ Screens:
             Size: =13
             Color: =clrPrimary
             X: =24
-            Y: =attNew.Y + attNew.Height + 6
+            Y: =attNew.Y + attNew.Height + 4
             Width: =Parent.Width - 48
-            Height: =52
+            Height: =44
             FontWeight: =FontWeight.Semibold
       - btnNCreate:
           Control: Classic/Button@2.2.0
@@ -467,9 +471,9 @@ Screens:
             PressedColor: =Self.Color
             PressedBorderColor: =Self.BorderColor
             X: =24
-            Y: =Parent.Height - 96 - 92
+            Y: =Parent.Height - 96 - 84
             Width: =Parent.Width - 48
-            Height: =80
+            Height: =72
             DisplayMode: =If(varBusy || IsBlank(Trim(txtNTitle.Text)) || (!varNMgr && IsEmpty(colPick)) || varNDue < Today(), DisplayMode.Disabled, DisplayMode.Edit)
             DisabledFill: =ColorFade(clrAccent, 60%)
             DisabledColor: =Color.White
@@ -651,6 +655,301 @@ Screens:
                         Height: =1
                         Fill: =clrLine
                         OnSelect: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), Remove(colPick, LookUp(colPick, Email = ThisItem.Email)), Collect(colPick, ThisItem))
+      - conNCal:
+          Control: GroupContainer@1.3.0
+          Variant: AutoLayout
+          Properties:
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            PaddingTop: =14
+            PaddingBottom: =8
+            PaddingLeft: =18
+            PaddingRight: =18
+            LayoutGap: =10
+            DropShadow: =DropShadow.Semibold
+            Fill: =Color.White
+            BorderThickness: =2
+            BorderColor: =clrLine
+            RadiusTopLeft: =20
+            RadiusTopRight: =20
+            RadiusBottomLeft: =20
+            RadiusBottomRight: =20
+            X: =24
+            Y: =lblNWhenHead.Y - 380
+            Width: =Parent.Width - 48
+            Height: =498
+            Visible: =varNCal
+          Children:
+            - conNCalHead:
+                Control: GroupContainer@1.3.0
+                Variant: AutoLayout
+                Properties:
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  PaddingTop: =0
+                  PaddingBottom: =0
+                  PaddingLeft: =0
+                  PaddingRight: =0
+                  LayoutGap: =8
+                  DropShadow: =DropShadow.None
+                  Fill: =Color.Transparent
+                  BorderThickness: =0
+                  Height: =50
+                  FillPortions: =0
+                  AlignInContainer: =AlignInContainer.Stretch
+                Children:
+                  - btnNCalPrev:
+                      Control: Classic/Button@2.2.0
+                      Properties:
+                        Text: ="‹"
+                        OnSelect: =If(varCalMonth > Date(Year(Today()), Month(Today()), 1), Set(varCalMonth, DateAdd(varCalMonth, -1, TimeUnit.Months)))
+                        Font: =Font.'Open Sans'
+                        Size: =20
+                        FontWeight: =FontWeight.Bold
+                        Fill: =Color.White
+                        Color: =If(varCalMonth > Date(Year(Today()), Month(Today()), 1), clrPrimary, clrLine)
+                        BorderColor: =clrLine
+                        BorderThickness: =2
+                        RadiusTopLeft: =25
+                        RadiusTopRight: =25
+                        RadiusBottomLeft: =25
+                        RadiusBottomRight: =25
+                        HoverFill: =ColorFade(Self.Fill, -10%)
+                        HoverColor: =Self.Color
+                        HoverBorderColor: =Self.BorderColor
+                        PressedFill: =ColorFade(Self.Fill, -20%)
+                        PressedColor: =Self.Color
+                        PressedBorderColor: =Self.BorderColor
+                        Width: =56
+                        Height: =50
+                        FillPortions: =0
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =56
+                        LayoutMinHeight: =0
+                  - lblNCalMonth:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: =Text(varCalMonth, "mmmm yyyy", "th-TH")
+                        Font: =Font.'Open Sans'
+                        Size: =16
+                        Color: =clrPrimary
+                        Height: =50
+                        FontWeight: =FontWeight.Bold
+                        Align: =Align.Center
+                        FillPortions: =1
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =0
+                        LayoutMinHeight: =0
+                  - btnNCalNext:
+                      Control: Classic/Button@2.2.0
+                      Properties:
+                        Text: ="›"
+                        OnSelect: =If(true, Set(varCalMonth, DateAdd(varCalMonth, 1, TimeUnit.Months)))
+                        Font: =Font.'Open Sans'
+                        Size: =20
+                        FontWeight: =FontWeight.Bold
+                        Fill: =Color.White
+                        Color: =If(true, clrPrimary, clrLine)
+                        BorderColor: =clrLine
+                        BorderThickness: =2
+                        RadiusTopLeft: =25
+                        RadiusTopRight: =25
+                        RadiusBottomLeft: =25
+                        RadiusBottomRight: =25
+                        HoverFill: =ColorFade(Self.Fill, -10%)
+                        HoverColor: =Self.Color
+                        HoverBorderColor: =Self.BorderColor
+                        PressedFill: =ColorFade(Self.Fill, -20%)
+                        PressedColor: =Self.Color
+                        PressedBorderColor: =Self.BorderColor
+                        Width: =56
+                        Height: =50
+                        FillPortions: =0
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =56
+                        LayoutMinHeight: =0
+                  - btnNCalClose:
+                      Control: Classic/Button@2.2.0
+                      Properties:
+                        Text: ="ปิด"
+                        OnSelect: =Set(varNCal, false)
+                        Font: =Font.'Open Sans'
+                        Size: =14
+                        FontWeight: =FontWeight.Semibold
+                        Fill: =Color.White
+                        Color: =clrPrimary
+                        BorderColor: =clrLine
+                        BorderThickness: =2
+                        RadiusTopLeft: =14
+                        RadiusTopRight: =14
+                        RadiusBottomLeft: =14
+                        RadiusBottomRight: =14
+                        HoverFill: =ColorFade(Self.Fill, -10%)
+                        HoverColor: =Self.Color
+                        HoverBorderColor: =Self.BorderColor
+                        PressedFill: =ColorFade(Self.Fill, -20%)
+                        PressedColor: =Self.Color
+                        PressedBorderColor: =Self.BorderColor
+                        Width: =100
+                        Height: =50
+                        FillPortions: =0
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =100
+                        LayoutMinHeight: =0
+            - conNCalWeek:
+                Control: GroupContainer@1.3.0
+                Variant: AutoLayout
+                Properties:
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  PaddingTop: =0
+                  PaddingBottom: =0
+                  PaddingLeft: =0
+                  PaddingRight: =0
+                  LayoutGap: =0
+                  DropShadow: =DropShadow.None
+                  Fill: =Color.Transparent
+                  BorderThickness: =0
+                  Height: =30
+                  FillPortions: =0
+                  AlignInContainer: =AlignInContainer.Stretch
+                Children:
+                  - lblNCalW0:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: ="อา"
+                        Font: =Font.'Open Sans'
+                        Size: =12
+                        Color: =clrMuted
+                        Height: =30
+                        Align: =Align.Center
+                        FillPortions: =1
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =0
+                        LayoutMinHeight: =0
+                  - lblNCalW1:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: ="จ"
+                        Font: =Font.'Open Sans'
+                        Size: =12
+                        Color: =clrMuted
+                        Height: =30
+                        Align: =Align.Center
+                        FillPortions: =1
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =0
+                        LayoutMinHeight: =0
+                  - lblNCalW2:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: ="อ"
+                        Font: =Font.'Open Sans'
+                        Size: =12
+                        Color: =clrMuted
+                        Height: =30
+                        Align: =Align.Center
+                        FillPortions: =1
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =0
+                        LayoutMinHeight: =0
+                  - lblNCalW3:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: ="พ"
+                        Font: =Font.'Open Sans'
+                        Size: =12
+                        Color: =clrMuted
+                        Height: =30
+                        Align: =Align.Center
+                        FillPortions: =1
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =0
+                        LayoutMinHeight: =0
+                  - lblNCalW4:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: ="พฤ"
+                        Font: =Font.'Open Sans'
+                        Size: =12
+                        Color: =clrMuted
+                        Height: =30
+                        Align: =Align.Center
+                        FillPortions: =1
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =0
+                        LayoutMinHeight: =0
+                  - lblNCalW5:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: ="ศ"
+                        Font: =Font.'Open Sans'
+                        Size: =12
+                        Color: =clrMuted
+                        Height: =30
+                        Align: =Align.Center
+                        FillPortions: =1
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =0
+                        LayoutMinHeight: =0
+                  - lblNCalW6:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: ="ส"
+                        Font: =Font.'Open Sans'
+                        Size: =12
+                        Color: =clrMuted
+                        Height: =30
+                        Align: =Align.Center
+                        FillPortions: =1
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =0
+                        LayoutMinHeight: =0
+            - galNCal:
+                Control: Gallery@2.15.0
+                Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
+                Properties:
+                  Items: =ForAll(Sequence(42), DateAdd(varCalMonth, Value - Weekday(varCalMonth), TimeUnit.Days))
+                  TemplateSize: =62
+                  WrapCount: =7
+                  ShowScrollbar: =false
+                  Fill: =Color.Transparent
+                  BorderThickness: =0
+                  FillPortions: =1
+                  AlignInContainer: =AlignInContainer.Stretch
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                Children:
+                  - btnNCalDay:
+                      Control: Classic/Button@2.2.0
+                      Properties:
+                        Text: =Day(ThisItem.Value)
+                        OnSelect: =Set(varNDue, ThisItem.Value); Set(varNCal, false)
+                        Font: =Font.'Open Sans'
+                        Size: =14
+                        FontWeight: =If(ThisItem.Value = Today(), FontWeight.Bold, FontWeight.Normal)
+                        Fill: =If(ThisItem.Value = varNDue, clrPrimary, Color.White)
+                        Color: =If(ThisItem.Value = varNDue, Color.White, Month(ThisItem.Value) <> Month(varCalMonth), clrMuted, clrText)
+                        BorderColor: =If(ThisItem.Value = Today(), clrAccent, Color.White)
+                        BorderThickness: =2
+                        RadiusTopLeft: =24
+                        RadiusTopRight: =24
+                        RadiusBottomLeft: =24
+                        RadiusBottomRight: =24
+                        HoverFill: =ColorFade(Self.Fill, -10%)
+                        HoverColor: =Self.Color
+                        HoverBorderColor: =Self.BorderColor
+                        PressedFill: =ColorFade(Self.Fill, -20%)
+                        PressedColor: =Self.Color
+                        PressedBorderColor: =Self.BorderColor
+                        X: =6
+                        Y: =4
+                        Width: =Parent.TemplateWidth - 12
+                        Height: =Parent.TemplateHeight - 8
+                        DisplayMode: =If(ThisItem.Value < Today(), DisplayMode.Disabled, DisplayMode.Edit)
+                        DisabledFill: =Color.White
+                        DisabledColor: =clrLine
+                        DisabledBorderColor: =Color.White
       - recTabLineCN:
           Control: Rectangle@2.3.0
           Properties:
