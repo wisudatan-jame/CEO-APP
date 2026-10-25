@@ -74,20 +74,34 @@ Screens:
                   FillPortions: =0
                   AlignInContainer: =AlignInContainer.Stretch
                 Children:
-                  - icoCBack:
-                      Control: Classic/Icon@2.5.0
+                  - btnCBack:
+                      Control: Classic/Button@2.2.0
                       Properties:
-                        Icon: =Icon.ChevronLeft
+                        Text: ="‹"
+                        OnSelect: =Navigate(scrCeoTickets)
+                        Font: =Font.'Open Sans'
+                        Size: =26
+                        FontWeight: =FontWeight.Bold
+                        Fill: =Color.White
                         Color: =clrPrimary
                         BorderColor: =clrPrimary
-                        BorderThickness: =3
-                        PaddingTop: =12
-                        PaddingBottom: =12
-                        PaddingLeft: =12
-                        PaddingRight: =12
+                        BorderThickness: =2
+                        RadiusTopLeft: =30
+                        RadiusTopRight: =30
+                        RadiusBottomLeft: =30
+                        RadiusBottomRight: =30
+                        HoverFill: =ColorFade(Self.Fill, -10%)
+                        HoverColor: =Self.Color
+                        HoverBorderColor: =Self.BorderColor
+                        PressedFill: =ColorFade(Self.Fill, -20%)
+                        PressedColor: =Self.Color
+                        PressedBorderColor: =Self.BorderColor
                         Width: =60
                         Height: =60
-                        OnSelect: =Navigate(scrCeoTickets)
+                        PaddingTop: =0
+                        PaddingBottom: =6
+                        PaddingLeft: =0
+                        PaddingRight: =0
                         FillPortions: =0
                         AlignInContainer: =AlignInContainer.Stretch
                         LayoutMinWidth: =60
@@ -137,7 +151,7 @@ Screens:
                   PaddingRight: =18
                   FillPortions: =0
                   AlignInContainer: =AlignInContainer.Stretch
-                  Height: =lblCDInfo.Height + If(lblCDExtra.Visible, lblCDExtra.Height + 10, 0) + 28
+                  Height: =lblCDInfo.Height + If(lblCDExtra.Visible, lblCDExtra.Height + 10, 0) + 28 + 4
                 Children:
                   - lblCDInfo:
                       Control: Label@2.5.1
@@ -191,7 +205,7 @@ Screens:
                   PaddingRight: =18
                   FillPortions: =0
                   AlignInContainer: =AlignInContainer.Stretch
-                  Height: =lblCDFiles.Height + 10 + 60 + 28
+                  Height: =lblCDFiles.Height + 10 + 60 + 28 + 4
                 Children:
                   - lblCDFiles:
                       Control: Label@2.5.1
@@ -258,7 +272,7 @@ Screens:
                   PaddingRight: =18
                   FillPortions: =0
                   AlignInContainer: =AlignInContainer.Stretch
-                  Height: =34 + 10 + 200 + 28
+                  Height: =34 + 10 + 200 + 28 + 4
                 Children:
                   - lblCDHistHead:
                       Control: Label@2.5.1
@@ -325,7 +339,7 @@ Screens:
                   PaddingRight: =18
                   FillPortions: =0
                   AlignInContainer: =AlignInContainer.Stretch
-                  Height: =70 + If(varPickDue, 56 + 10, 0) + 64 + 56 + 2 * 10 + 28
+                  Height: =70 + If(varPickDue, 56 + 10, 0) + 64 + 56 + 2 * 10 + 28 + 4
                 Children:
                   - txtCeo:
                       Control: Classic/TextInput@2.3.2

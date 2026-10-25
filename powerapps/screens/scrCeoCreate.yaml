@@ -139,49 +139,66 @@ Screens:
             X: =Parent.Width - 284
             Y: =338
             Width: =260
-      - galNWho:
-          Control: Gallery@2.15.0
-          Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
+      - conNWho:
+          Control: GroupContainer@1.3.0
+          Variant: AutoLayout
           Properties:
-            Items: =SortByColumns(colEmp, "Nickname", SortOrder.Ascending)
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            LayoutGap: =0
+            DropShadow: =DropShadow.None
+            Fill: =Color.Transparent
+            BorderThickness: =0
             X: =24
             Y: =390
             Width: =Parent.Width - 48
             Height: =186
-            TemplateSize: =62
-            WrapCount: =2
-            Fill: =Color.Transparent
           Children:
-            - btnNWho:
-                Control: Classic/Button@2.2.0
+            - galNWho:
+                Control: Gallery@2.15.0
+                Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
                 Properties:
-                  Text: =Coalesce(ThisItem.Nickname, ThisItem.FirstName) & " · " & ThisItem.Department
-                  OnSelect: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), Remove(colPick, LookUp(colPick, Email = ThisItem.Email)), Collect(colPick, ThisItem))
-                  Font: =Font.'Open Sans'
-                  Size: =12
-                  FontWeight: =FontWeight.Semibold
-                  Fill: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), clrPrimary, Color.White)
-                  Color: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), Color.White, clrPrimary)
-                  BorderColor: =clrLine
-                  BorderThickness: =2
-                  RadiusTopLeft: =24
-                  RadiusTopRight: =24
-                  RadiusBottomLeft: =24
-                  RadiusBottomRight: =24
-                  HoverFill: =ColorFade(Self.Fill, -10%)
-                  HoverColor: =Self.Color
-                  HoverBorderColor: =Self.BorderColor
-                  PressedFill: =ColorFade(Self.Fill, -20%)
-                  PressedColor: =Self.Color
-                  PressedBorderColor: =Self.BorderColor
-                  X: =4
-                  Y: =4
-                  Width: =Parent.TemplateWidth - 8
-                  Height: =Parent.TemplateHeight - 8
-                  DisplayMode: =If(varNMgr, DisplayMode.Disabled, DisplayMode.Edit)
-                  DisabledFill: =clrBg
-                  DisabledColor: =clrMuted
-                  DisabledBorderColor: =clrLine
+                  Items: =SortByColumns(colEmp, "Nickname", SortOrder.Ascending)
+                  TemplateSize: =62
+                  WrapCount: =2
+                  ShowScrollbar: =false
+                  Fill: =Color.Transparent
+                  BorderThickness: =0
+                  FillPortions: =1
+                  AlignInContainer: =AlignInContainer.Stretch
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                Children:
+                  - btnNWho:
+                      Control: Classic/Button@2.2.0
+                      Properties:
+                        Text: =Coalesce(ThisItem.Nickname, ThisItem.FirstName) & " · " & ThisItem.Department
+                        OnSelect: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), Remove(colPick, LookUp(colPick, Email = ThisItem.Email)), Collect(colPick, ThisItem))
+                        Font: =Font.'Open Sans'
+                        Size: =12
+                        FontWeight: =FontWeight.Semibold
+                        Fill: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), clrPrimary, Color.White)
+                        Color: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), Color.White, clrPrimary)
+                        BorderColor: =clrLine
+                        BorderThickness: =2
+                        RadiusTopLeft: =24
+                        RadiusTopRight: =24
+                        RadiusBottomLeft: =24
+                        RadiusBottomRight: =24
+                        HoverFill: =ColorFade(Self.Fill, -10%)
+                        HoverColor: =Self.Color
+                        HoverBorderColor: =Self.BorderColor
+                        PressedFill: =ColorFade(Self.Fill, -20%)
+                        PressedColor: =Self.Color
+                        PressedBorderColor: =Self.BorderColor
+                        X: =4
+                        Y: =4
+                        Width: =Parent.TemplateWidth - 8
+                        Height: =Parent.TemplateHeight - 8
+                        DisplayMode: =If(varNMgr, DisplayMode.Disabled, DisplayMode.Edit)
+                        DisabledFill: =clrBg
+                        DisabledColor: =clrMuted
+                        DisabledBorderColor: =clrLine
       - lblNWhenHead:
           Control: Label@2.5.1
           Properties:

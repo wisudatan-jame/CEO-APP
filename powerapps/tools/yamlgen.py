@@ -87,7 +87,39 @@ def card(children, height, **p):
     return vbox(children, Fill='Color.White', BorderColor='clrLine', BorderThickness=2,
                 RadiusTopLeft=20, RadiusTopRight=20, RadiusBottomLeft=20, RadiusBottomRight=20,
                 PaddingTop=14, PaddingBottom=14, PaddingLeft=18, PaddingRight=18,
-                FillPortions=0, AlignInContainer='AlignInContainer.Stretch', Height=height, **p)
+                FillPortions=0, AlignInContainer='AlignInContainer.Stretch', Height=f'{height} + 4', **p)  # + top/bottom border
+
+def panel(children, x, y, w, h, **p):
+    """White rounded box placed on the screen; lists sit inside one so their position never depends on the gallery's own X."""
+    props = dict(Fill='Color.White', BorderColor='clrLine', BorderThickness=2, LayoutGap=6,
+                 RadiusTopLeft=20, RadiusTopRight=20, RadiusBottomLeft=20, RadiusBottomRight=20,
+                 PaddingTop=12, PaddingBottom=8, PaddingLeft=18, PaddingRight=18, X=x, Y=y, Width=w, Height=h)
+    props.update(p)
+    return vbox(children, **props)
+
+def list_in(gal):
+    """A gallery that fills the rest of a panel."""
+    gal['props'].update(Fill='Color.Transparent', BorderThickness=0)
+    return in_box(gal, 1, LayoutMinHeight=0)
+
+def kpi_card(key, title, num, sub, onselect, x, y, w, hot=False, title_c='clrPrimary', num_c='clrPrimary'):
+    """Overview card: small title, big number, one-line note (button underneath takes the tap, labels pass it on)."""
+    fg = lambda c: 'Color.White' if hot else c
+    lab = dict(X=f'{x} + 20', Width=f'{w} - 40', OnSelect=onselect)
+    return [
+        (f'btn{key}', button('""', onselect, X=x, Y=y, Width=w, Height=140, Fill='clrAccent' if hot else 'Color.White',
+                             BorderColor='clrAccent' if hot else 'clrLine', BorderThickness=2,
+                             RadiusTopLeft=20, RadiusTopRight=20, RadiusBottomLeft=20, RadiusBottomRight=20)),
+        (f'lbl{key}T', label(title, Y=y + 14, Height=30, Size=14, FontWeight='FontWeight.Semibold', Color=fg(title_c), **lab)),
+        (f'lbl{key}N', label(num, Y=y + 42, Height=58, Size=32, FontWeight='FontWeight.Bold', Color=fg(num_c), **lab)),
+        (f'lbl{key}S', label(sub, Y=y + 100, Height=28, Size=12, Color=fg('clrMuted'), **lab)),
+    ]
+
+def back_button(target):
+    return in_box(button('"‹"', f'Navigate({target})', Width=60, Height=60, Size=26, FontWeight='FontWeight.Bold',
+                         Fill='Color.White', Color='clrPrimary', BorderColor='clrPrimary', BorderThickness=2,
+                         PaddingTop=0, PaddingBottom=6, PaddingLeft=0, PaddingRight=0,
+                         RadiusTopLeft=30, RadiusTopRight=30, RadiusBottomLeft=30, RadiusBottomRight=30), 0, LayoutMinWidth=60)
 
 def in_box(c, fill=0, **p):
     """Placement inside an auto-layout box: fixed size unless fill > 0."""

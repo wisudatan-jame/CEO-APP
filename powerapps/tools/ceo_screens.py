@@ -1,5 +1,5 @@
 from yamlgen import *
-from staff_screens import kpi, history_card
+from staff_screens import history_card, CARD_W, X2, CONTENT_END
 
 CEO_TABS = [('Home', '"ภาพรวม"', 'Navigate(scrCeoHome)'), ('List', '"งานทั้งหมด"', 'Set(varFilter, "all"); Navigate(scrCeoTickets)'),
             ('New', '"สั่งงาน"', 'Navigate(scrCeoCreate)')]
@@ -29,36 +29,52 @@ Set(varCLate, Filter(colAll, Status.Value <> "Done", DueDate < Today()))'''
     GTitle, First(Rows).Title,
     GOpen, CountRows(Rows),
     GDone, CountRows(Filter(Rows, Status.Value = "Done")))'''
-    person_name = NAME.format(e='ThisItem.AssigneeEmail') + ' & " (" & LookUp(colEmp, Lower(Email) = ThisItem.AssigneeEmail).Department & ")"'
-    x2 = '36 + (Parent.Width - 60) / 2'
+    emp = 'LookUp(colEmp, Lower(Email) = ThisItem.AssigneeEmail)'
+    pname = f'Coalesce({emp}.Nickname, ThisItem.AssigneeEmail)'
+    initial = f'With({{n: {pname}}}, If(Left(n, 1) in ["เ", "แ", "โ", "ใ", "ไ"], Mid(n, 2, 1), Left(n, 1)))'
+    sel = 'Select(Parent)'
+    num = lambda **p: label(Y=0, Height='Parent.TemplateHeight - 1', Align='Align.Right', OnSelect=sel, **p)
+    goto = lambda f: f'Set(varFilter, "{f}"); Navigate(scrCeoTickets)'
+    groups_h = 150
     children = header('CH') + [
         ('lblCHello', label('"สวัสดีค่ะคุณสมชาย"', X=24, Y=108, Width='Parent.Width - 48', Height=46, Size=22, FontWeight='FontWeight.Bold', Color='clrPrimary')),
         ('lblCHelloSub', label('Text(Today(), "dddd d mmmm", "th-TH") & " · งานเปิดอยู่ " & CountRows(colAll) & " งาน"',
                                X=24, Y=154, Width='Parent.Width - 48', Height=32, Size=13, Color='clrMuted')),
-        ('btnCLate', kpi('"เลยกำหนด" & Char(10) & CountRows(varCLate) & Char(10) & "รวม " & Sum(varCLate, DateDiff(DueDate, Today())) & " วัน"',
-                         'Set(varFilter, "late"); Navigate(scrCeoTickets)', 'clrAccent', 'Color.White', 'clrAccent', 24, 196)),
-        ('btnCWait', kpi('"รอคุณตอบ" & Char(10) & CountRows(Filter(colAll, Status.Value = "WaitingCEO"))',
-                         'Set(varFilter, "wait"); Navigate(scrCeoTickets)', 'Color.White', 'clrPrimary', 'clrLine', x2, 196)),
-        ('btnCDone', kpi('"เสร็จ รอคุณตรวจ" & Char(10) & CountRows(Filter(colAll, Status.Value = "Done"))',
-                         'Set(varFilter, "done"); Navigate(scrCeoTickets)', 'Color.White', 'clrSuccess', 'clrLine', 24, 338)),
-        ('btnCNoAck', kpi('"ยังไม่รับทราบ" & Char(10) & CountRows(Filter(colAll, Status.Value = "New", Created < DateAdd(Now(), -24, TimeUnit.Hours)))',
-                          'Set(varFilter, "noack"); Navigate(scrCeoTickets)', 'Color.White', 'clrText', 'clrLine', x2, 338)),
-        ('lblCPeopleHead', label('"รายคน"', X=24, Y=482, Width=200, Height=36, Size=16, FontWeight='FontWeight.Bold')),
-        ('lblCPeopleCols', label('"เปิด · ช้า · เฉลี่ยทำ"', X='Parent.Width - 284', Y=482, Width=260, Height=36, Size=12, Color='clrMuted', Align='Align.Right')),
-        ('galCPeople', gallery(people, [
-            ('lblCPerson', label(person_name, X=16, Y=0, Width='Parent.TemplateWidth - 200', Height='Parent.TemplateHeight - 1', Size=14, OnSelect='Select(Parent)')),
-            ('lblCPersonNums', label('ThisItem.OpenCount & " · " & ThisItem.LateCount & " · " & If(ThisItem.AvgDays > 0, Text(ThisItem.AvgDays, "0.0") & " วัน", "-")',
-                                     X='Parent.TemplateWidth - 186', Y=0, Width=170, Height='Parent.TemplateHeight - 1', Size=14, Align='Align.Right',
-                                     FontWeight='FontWeight.Semibold', Color='If(ThisItem.LateCount > 0, clrDanger, clrText)', OnSelect='Select(Parent)')),
-            ('recCPLine', rect(X=16, Y='Parent.TemplateHeight - 1', Width='Parent.TemplateWidth - 32', Height=1, Fill='clrLine', OnSelect='Select(Parent)')),
-        ], X=24, Y=520, Width='Parent.Width - 48', Height=300, TemplateSize=60, Fill='Color.White', BorderColor='clrLine', BorderThickness=2,
-           OnSelect='Set(varFilter, "person"); Set(varPerson, ThisItem.AssigneeEmail); Navigate(scrCeoTickets)')),
-        ('galCGroups', gallery(groups, [
-            ('lblCGroup', label('"กลุ่ม T-" & ThisItem.GroupID & " · " & ThisItem.GTitle & Char(10) & "ยังเปิด " & ThisItem.GOpen & " คน · เสร็จรอตรวจ " & ThisItem.GDone',
-                                X=16, Y=0, Width='Parent.TemplateWidth - 32', Height='Parent.TemplateHeight - 1', Size=13, OnSelect='Select(Parent)')),
-            ('recCGLine', rect(X=16, Y='Parent.TemplateHeight - 1', Width='Parent.TemplateWidth - 32', Height=1, Fill='clrLine', OnSelect='Select(Parent)')),
-        ], X=24, Y=832, Width='Parent.Width - 48', Height=140, TemplateSize=70, Fill='Color.White', BorderColor='clrLine', BorderThickness=2,
-           Visible='!IsEmpty(Self.AllItems)', OnSelect='Set(varFilter, "group"); Set(varGroup, ThisItem.GroupID); Navigate(scrCeoTickets)')),
+    ] + kpi_card('CLate', '"เลยกำหนด"', 'CountRows(varCLate)', '"รวม " & Sum(varCLate, DateDiff(DueDate, Today())) & " วัน"',
+                 goto('late'), 24, 196, CARD_W, hot=True) \
+      + kpi_card('CWait', '"รอคุณตอบ"', 'CountRows(Filter(colAll, Status.Value = "WaitingCEO"))', '"พนักงานถามมา"', goto('wait'), X2, 196, CARD_W) \
+      + kpi_card('CDone', '"เสร็จ รอคุณตรวจ"', 'CountRows(Filter(colAll, Status.Value = "Done"))', '"ผ่าน / ไม่ผ่าน"', goto('done'), 24, 348, CARD_W,
+                 title_c='clrSuccess', num_c='clrSuccess') \
+      + kpi_card('CNoAck', '"ยังไม่รับทราบ"', 'CountRows(Filter(colAll, Status.Value = "New", Created < DateAdd(Now(), -24, TimeUnit.Hours)))',
+                 '"เกิน 24 ชม."', goto('noack'), X2, 348, CARD_W, title_c='clrMuted', num_c='clrText') + [
+        ('conCPeople', panel([
+            ('conCPeopleHead', in_box(hbox([
+                ('lblCPeopleHead', in_box(label('"รายคน"', Height=34, Size=15, FontWeight='FontWeight.Bold'), 1)),
+                ('lblCPeopleCols', in_box(label('"เปิด · ช้า · เฉลี่ย"', Width=220, Height=34, Size=12, Color='clrMuted', Align='Align.Right'), 0, LayoutMinWidth=220)),
+            ], Height=34))),
+            ('galCPeople', list_in(gallery(people, [
+                ('btnCPInit', button(initial, sel, X=0, Y=12, Width=52, Height=52, Size=15, FontWeight='FontWeight.Bold',
+                                     Fill='ColorFade(clrPrimary, 88%)', Color='clrPrimary', BorderThickness=0,
+                                     RadiusTopLeft=26, RadiusTopRight=26, RadiusBottomLeft=26, RadiusBottomRight=26)),
+                ('lblCPName', label(pname, X=66, Y=8, Width='Parent.TemplateWidth - 66 - 200', Height=32, Size=14, FontWeight='FontWeight.Semibold', OnSelect=sel)),
+                ('lblCPDept', label(f'Coalesce({emp}.Department, "ไม่พบในรายชื่อพนักงาน")', X=66, Y=40, Width='Parent.TemplateWidth - 66 - 200', Height=28,
+                                    Size=12, Color='clrMuted', OnSelect=sel)),
+                ('lblCPOpen', num(text='ThisItem.OpenCount', X='Parent.TemplateWidth - 196', Width=50, Size=13)),
+                ('lblCPLate', num(text='ThisItem.LateCount', X='Parent.TemplateWidth - 140', Width=50, Size=13, FontWeight='FontWeight.Bold',
+                                  Color='If(ThisItem.LateCount > 0, clrDanger, clrMuted)')),
+                ('lblCPAvg', num(text='If(ThisItem.AvgDays > 0, Text(ThisItem.AvgDays, "0.0") & " วัน", "-")', X='Parent.TemplateWidth - 84', Width=84,
+                                 Size=12, Color='clrMuted')),
+                ('recCPLine', rect(X=0, Y='Parent.TemplateHeight - 1', Width='Parent.TemplateWidth', Height=1, Fill='clrLine', OnSelect=sel)),
+            ], TemplateSize=76, OnSelect='Set(varFilter, "person"); Set(varPerson, ThisItem.AssigneeEmail); Navigate(scrCeoTickets)'))),
+        ], 24, 500, 'Parent.Width - 48', f'{CONTENT_END} - If(conCGroups.Visible, {groups_h} + 12, 0) - Self.Y')),
+        ('conCGroups', panel([
+            ('lblCGroupsHead', in_box(label('"งานที่สั่งหลายคน"', Height=30, Size=15, FontWeight='FontWeight.Bold'))),
+            ('galCGroups', list_in(gallery(groups, [
+                ('lblCGroup', label('"กลุ่ม T-" & ThisItem.GroupID & " · " & ThisItem.GTitle & Char(10) & "ยังเปิด " & ThisItem.GOpen & " คน · เสร็จรอตรวจ " & ThisItem.GDone',
+                                    X=0, Y=0, Width='Parent.TemplateWidth', Height='Parent.TemplateHeight - 1', Size=13, OnSelect=sel)),
+                ('recCGLine', rect(X=0, Y='Parent.TemplateHeight - 1', Width='Parent.TemplateWidth', Height=1, Fill='clrLine', OnSelect=sel)),
+            ], TemplateSize=70, OnSelect='Set(varFilter, "group"); Set(varGroup, ThisItem.GroupID); Navigate(scrCeoTickets)'))),
+        ], 24, f'{CONTENT_END} - {groups_h}', 'Parent.Width - 48', groups_h, Visible='!IsEmpty(galCGroups.AllItems)')),
     ] + tabs('CH', CEO_TABS, 'Home')
     return screen('scrCeoHome', {'Fill': 'clrBg', 'OnVisible': on_visible}, children)
 
@@ -88,15 +104,16 @@ def scr_ceo_tickets():
     ] + chip_ctrls + [
         ('lblCFilterNote', label(note, X=24, Y=284, Width='Parent.Width - 48', Height=40, Size=13, Color='clrPrimary', FontWeight='FontWeight.Semibold',
                                  Visible='varFilter in ["person", "group"]')),
-        ('galCAll', gallery(items, [
-            ('recCBar', rect(X=0, Y=10, Width=8, Height='Parent.TemplateHeight - 20', Fill=bar, OnSelect='Select(Parent)')),
-            ('lblCRow', label(row, X=20, Y=4, Width='Parent.TemplateWidth - 190', Height='Parent.TemplateHeight - 8', Size=13, OnSelect='Select(Parent)')),
-            ('lblCRowStatus', label(status, X='Parent.TemplateWidth - 166', Y=0, Width=150, Height='Parent.TemplateHeight - 1', Size=13, Align='Align.Right',
-                                    FontWeight='FontWeight.Semibold', Color='clrPrimary', OnSelect='Select(Parent)')),
-            ('recCRowLine', rect(X=20, Y='Parent.TemplateHeight - 1', Width='Parent.TemplateWidth - 20', Height=1, Fill='clrLine', OnSelect='Select(Parent)')),
-        ], X=24, Y=330, Width='Parent.Width - 48', Height=f'Parent.Height - {TAB_H} - 16 - Self.Y', TemplateSize=84, Fill='Color.White',
-           BorderColor='clrLine', BorderThickness=2, OnSelect='Set(varTicket, ThisItem); Navigate(scrCeoDetail)')),
-        ('lblCListEmpty', label('"ไม่มีงานในหมวดนี้"', X=40, Y=350, Width='Parent.Width - 80', Height=50, Color='clrMuted', Visible='IsEmpty(galCAll.AllItems)')),
+        ('conCAll', panel([
+            ('lblCListEmpty', in_box(label('"ไม่มีงานในหมวดนี้"', Height=50, Color='clrMuted', Visible='IsEmpty(galCAll.AllItems)'))),
+            ('galCAll', list_in(gallery(items, [
+                ('recCBar', rect(X=0, Y=14, Width=8, Height='Parent.TemplateHeight - 28', Fill=bar, OnSelect='Select(Parent)')),
+                ('lblCRow', label(row, X=22, Y=4, Width='Parent.TemplateWidth - 22 - 150', Height='Parent.TemplateHeight - 8', Size=13, OnSelect='Select(Parent)')),
+                ('lblCRowStatus', label(status, X='Parent.TemplateWidth - 150', Y=0, Width=150, Height='Parent.TemplateHeight - 1', Size=13, Align='Align.Right',
+                                        FontWeight='FontWeight.Semibold', Color='clrPrimary', OnSelect='Select(Parent)')),
+                ('recCRowLine', rect(X=22, Y='Parent.TemplateHeight - 1', Width='Parent.TemplateWidth - 22', Height=1, Fill='clrLine', OnSelect='Select(Parent)')),
+            ], TemplateSize=84, OnSelect='Set(varTicket, ThisItem); Navigate(scrCeoDetail)'))),
+        ], 24, 'If(lblCFilterNote.Visible, 330, 290)', 'Parent.Width - 48', f'{CONTENT_END} - Self.Y')),
     ] + tabs('CT', CEO_TABS, 'List')
     on_visible = 'ClearCollect(colAll, Filter(Tickets, IsOpen = true));\nClearCollect(colEmp, Filter(Employees, Active = true))'
     return screen('scrCeoTickets', {'Fill': 'clrBg', 'OnVisible': on_visible}, children)
@@ -158,10 +175,7 @@ Set(varPickDue, false);
     open_mode = 'If(varTicket.IsOpen, DisplayMode.Edit, DisplayMode.Disabled)'
     body = vbox([
         ('conCDTitle', in_box(hbox([
-            ('icoCBack', in_box({'type': 'Classic/Icon@2.5.0', 'props': {
-                'Icon': 'Icon.ChevronLeft', 'Color': 'clrPrimary', 'BorderColor': 'clrPrimary', 'BorderThickness': 3,
-                'PaddingTop': 12, 'PaddingBottom': 12, 'PaddingLeft': 12, 'PaddingRight': 12,
-                'Width': 60, 'Height': 60, 'OnSelect': 'Navigate(scrCeoTickets)'}}, 0, LayoutMinWidth=60)),
+            ('btnCBack', back_button('scrCeoTickets')),
             ('lblCDTitle', in_box(label('"T-" & varTicket.ID & " " & varTicket.Title', Size=19, FontWeight='FontWeight.Bold', Color='clrPrimary', Height=60), 1)),
         ], Height=64, LayoutAlignItems='LayoutAlignItems.Center', LayoutGap=14))),
         ('lblCDStatus', in_box(label(status, Height=40, Size=14, FontWeight='FontWeight.Bold',
@@ -257,14 +271,15 @@ Reset(txtNTitle); Reset(txtNDetails); Reset(attNew); Clear(colPick); Set(varNMgr
         ('lblNWhoHead', label('"สั่งใคร"', X=24, Y=344, Width=200, Height=34, Size=14, FontWeight='FontWeight.Bold')),
         ('btnNMgr', chip('"หัวหน้าทุกคน (" & CountRows(Filter(colEmp, IsManager = true)) & ")"', 'varNMgr', 'Set(varNMgr, !varNMgr)',
                          X='Parent.Width - 284', Y=338, Width=260, Height=46)),
-        ('galNWho', gallery('SortByColumns(colEmp, "Nickname", SortOrder.Ascending)', [
+        ('conNWho', vbox([('galNWho', list_in(gallery('SortByColumns(colEmp, "Nickname", SortOrder.Ascending)', [
             ('btnNWho', button('Coalesce(ThisItem.Nickname, ThisItem.FirstName) & " · " & ThisItem.Department', toggle,
                                X=4, Y=4, Width='Parent.TemplateWidth - 8', Height='Parent.TemplateHeight - 8', Size=12,
                                Fill=f'If({picked}, clrPrimary, Color.White)', Color=f'If({picked}, Color.White, clrPrimary)',
                                BorderColor='clrLine', BorderThickness=2, RadiusTopLeft=24, RadiusTopRight=24, RadiusBottomLeft=24, RadiusBottomRight=24,
                                DisplayMode='If(varNMgr, DisplayMode.Disabled, DisplayMode.Edit)',
                                DisabledFill='clrBg', DisabledColor='clrMuted', DisabledBorderColor='clrLine')),
-        ], X=24, Y=390, Width='Parent.Width - 48', Height=186, TemplateSize=62, WrapCount=2, Fill='Color.Transparent')),
+        ], TemplateSize=62, WrapCount=2, ShowScrollbar='false'))),
+        ], LayoutGap=0, X=24, Y=390, Width='Parent.Width - 48', Height=186)),
         ('lblNWhenHead', label('"ส่งเมื่อไร"', X=24, Y=632, Width=200, Height=34, Size=14, FontWeight='FontWeight.Bold')),
         ('lblNWho', label(who_text, X=24, Y=584, Width='Parent.Width - 48', Height=40, Size=13, Color='clrPrimary', FontWeight='FontWeight.Semibold')),
     ] + day_ctrls + [

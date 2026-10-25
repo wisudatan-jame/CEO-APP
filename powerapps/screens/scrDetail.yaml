@@ -71,20 +71,34 @@ Screens:
                   FillPortions: =0
                   AlignInContainer: =AlignInContainer.Stretch
                 Children:
-                  - icoBack:
-                      Control: Classic/Icon@2.5.0
+                  - btnBack:
+                      Control: Classic/Button@2.2.0
                       Properties:
-                        Icon: =Icon.ChevronLeft
+                        Text: ="‹"
+                        OnSelect: =Navigate(scrTickets)
+                        Font: =Font.'Open Sans'
+                        Size: =26
+                        FontWeight: =FontWeight.Bold
+                        Fill: =Color.White
                         Color: =clrPrimary
                         BorderColor: =clrPrimary
-                        BorderThickness: =3
-                        PaddingTop: =12
-                        PaddingBottom: =12
-                        PaddingLeft: =12
-                        PaddingRight: =12
+                        BorderThickness: =2
+                        RadiusTopLeft: =30
+                        RadiusTopRight: =30
+                        RadiusBottomLeft: =30
+                        RadiusBottomRight: =30
+                        HoverFill: =ColorFade(Self.Fill, -10%)
+                        HoverColor: =Self.Color
+                        HoverBorderColor: =Self.BorderColor
+                        PressedFill: =ColorFade(Self.Fill, -20%)
+                        PressedColor: =Self.Color
+                        PressedBorderColor: =Self.BorderColor
                         Width: =60
                         Height: =60
-                        OnSelect: =Navigate(scrTickets)
+                        PaddingTop: =0
+                        PaddingBottom: =6
+                        PaddingLeft: =0
+                        PaddingRight: =0
                         FillPortions: =0
                         AlignInContainer: =AlignInContainer.Stretch
                         LayoutMinWidth: =60
@@ -134,7 +148,7 @@ Screens:
                   PaddingRight: =18
                   FillPortions: =0
                   AlignInContainer: =AlignInContainer.Stretch
-                  Height: =lblDDetails.Height + If(lblDExtra.Visible, lblDExtra.Height + 10, 0) + 28
+                  Height: =lblDDetails.Height + If(lblDExtra.Visible, lblDExtra.Height + 10, 0) + 28 + 4
                 Children:
                   - lblDDetails:
                       Control: Label@2.5.1
@@ -188,7 +202,7 @@ Screens:
                   PaddingRight: =18
                   FillPortions: =0
                   AlignInContainer: =AlignInContainer.Stretch
-                  Height: =If(lblSentFiles.Visible, lblSentFiles.Height + 10, 0) + 110 + 10 + 60 + 28
+                  Height: =If(lblSentFiles.Visible, lblSentFiles.Height + 10, 0) + 110 + 10 + 60 + 28 + 4
                 Children:
                   - lblSentFiles:
                       Control: Label@2.5.1
@@ -232,7 +246,8 @@ Screens:
                         PaddingLeft: =5
                         PaddingRight: =5
                         FillPortions: =0
-                        AlignInContainer: =AlignInContainer.Stretch
+                        AlignInContainer: =AlignInContainer.Start
+                        Width: =Parent.Width - 40
                   - conDFileBtns:
                       Control: GroupContainer@1.3.0
                       Variant: AutoLayout
@@ -338,7 +353,7 @@ Screens:
                   PaddingRight: =18
                   FillPortions: =0
                   AlignInContainer: =AlignInContainer.Stretch
-                  Height: =34 + 10 + 200 + 28
+                  Height: =34 + 10 + 200 + 28 + 4
                 Children:
                   - lblHistHead:
                       Control: Label@2.5.1
@@ -405,7 +420,7 @@ Screens:
                   PaddingRight: =18
                   FillPortions: =0
                   AlignInContainer: =AlignInContainer.Stretch
-                  Height: =70 + 64 + 56 + 2 * 10 + 28
+                  Height: =70 + 64 + 56 + 2 * 10 + 28 + 4
                 Children:
                   - txtComment:
                       Control: Classic/TextInput@2.3.2

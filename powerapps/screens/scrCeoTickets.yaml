@@ -194,87 +194,109 @@ Screens:
             Height: =40
             FontWeight: =FontWeight.Semibold
             Visible: =varFilter in ["person", "group"]
-      - galCAll:
-          Control: Gallery@2.15.0
-          Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
+      - conCAll:
+          Control: GroupContainer@1.3.0
+          Variant: AutoLayout
           Properties:
-            Items: |-
-              =SortByColumns(
-                  Switch(varFilter,
-                      "late", Filter(colAll, Status.Value <> "Done", DueDate < Today()),
-                      "wait", Filter(colAll, Status.Value = "WaitingCEO"),
-                      "done", Filter(colAll, Status.Value = "Done"),
-                      "noack", Filter(colAll, Status.Value = "New"),
-                      "person", Filter(colAll, AssigneeEmail = varPerson),
-                      "group", Filter(colAll, GroupID = varGroup),
-                      colAll),
-                  "DueDate", SortOrder.Ascending)
-            X: =24
-            Y: =330
-            Width: =Parent.Width - 48
-            Height: =Parent.Height - 96 - 16 - Self.Y
-            TemplateSize: =84
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            LayoutGap: =6
+            DropShadow: =DropShadow.None
             Fill: =Color.White
-            BorderColor: =clrLine
             BorderThickness: =2
-            OnSelect: =Set(varTicket, ThisItem); Navigate(scrCeoDetail)
+            BorderColor: =clrLine
+            RadiusTopLeft: =20
+            RadiusTopRight: =20
+            RadiusBottomLeft: =20
+            RadiusBottomRight: =20
+            PaddingTop: =12
+            PaddingBottom: =8
+            PaddingLeft: =18
+            PaddingRight: =18
+            X: =24
+            Y: =If(lblCFilterNote.Visible, 330, 290)
+            Width: =Parent.Width - 48
+            Height: =Parent.Height - 96 - 12 - Self.Y
           Children:
-            - recCBar:
-                Control: Rectangle@2.3.0
-                Properties:
-                  X: =0
-                  Y: =10
-                  Width: =8
-                  Height: =Parent.TemplateHeight - 20
-                  Fill: =Switch(true, ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today(), clrAccent, ThisItem.Status.Value = "WaitingCEO", clrPrimary, ThisItem.Status.Value = "Done", clrSuccess, clrLine)
-                  OnSelect: =Select(Parent)
-            - lblCRow:
+            - lblCListEmpty:
                 Control: Label@2.5.1
                 Properties:
-                  Text: ="T-" & ThisItem.ID & " " & ThisItem.Title & Char(10) & Coalesce(LookUp(colEmp, Lower(Email) = ThisItem.AssigneeEmail).Nickname, ThisItem.AssigneeEmail) & " · " & If(ThisItem.DueDate < Today(), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & Text(ThisItem.DueDate, "ddd d mmm", "th-TH"))
+                  Text: ="ไม่มีงานในหมวดนี้"
                   Font: =Font.'Open Sans'
-                  Size: =13
-                  Color: =clrText
-                  X: =20
-                  Y: =4
-                  Width: =Parent.TemplateWidth - 190
-                  Height: =Parent.TemplateHeight - 8
-                  OnSelect: =Select(Parent)
-            - lblCRowStatus:
-                Control: Label@2.5.1
+                  Size: =14
+                  Color: =clrMuted
+                  Height: =50
+                  Visible: =IsEmpty(galCAll.AllItems)
+                  FillPortions: =0
+                  AlignInContainer: =AlignInContainer.Stretch
+            - galCAll:
+                Control: Gallery@2.15.0
+                Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
                 Properties:
-                  Text: =Switch(ThisItem.Status.Value, "New", "ใหม่", "Acknowledged", "รับทราบ", "InProgress", "กำลังทำ", "WaitingCEO", "รอคุณตอบ", "Done", "รอคุณตรวจ", ThisItem.Status.Value)
-                  Font: =Font.'Open Sans'
-                  Size: =13
-                  Color: =clrPrimary
-                  X: =Parent.TemplateWidth - 166
-                  Y: =0
-                  Width: =150
-                  Height: =Parent.TemplateHeight - 1
-                  Align: =Align.Right
-                  FontWeight: =FontWeight.Semibold
-                  OnSelect: =Select(Parent)
-            - recCRowLine:
-                Control: Rectangle@2.3.0
-                Properties:
-                  X: =20
-                  Y: =Parent.TemplateHeight - 1
-                  Width: =Parent.TemplateWidth - 20
-                  Height: =1
-                  Fill: =clrLine
-                  OnSelect: =Select(Parent)
-      - lblCListEmpty:
-          Control: Label@2.5.1
-          Properties:
-            Text: ="ไม่มีงานในหมวดนี้"
-            Font: =Font.'Open Sans'
-            Size: =14
-            Color: =clrMuted
-            X: =40
-            Y: =350
-            Width: =Parent.Width - 80
-            Height: =50
-            Visible: =IsEmpty(galCAll.AllItems)
+                  Items: |-
+                    =SortByColumns(
+                        Switch(varFilter,
+                            "late", Filter(colAll, Status.Value <> "Done", DueDate < Today()),
+                            "wait", Filter(colAll, Status.Value = "WaitingCEO"),
+                            "done", Filter(colAll, Status.Value = "Done"),
+                            "noack", Filter(colAll, Status.Value = "New"),
+                            "person", Filter(colAll, AssigneeEmail = varPerson),
+                            "group", Filter(colAll, GroupID = varGroup),
+                            colAll),
+                        "DueDate", SortOrder.Ascending)
+                  TemplateSize: =84
+                  OnSelect: =Set(varTicket, ThisItem); Navigate(scrCeoDetail)
+                  Fill: =Color.Transparent
+                  BorderThickness: =0
+                  FillPortions: =1
+                  AlignInContainer: =AlignInContainer.Stretch
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                Children:
+                  - recCBar:
+                      Control: Rectangle@2.3.0
+                      Properties:
+                        X: =0
+                        Y: =14
+                        Width: =8
+                        Height: =Parent.TemplateHeight - 28
+                        Fill: =Switch(true, ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today(), clrAccent, ThisItem.Status.Value = "WaitingCEO", clrPrimary, ThisItem.Status.Value = "Done", clrSuccess, clrLine)
+                        OnSelect: =Select(Parent)
+                  - lblCRow:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: ="T-" & ThisItem.ID & " " & ThisItem.Title & Char(10) & Coalesce(LookUp(colEmp, Lower(Email) = ThisItem.AssigneeEmail).Nickname, ThisItem.AssigneeEmail) & " · " & If(ThisItem.DueDate < Today(), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & Text(ThisItem.DueDate, "ddd d mmm", "th-TH"))
+                        Font: =Font.'Open Sans'
+                        Size: =13
+                        Color: =clrText
+                        X: =22
+                        Y: =4
+                        Width: =Parent.TemplateWidth - 22 - 150
+                        Height: =Parent.TemplateHeight - 8
+                        OnSelect: =Select(Parent)
+                  - lblCRowStatus:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: =Switch(ThisItem.Status.Value, "New", "ใหม่", "Acknowledged", "รับทราบ", "InProgress", "กำลังทำ", "WaitingCEO", "รอคุณตอบ", "Done", "รอคุณตรวจ", ThisItem.Status.Value)
+                        Font: =Font.'Open Sans'
+                        Size: =13
+                        Color: =clrPrimary
+                        X: =Parent.TemplateWidth - 150
+                        Y: =0
+                        Width: =150
+                        Height: =Parent.TemplateHeight - 1
+                        Align: =Align.Right
+                        FontWeight: =FontWeight.Semibold
+                        OnSelect: =Select(Parent)
+                  - recCRowLine:
+                      Control: Rectangle@2.3.0
+                      Properties:
+                        X: =22
+                        Y: =Parent.TemplateHeight - 1
+                        Width: =Parent.TemplateWidth - 22
+                        Height: =1
+                        Fill: =clrLine
+                        OnSelect: =Select(Parent)
       - recTabLineCT:
           Control: Rectangle@2.3.0
           Properties:

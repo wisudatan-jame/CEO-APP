@@ -48,81 +48,104 @@ Screens:
             Width: =Parent.Width - 48
             Height: =52
             FontWeight: =FontWeight.Bold
-      - galTickets:
-          Control: Gallery@2.15.0
-          Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
+      - conTickets:
+          Control: GroupContainer@1.3.0
+          Variant: AutoLayout
           Properties:
-            Items: =SortByColumns(Filter(Tickets, IsOpen = true, AssigneeEmail = varMe), "DueDate", SortOrder.Ascending)
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            LayoutGap: =6
+            DropShadow: =DropShadow.None
+            Fill: =Color.White
+            BorderThickness: =2
+            BorderColor: =clrLine
+            RadiusTopLeft: =20
+            RadiusTopRight: =20
+            RadiusBottomLeft: =20
+            RadiusBottomRight: =20
+            PaddingTop: =12
+            PaddingBottom: =8
+            PaddingLeft: =18
+            PaddingRight: =18
             X: =24
             Y: =160
             Width: =Parent.Width - 48
             Height: =Parent.Height - 96 - 104 - Self.Y
-            TemplateSize: =90
-            Fill: =Color.White
-            BorderColor: =clrLine
-            BorderThickness: =2
-            OnSelect: =Set(varTicket, ThisItem); Navigate(scrDetail)
           Children:
-            - lblTitle:
+            - lblEmpty:
                 Control: Label@2.5.1
                 Properties:
-                  Text: =ThisItem.Title
+                  Text: ="ไม่มีงานค้าง"
                   Font: =Font.'Open Sans'
-                  Size: =16
-                  Color: =clrText
-                  X: =16
-                  Y: =10
-                  Width: =Parent.TemplateWidth - 32
-                  Height: =36
-                  FontWeight: =FontWeight.Semibold
-                  OnSelect: =Select(Parent)
-            - lblMeta:
-                Control: Label@2.5.1
+                  Size: =14
+                  Color: =clrMuted
+                  Height: =50
+                  Visible: =IsEmpty(galTickets.AllItems)
+                  FillPortions: =0
+                  AlignInContainer: =AlignInContainer.Stretch
+            - galTickets:
+                Control: Gallery@2.15.0
+                Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
                 Properties:
-                  Text: ="T-" & ThisItem.ID & " · " & If(ThisItem.DueDate < Today(), "เลยกำหนด " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & Text(ThisItem.DueDate, "ddd d mmm", "th-TH"))
-                  Font: =Font.'Open Sans'
-                  Size: =13
-                  Color: =If(ThisItem.DueDate < Today(), clrDanger, clrMuted)
-                  X: =16
-                  Y: =48
-                  Width: =Parent.TemplateWidth - 230
-                  Height: =30
-                  OnSelect: =Select(Parent)
-            - lblStatus:
-                Control: Label@2.5.1
-                Properties:
-                  Text: =Switch(ThisItem.Status.Value, "New", "ใหม่", "Acknowledged", "รับทราบ", "InProgress", "กำลังทำ", "WaitingCEO", "รอ CEO ตอบ", "Done", "รอ CEO ตรวจ", ThisItem.Status.Value)
-                  Font: =Font.'Open Sans'
-                  Size: =13
-                  Color: =clrPrimary
-                  X: =Parent.TemplateWidth - 216
-                  Y: =48
-                  Width: =200
-                  Height: =30
-                  Align: =Align.Right
-                  FontWeight: =FontWeight.Semibold
-                  OnSelect: =Select(Parent)
-            - recTicketLine:
-                Control: Rectangle@2.3.0
-                Properties:
-                  X: =16
-                  Y: =Parent.TemplateHeight - 1
-                  Width: =Parent.TemplateWidth - 32
-                  Height: =1
-                  Fill: =clrLine
-                  OnSelect: =Select(Parent)
-      - lblEmpty:
-          Control: Label@2.5.1
-          Properties:
-            Text: ="ไม่มีงานค้าง"
-            Font: =Font.'Open Sans'
-            Size: =14
-            Color: =clrMuted
-            X: =40
-            Y: =180
-            Width: =Parent.Width - 80
-            Height: =50
-            Visible: =IsEmpty(galTickets.AllItems)
+                  Items: =SortByColumns(Filter(Tickets, IsOpen = true, AssigneeEmail = varMe), "DueDate", SortOrder.Ascending)
+                  TemplateSize: =86
+                  OnSelect: =Set(varTicket, ThisItem); Navigate(scrDetail)
+                  Fill: =Color.Transparent
+                  BorderThickness: =0
+                  FillPortions: =1
+                  AlignInContainer: =AlignInContainer.Stretch
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                Children:
+                  - lblTitle:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: ="T-" & ThisItem.ID & " " & ThisItem.Title
+                        Font: =Font.'Open Sans'
+                        Size: =15
+                        Color: =clrText
+                        X: =0
+                        Y: =10
+                        Width: =Parent.TemplateWidth
+                        Height: =36
+                        FontWeight: =FontWeight.Semibold
+                        OnSelect: =Select(Parent)
+                  - lblMeta:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: =If(ThisItem.DueDate < Today(), "เลยกำหนด " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & Text(ThisItem.DueDate, "ddd d mmm", "th-TH"))
+                        Font: =Font.'Open Sans'
+                        Size: =13
+                        Color: =If(ThisItem.DueDate < Today(), clrDanger, clrMuted)
+                        X: =0
+                        Y: =46
+                        Width: =Parent.TemplateWidth - 190
+                        Height: =30
+                        FontWeight: =FontWeight.Semibold
+                        OnSelect: =Select(Parent)
+                  - lblStatus:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: =Switch(ThisItem.Status.Value, "New", "ใหม่", "Acknowledged", "รับทราบ", "InProgress", "กำลังทำ", "WaitingCEO", "รอ CEO ตอบ", "Done", "รอ CEO ตรวจ", ThisItem.Status.Value)
+                        Font: =Font.'Open Sans'
+                        Size: =13
+                        Color: =clrPrimary
+                        X: =Parent.TemplateWidth - 190
+                        Y: =46
+                        Width: =190
+                        Height: =30
+                        Align: =Align.Right
+                        FontWeight: =FontWeight.Semibold
+                        OnSelect: =Select(Parent)
+                  - recTicketLine:
+                      Control: Rectangle@2.3.0
+                      Properties:
+                        X: =0
+                        Y: =Parent.TemplateHeight - 1
+                        Width: =Parent.TemplateWidth
+                        Height: =1
+                        Fill: =clrLine
+                        OnSelect: =Select(Parent)
       - btnRefresh:
           Control: Classic/Button@2.2.0
           Properties:

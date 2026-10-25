@@ -2,67 +2,78 @@ from yamlgen import *
 
 STAFF_TABS = [('Home', '"ภาพรวม"', 'Navigate(scrHome)'), ('List', '"งานจาก CEO"', 'Navigate(scrTickets)')]
 CARD_W = '(Parent.Width - 60) / 2'
-
-def kpi(text, onselect, fill, color, border, x, y):
-    return button(text, onselect, X=x, Y=y, Width=CARD_W, Height=130, Fill=fill, Color=color, BorderColor=border,
-                  BorderThickness=2, Align='Align.Left', VerticalAlign='VerticalAlign.Top', PaddingLeft=18, PaddingTop=14,
-                  Size=16, FontWeight='FontWeight.Bold',
-                  RadiusTopLeft=20, RadiusTopRight=20, RadiusBottomLeft=20, RadiusBottomRight=20)
+X2 = '36 + (Parent.Width - 60) / 2'
+CONTENT_END = f'Parent.Height - {TAB_H} - 12'  # bottom edge for boxes that sit above the tab bar
 
 def scr_home():
-    on_visible = '''Set(varMine, Filter(Tickets, AssigneeEmail = varMe));
+    on_visible = """Set(varMeEmp, LookUp(Employees, Email = varMe || Email = User().Email));
+Set(varMine, Filter(Tickets, AssigneeEmail = varMe));
 Set(varOpen, Filter(varMine, IsOpen = true));
 Set(varLate, Filter(varOpen, Status.Value <> "Done", DueDate < Today()));
-Set(varDone30, Filter(varMine, !IsBlank(DoneAt), DoneAt >= DateAdd(Today(), -30, TimeUnit.Days)))'''
-    stats = '''"ผลงาน 30 วันที่ผ่านมา" & Char(10) &
-"ได้รับ " & CountRows(Filter(varMine, Created >= DateAdd(Today(), -30, TimeUnit.Days))) & " งาน · " &
-"เสร็จทันกำหนด " & CountIf(varDone30, DoneAt < DateAdd(DueDate, 1, TimeUnit.Days)) & "/" & CountRows(varDone30) &
-If(CountRows(varDone30) > 0, " · เฉลี่ย " & Round(Average(varDone30, DateDiff(Created, DoneAt, TimeUnit.Hours)) / 24, 1) & " วัน/งาน", "")'''
-    todo_text = '''"T-" & ThisItem.ID & " " & ThisItem.Title & Char(10) &
-If(ThisItem.DueDate < Today(), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & Text(ThisItem.DueDate, "ddd d mmm", "th-TH")) &
-" · " & Switch(ThisItem.Status.Value, "New", "ใหม่ ยังไม่รับทราบ", "Acknowledged", "รับทราบ", "InProgress", "กำลังทำ", "WaitingCEO", "รอ CEO ตอบ", ThisItem.Status.Value)'''
-    x2 = '36 + (Parent.Width - 60) / 2'
+Set(varDone30, Filter(varMine, !IsBlank(DoneAt), DoneAt >= DateAdd(Today(), -30, TimeUnit.Days)))"""
+    todo_sub = """If(ThisItem.DueDate < Today(), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & Text(ThisItem.DueDate, "ddd d mmm", "th-TH")) &
+" · " & Switch(ThisItem.Status.Value, "New", "ใหม่ ยังไม่รับทราบ", "Acknowledged", "รับทราบ", "InProgress", "กำลังทำ", "WaitingCEO", "รอ CEO ตอบ", ThisItem.Status.Value)"""
+    late = 'ThisItem.DueDate < Today()'
+    to_list = 'Navigate(scrTickets)'
+    stat = lambda key, num, cap, color: (f'conS{key}', in_box(vbox([
+        (f'lblS{key}N', in_box(label(num, Height=44, Size=22, FontWeight='FontWeight.Bold', Color=color, Align='Align.Center'))),
+        (f'lblS{key}C', in_box(label(cap, Height=26, Size=12, Color='clrMuted', Align='Align.Center'))),
+    ], LayoutGap=0), 1))
+    stats_h = 140
     children = header('H') + [
-        ('lblHello', label('"สวัสดีค่ะคุณ" & First(Split(User().FullName, " ")).Value', X=24, Y=108, Width='Parent.Width - 48', Height=46,
-                           Size=22, FontWeight='FontWeight.Bold', Color='clrPrimary')),
+        ('lblHello', label('"สวัสดีค่ะคุณ" & Coalesce(varMeEmp.Nickname, First(Split(User().FullName, " ")).Value)',
+                           X=24, Y=108, Width='Parent.Width - 48', Height=46, Size=22, FontWeight='FontWeight.Bold', Color='clrPrimary')),
         ('lblHelloSub', label('Text(Today(), "dddd d mmmm", "th-TH") & " · งานจาก CEO เปิดอยู่ " & CountRows(varOpen) & " งาน"',
                               X=24, Y=154, Width='Parent.Width - 48', Height=32, Size=13, Color='clrMuted')),
-        ('btnKLate', kpi('"เลยกำหนด" & Char(10) & CountRows(varLate)', 'Navigate(scrTickets)', 'clrAccent', 'Color.White', 'clrAccent', 24, 196)),
-        ('btnKNew', kpi('"ยังไม่รับทราบ" & Char(10) & CountRows(Filter(varOpen, Status.Value = "New"))', 'Navigate(scrTickets)', 'Color.White', 'clrPrimary', 'clrLine', x2, 196)),
-        ('btnKWait', kpi('"รอ CEO ตอบ" & Char(10) & CountRows(Filter(varOpen, Status.Value = "WaitingCEO"))', 'Navigate(scrTickets)', 'Color.White', 'clrMuted', 'clrLine', 24, 338)),
-        ('btnKDone', kpi('"รอ CEO ตรวจ" & Char(10) & CountRows(Filter(varOpen, Status.Value = "Done"))', 'Navigate(scrTickets)', 'Color.White', 'clrSuccess', 'clrLine', x2, 338)),
-        ('lblTodoHead', label('"ต้องทำก่อน"', X=24, Y=482, Width='Parent.Width - 48', Height=36, Size=16, FontWeight='FontWeight.Bold')),
-        ('galTodo', gallery('FirstN(SortByColumns(Filter(varOpen, Status.Value <> "Done"), "DueDate", SortOrder.Ascending), 4)', [
-            ('recTodoBar', rect(X=0, Y=10, Width=8, Height='Parent.TemplateHeight - 20',
-                                Fill='If(ThisItem.DueDate < Today(), clrAccent, clrPrimary)', OnSelect='Select(Parent)')),
-            ('lblTodo', label(todo_text, X=20, Y=4, Width='Parent.TemplateWidth - 28', Height='Parent.TemplateHeight - 8', Size=13,
-                              Color='If(ThisItem.DueDate < Today(), clrDanger, clrText)', OnSelect='Select(Parent)')),
-            ('recTodoLine', rect(X=20, Y='Parent.TemplateHeight - 1', Width='Parent.TemplateWidth - 20', Height=1, Fill='clrLine', OnSelect='Select(Parent)')),
-        ], X=24, Y=522, Width='Parent.Width - 48', Height=288, TemplateSize=72, Fill='Color.White',
-           BorderColor='clrLine', BorderThickness=2, OnSelect='Set(varTicket, ThisItem); Navigate(scrDetail)')),
-        ('lblTodoEmpty', label('"ไม่มีงานค้าง"', X=24, Y=522, Width='Parent.Width - 48', Height=60, Color='clrMuted',
-                               Visible='IsEmpty(galTodo.AllItems)')),
-        ('lblStats', label(stats, X=24, Y=826, Width='Parent.Width - 48', AutoHeight='true', Size=13, Fill='Color.White',
-                           BorderColor='clrLine', BorderThickness=2, PaddingTop=14, PaddingBottom=14, PaddingLeft=18, PaddingRight=18)),
+    ] + kpi_card('KLate', '"เลยกำหนด"', 'CountRows(varLate)', '"รีบทำก่อน"', to_list, 24, 196, CARD_W, hot=True) \
+      + kpi_card('KNew', '"ยังไม่รับทราบ"', 'CountRows(Filter(varOpen, Status.Value = "New"))', '"งานใหม่จาก CEO"', to_list, X2, 196, CARD_W) \
+      + kpi_card('KWait', '"รอ CEO ตอบ"', 'CountRows(Filter(varOpen, Status.Value = "WaitingCEO"))', '"ที่คุณถามไป"', to_list, 24, 348, CARD_W,
+                 title_c='clrMuted', num_c='clrText') \
+      + kpi_card('KDone', '"รอ CEO ตรวจ"', 'CountRows(Filter(varOpen, Status.Value = "Done"))', '"ทำเสร็จแล้ว"', to_list, X2, 348, CARD_W,
+                 title_c='clrSuccess', num_c='clrSuccess') + [
+        ('conTodo', panel([
+            ('lblTodoHead', in_box(label('"ต้องทำก่อน"', Height=34, Size=15, FontWeight='FontWeight.Bold'))),
+            ('lblTodoEmpty', in_box(label('"ไม่มีงานค้าง"', Height=40, Size=13, Color='clrMuted', Visible='IsEmpty(galTodo.AllItems)'))),
+            ('galTodo', list_in(gallery('FirstN(SortByColumns(Filter(varOpen, Status.Value <> "Done"), "DueDate", SortOrder.Ascending), 4)', [
+                ('recTodoBar', rect(X=0, Y=16, Width=8, Height='Parent.TemplateHeight - 32',
+                                    Fill=f'If({late}, clrAccent, clrPrimary)', OnSelect='Select(Parent)')),
+                ('lblTodo', label('"T-" & ThisItem.ID & " " & ThisItem.Title', X=22, Y=6, Width='Parent.TemplateWidth - 22', Height=34,
+                                  Size=14, FontWeight='FontWeight.Semibold', OnSelect='Select(Parent)')),
+                ('lblTodoSub', label(todo_sub, X=22, Y=38, Width='Parent.TemplateWidth - 22', Height=28, Size=12,
+                                     Color=f'If({late}, clrDanger, clrMuted)', OnSelect='Select(Parent)')),
+                ('recTodoLine', rect(X=0, Y='Parent.TemplateHeight - 1', Width='Parent.TemplateWidth', Height=1, Fill='clrLine', OnSelect='Select(Parent)')),
+            ], TemplateSize=72, ShowScrollbar='false', OnSelect='Set(varTicket, ThisItem); Navigate(scrDetail)'))),
+        ], 24, 500, 'Parent.Width - 48', f'{CONTENT_END} - {stats_h} - 12 - Self.Y')),
+        ('conStats', panel([
+            ('lblStatsHead', in_box(label('"ผลงาน 30 วันที่ผ่านมา"', Height=30, Size=15, FontWeight='FontWeight.Bold'))),
+            ('conStatsRow', in_box(hbox([
+                stat('Got', 'CountRows(Filter(varMine, Created >= DateAdd(Today(), -30, TimeUnit.Days)))', '"ได้รับ"', 'clrPrimary'),
+                stat('OnTime', 'CountIf(varDone30, DoneAt < DateAdd(DueDate, 1, TimeUnit.Days)) & "/" & CountRows(varDone30)', '"เสร็จทันกำหนด"', 'clrSuccess'),
+                stat('Avg', 'If(CountRows(varDone30) > 0, Text(Average(varDone30, DateDiff(Created, DoneAt, TimeUnit.Hours)) / 24, "0.0"), "-")',
+                     '"วันเฉลี่ย/งาน"', 'clrPrimary'),
+            ], Height=70, LayoutGap=8))),
+        ], 24, f'{CONTENT_END} - {stats_h}', 'Parent.Width - 48', stats_h)),
     ] + tabs('H', STAFF_TABS, 'Home')
     return screen('scrHome', {'Fill': 'clrBg', 'OnVisible': on_visible}, children)
 
 def scr_tickets():
     status = 'Switch(ThisItem.Status.Value, "New", "ใหม่", "Acknowledged", "รับทราบ", "InProgress", "กำลังทำ", "WaitingCEO", "รอ CEO ตอบ", "Done", "รอ CEO ตรวจ", ThisItem.Status.Value)'
-    meta = ('"T-" & ThisItem.ID & " · " & If(ThisItem.DueDate < Today(), "เลยกำหนด " & DateDiff(ThisItem.DueDate, Today()) & " วัน", '
+    meta = ('If(ThisItem.DueDate < Today(), "เลยกำหนด " & DateDiff(ThisItem.DueDate, Today()) & " วัน", '
             '"ส่ง " & Text(ThisItem.DueDate, "ddd d mmm", "th-TH"))')
     children = header('') + [
         ('lblHeader', label('"งานจาก CEO"', X=24, Y=104, Width='Parent.Width - 48', Height=52, Size=20, FontWeight='FontWeight.Bold', Color='clrPrimary')),
-        ('galTickets', gallery('SortByColumns(Filter(Tickets, IsOpen = true, AssigneeEmail = varMe), "DueDate", SortOrder.Ascending)', [
-            ('lblTitle', label('ThisItem.Title', X=16, Y=10, Width='Parent.TemplateWidth - 32', Height=36, Size=16, FontWeight='FontWeight.Semibold', OnSelect='Select(Parent)')),
-            ('lblMeta', label(meta, X=16, Y=48, Width='Parent.TemplateWidth - 230', Height=30, Size=13,
-                              Color='If(ThisItem.DueDate < Today(), clrDanger, clrMuted)', OnSelect='Select(Parent)')),
-            ('lblStatus', label(status, X='Parent.TemplateWidth - 216', Y=48, Width=200, Height=30, Size=13, Align='Align.Right',
-                                FontWeight='FontWeight.Semibold', Color='clrPrimary', OnSelect='Select(Parent)')),
-            ('recTicketLine', rect(X=16, Y='Parent.TemplateHeight - 1', Width='Parent.TemplateWidth - 32', Height=1, Fill='clrLine', OnSelect='Select(Parent)')),
-        ], X=24, Y=160, Width='Parent.Width - 48', Height=f'Parent.Height - {TAB_H} - 104 - Self.Y', TemplateSize=90, Fill='Color.White',
-           BorderColor='clrLine', BorderThickness=2, OnSelect='Set(varTicket, ThisItem); Navigate(scrDetail)')),
-        ('lblEmpty', label('"ไม่มีงานค้าง"', X=40, Y=180, Width='Parent.Width - 80', Height=50, Color='clrMuted', Visible='IsEmpty(galTickets.AllItems)')),
+        ('conTickets', panel([
+            ('lblEmpty', in_box(label('"ไม่มีงานค้าง"', Height=50, Color='clrMuted', Visible='IsEmpty(galTickets.AllItems)'))),
+            ('galTickets', list_in(gallery('SortByColumns(Filter(Tickets, IsOpen = true, AssigneeEmail = varMe), "DueDate", SortOrder.Ascending)', [
+                ('lblTitle', label('"T-" & ThisItem.ID & " " & ThisItem.Title', X=0, Y=10, Width='Parent.TemplateWidth', Height=36, Size=15,
+                                   FontWeight='FontWeight.Semibold', OnSelect='Select(Parent)')),
+                ('lblMeta', label(meta, X=0, Y=46, Width='Parent.TemplateWidth - 190', Height=30, Size=13, FontWeight='FontWeight.Semibold',
+                                  Color='If(ThisItem.DueDate < Today(), clrDanger, clrMuted)', OnSelect='Select(Parent)')),
+                ('lblStatus', label(status, X='Parent.TemplateWidth - 190', Y=46, Width=190, Height=30, Size=13, Align='Align.Right',
+                                    FontWeight='FontWeight.Semibold', Color='clrPrimary', OnSelect='Select(Parent)')),
+                ('recTicketLine', rect(X=0, Y='Parent.TemplateHeight - 1', Width='Parent.TemplateWidth', Height=1, Fill='clrLine', OnSelect='Select(Parent)')),
+            ], TemplateSize=86, OnSelect='Set(varTicket, ThisItem); Navigate(scrDetail)'))),
+        ], 24, 160, 'Parent.Width - 48', f'Parent.Height - {TAB_H} - 104 - Self.Y')),
         ('btnRefresh', button('"รีเฟรช"', 'Refresh(Tickets)', X=24, Y=f'Parent.Height - {TAB_H} - 92', Width='Parent.Width - 48', Height=80,
                               Size=16, FontWeight='FontWeight.Bold',
                               RadiusTopLeft=16, RadiusTopRight=16, RadiusBottomLeft=16, RadiusBottomRight=16)),
@@ -147,10 +158,7 @@ Set(varTicket, LookUp(Tickets, ID = varTicket.ID))'''
     big, small = status_buttons()
     body = vbox([
         ('conDTitle', in_box(hbox([
-            ('icoBack', in_box({'type': 'Classic/Icon@2.5.0', 'props': {
-                'Icon': 'Icon.ChevronLeft', 'Color': 'clrPrimary', 'BorderColor': 'clrPrimary', 'BorderThickness': 3,
-                'PaddingTop': 12, 'PaddingBottom': 12, 'PaddingLeft': 12, 'PaddingRight': 12,
-                'Width': 60, 'Height': 60, 'OnSelect': 'Navigate(scrTickets)'}}, 0, LayoutMinWidth=60)),
+            ('btnBack', back_button('scrTickets')),
             ('lblDTitle', in_box(label('"T-" & varTicket.ID & " " & varTicket.Title', Size=19, FontWeight='FontWeight.Bold', Color='clrPrimary', Height=60), 1)),
         ], Height=64, LayoutAlignItems='LayoutAlignItems.Center', LayoutGap=14))),
         ('lblDDue', in_box(label(due, Height=40, Size=14, FontWeight='FontWeight.Bold',
@@ -163,7 +171,7 @@ Set(varTicket, LookUp(Tickets, ID = varTicket.ID))'''
         ], 'lblDDetails.Height + If(lblDExtra.Visible, lblDExtra.Height + 10, 0) + 28')),
         ('conDFiles', card([
             ('lblSentFiles', in_box(label(sent, AutoHeight='true', Size=13, Visible='CountRows(Filter(galHistory.AllItems, StartsWith(Comment, "📎 แนบไฟล์"))) > 0'))),
-            ('attFiles', in_box(att)),
+            ('attFiles', in_box(att, AlignInContainer='AlignInContainer.Start', Width='Parent.Width - 40')),
             ('conDFileBtns', in_box(hbox([
                 ('btnPhotos', in_box(button('"เปิดโฟลเดอร์"', folder, Height=60, Size=14, Fill='Color.White', Color='clrPrimary',
                                             BorderColor='clrLine', BorderThickness=2,

@@ -67,11 +67,11 @@ Screens:
       - btnCLate:
           Control: Classic/Button@2.2.0
           Properties:
-            Text: ="เลยกำหนด" & Char(10) & CountRows(varCLate) & Char(10) & "รวม " & Sum(varCLate, DateDiff(DueDate, Today())) & " วัน"
+            Text: =""
             OnSelect: =Set(varFilter, "late"); Navigate(scrCeoTickets)
             Font: =Font.'Open Sans'
-            Size: =16
-            FontWeight: =FontWeight.Bold
+            Size: =15
+            FontWeight: =FontWeight.Semibold
             Fill: =clrAccent
             Color: =Color.White
             BorderColor: =clrAccent
@@ -89,21 +89,55 @@ Screens:
             X: =24
             Y: =196
             Width: =(Parent.Width - 60) / 2
-            Height: =130
-            Align: =Align.Left
-            VerticalAlign: =VerticalAlign.Top
-            PaddingLeft: =18
-            PaddingTop: =14
+            Height: =140
+      - lblCLateT:
+          Control: Label@2.5.1
+          Properties:
+            Text: ="เลยกำหนด"
+            Font: =Font.'Open Sans'
+            Size: =14
+            Color: =Color.White
+            Y: =210
+            Height: =30
+            FontWeight: =FontWeight.Semibold
+            X: =24 + 20
+            Width: =(Parent.Width - 60) / 2 - 40
+            OnSelect: =Set(varFilter, "late"); Navigate(scrCeoTickets)
+      - lblCLateN:
+          Control: Label@2.5.1
+          Properties:
+            Text: =CountRows(varCLate)
+            Font: =Font.'Open Sans'
+            Size: =32
+            Color: =Color.White
+            Y: =238
+            Height: =58
+            FontWeight: =FontWeight.Bold
+            X: =24 + 20
+            Width: =(Parent.Width - 60) / 2 - 40
+            OnSelect: =Set(varFilter, "late"); Navigate(scrCeoTickets)
+      - lblCLateS:
+          Control: Label@2.5.1
+          Properties:
+            Text: ="รวม " & Sum(varCLate, DateDiff(DueDate, Today())) & " วัน"
+            Font: =Font.'Open Sans'
+            Size: =12
+            Color: =Color.White
+            Y: =296
+            Height: =28
+            X: =24 + 20
+            Width: =(Parent.Width - 60) / 2 - 40
+            OnSelect: =Set(varFilter, "late"); Navigate(scrCeoTickets)
       - btnCWait:
           Control: Classic/Button@2.2.0
           Properties:
-            Text: ="รอคุณตอบ" & Char(10) & CountRows(Filter(colAll, Status.Value = "WaitingCEO"))
+            Text: =""
             OnSelect: =Set(varFilter, "wait"); Navigate(scrCeoTickets)
             Font: =Font.'Open Sans'
-            Size: =16
-            FontWeight: =FontWeight.Bold
+            Size: =15
+            FontWeight: =FontWeight.Semibold
             Fill: =Color.White
-            Color: =clrPrimary
+            Color: =Color.White
             BorderColor: =clrLine
             BorderThickness: =2
             RadiusTopLeft: =20
@@ -119,21 +153,55 @@ Screens:
             X: =36 + (Parent.Width - 60) / 2
             Y: =196
             Width: =(Parent.Width - 60) / 2
-            Height: =130
-            Align: =Align.Left
-            VerticalAlign: =VerticalAlign.Top
-            PaddingLeft: =18
-            PaddingTop: =14
+            Height: =140
+      - lblCWaitT:
+          Control: Label@2.5.1
+          Properties:
+            Text: ="รอคุณตอบ"
+            Font: =Font.'Open Sans'
+            Size: =14
+            Color: =clrPrimary
+            Y: =210
+            Height: =30
+            FontWeight: =FontWeight.Semibold
+            X: =36 + (Parent.Width - 60) / 2 + 20
+            Width: =(Parent.Width - 60) / 2 - 40
+            OnSelect: =Set(varFilter, "wait"); Navigate(scrCeoTickets)
+      - lblCWaitN:
+          Control: Label@2.5.1
+          Properties:
+            Text: =CountRows(Filter(colAll, Status.Value = "WaitingCEO"))
+            Font: =Font.'Open Sans'
+            Size: =32
+            Color: =clrPrimary
+            Y: =238
+            Height: =58
+            FontWeight: =FontWeight.Bold
+            X: =36 + (Parent.Width - 60) / 2 + 20
+            Width: =(Parent.Width - 60) / 2 - 40
+            OnSelect: =Set(varFilter, "wait"); Navigate(scrCeoTickets)
+      - lblCWaitS:
+          Control: Label@2.5.1
+          Properties:
+            Text: ="พนักงานถามมา"
+            Font: =Font.'Open Sans'
+            Size: =12
+            Color: =clrMuted
+            Y: =296
+            Height: =28
+            X: =36 + (Parent.Width - 60) / 2 + 20
+            Width: =(Parent.Width - 60) / 2 - 40
+            OnSelect: =Set(varFilter, "wait"); Navigate(scrCeoTickets)
       - btnCDone:
           Control: Classic/Button@2.2.0
           Properties:
-            Text: ="เสร็จ รอคุณตรวจ" & Char(10) & CountRows(Filter(colAll, Status.Value = "Done"))
+            Text: =""
             OnSelect: =Set(varFilter, "done"); Navigate(scrCeoTickets)
             Font: =Font.'Open Sans'
-            Size: =16
-            FontWeight: =FontWeight.Bold
+            Size: =15
+            FontWeight: =FontWeight.Semibold
             Fill: =Color.White
-            Color: =clrSuccess
+            Color: =Color.White
             BorderColor: =clrLine
             BorderThickness: =2
             RadiusTopLeft: =20
@@ -147,23 +215,57 @@ Screens:
             PressedColor: =Self.Color
             PressedBorderColor: =Self.BorderColor
             X: =24
-            Y: =338
+            Y: =348
             Width: =(Parent.Width - 60) / 2
-            Height: =130
-            Align: =Align.Left
-            VerticalAlign: =VerticalAlign.Top
-            PaddingLeft: =18
-            PaddingTop: =14
+            Height: =140
+      - lblCDoneT:
+          Control: Label@2.5.1
+          Properties:
+            Text: ="เสร็จ รอคุณตรวจ"
+            Font: =Font.'Open Sans'
+            Size: =14
+            Color: =clrSuccess
+            Y: =362
+            Height: =30
+            FontWeight: =FontWeight.Semibold
+            X: =24 + 20
+            Width: =(Parent.Width - 60) / 2 - 40
+            OnSelect: =Set(varFilter, "done"); Navigate(scrCeoTickets)
+      - lblCDoneN:
+          Control: Label@2.5.1
+          Properties:
+            Text: =CountRows(Filter(colAll, Status.Value = "Done"))
+            Font: =Font.'Open Sans'
+            Size: =32
+            Color: =clrSuccess
+            Y: =390
+            Height: =58
+            FontWeight: =FontWeight.Bold
+            X: =24 + 20
+            Width: =(Parent.Width - 60) / 2 - 40
+            OnSelect: =Set(varFilter, "done"); Navigate(scrCeoTickets)
+      - lblCDoneS:
+          Control: Label@2.5.1
+          Properties:
+            Text: ="ผ่าน / ไม่ผ่าน"
+            Font: =Font.'Open Sans'
+            Size: =12
+            Color: =clrMuted
+            Y: =448
+            Height: =28
+            X: =24 + 20
+            Width: =(Parent.Width - 60) / 2 - 40
+            OnSelect: =Set(varFilter, "done"); Navigate(scrCeoTickets)
       - btnCNoAck:
           Control: Classic/Button@2.2.0
           Properties:
-            Text: ="ยังไม่รับทราบ" & Char(10) & CountRows(Filter(colAll, Status.Value = "New", Created < DateAdd(Now(), -24, TimeUnit.Hours)))
+            Text: =""
             OnSelect: =Set(varFilter, "noack"); Navigate(scrCeoTickets)
             Font: =Font.'Open Sans'
-            Size: =16
-            FontWeight: =FontWeight.Bold
+            Size: =15
+            FontWeight: =FontWeight.Semibold
             Fill: =Color.White
-            Color: =clrText
+            Color: =Color.White
             BorderColor: =clrLine
             BorderThickness: =2
             RadiusTopLeft: =20
@@ -177,136 +279,308 @@ Screens:
             PressedColor: =Self.Color
             PressedBorderColor: =Self.BorderColor
             X: =36 + (Parent.Width - 60) / 2
-            Y: =338
+            Y: =348
             Width: =(Parent.Width - 60) / 2
-            Height: =130
-            Align: =Align.Left
-            VerticalAlign: =VerticalAlign.Top
-            PaddingLeft: =18
-            PaddingTop: =14
-      - lblCPeopleHead:
+            Height: =140
+      - lblCNoAckT:
           Control: Label@2.5.1
           Properties:
-            Text: ="รายคน"
+            Text: ="ยังไม่รับทราบ"
             Font: =Font.'Open Sans'
-            Size: =16
-            Color: =clrText
-            X: =24
-            Y: =482
-            Width: =200
-            Height: =36
-            FontWeight: =FontWeight.Bold
-      - lblCPeopleCols:
+            Size: =14
+            Color: =clrMuted
+            Y: =362
+            Height: =30
+            FontWeight: =FontWeight.Semibold
+            X: =36 + (Parent.Width - 60) / 2 + 20
+            Width: =(Parent.Width - 60) / 2 - 40
+            OnSelect: =Set(varFilter, "noack"); Navigate(scrCeoTickets)
+      - lblCNoAckN:
           Control: Label@2.5.1
           Properties:
-            Text: ="เปิด · ช้า · เฉลี่ยทำ"
+            Text: =CountRows(Filter(colAll, Status.Value = "New", Created < DateAdd(Now(), -24, TimeUnit.Hours)))
+            Font: =Font.'Open Sans'
+            Size: =32
+            Color: =clrText
+            Y: =390
+            Height: =58
+            FontWeight: =FontWeight.Bold
+            X: =36 + (Parent.Width - 60) / 2 + 20
+            Width: =(Parent.Width - 60) / 2 - 40
+            OnSelect: =Set(varFilter, "noack"); Navigate(scrCeoTickets)
+      - lblCNoAckS:
+          Control: Label@2.5.1
+          Properties:
+            Text: ="เกิน 24 ชม."
             Font: =Font.'Open Sans'
             Size: =12
             Color: =clrMuted
-            X: =Parent.Width - 284
-            Y: =482
-            Width: =260
-            Height: =36
-            Align: =Align.Right
-      - galCPeople:
-          Control: Gallery@2.15.0
-          Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
+            Y: =448
+            Height: =28
+            X: =36 + (Parent.Width - 60) / 2 + 20
+            Width: =(Parent.Width - 60) / 2 - 40
+            OnSelect: =Set(varFilter, "noack"); Navigate(scrCeoTickets)
+      - conCPeople:
+          Control: GroupContainer@1.3.0
+          Variant: AutoLayout
           Properties:
-            Items: |-
-              =SortByColumns(
-                  AddColumns(GroupBy(colAll, AssigneeEmail, Rows),
-                      OpenCount, CountRows(Rows),
-                      LateCount, CountRows(Filter(Rows, Status.Value <> "Done", DueDate < Today())),
-                      AvgDays, With({who: AssigneeEmail},
-                          With({d: Filter(varClosed30, AssigneeEmail = who, !IsBlank(DoneAt))},
-                              If(CountRows(d) > 0, Average(d, DateDiff(Created, DoneAt, TimeUnit.Hours)) / 24, 0)))),
-                  "LateCount", SortOrder.Descending, "OpenCount", SortOrder.Descending)
-            X: =24
-            Y: =520
-            Width: =Parent.Width - 48
-            Height: =300
-            TemplateSize: =60
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            LayoutGap: =6
+            DropShadow: =DropShadow.None
             Fill: =Color.White
-            BorderColor: =clrLine
             BorderThickness: =2
-            OnSelect: =Set(varFilter, "person"); Set(varPerson, ThisItem.AssigneeEmail); Navigate(scrCeoTickets)
+            BorderColor: =clrLine
+            RadiusTopLeft: =20
+            RadiusTopRight: =20
+            RadiusBottomLeft: =20
+            RadiusBottomRight: =20
+            PaddingTop: =12
+            PaddingBottom: =8
+            PaddingLeft: =18
+            PaddingRight: =18
+            X: =24
+            Y: =500
+            Width: =Parent.Width - 48
+            Height: =Parent.Height - 96 - 12 - If(conCGroups.Visible, 150 + 12, 0) - Self.Y
           Children:
-            - lblCPerson:
-                Control: Label@2.5.1
+            - conCPeopleHead:
+                Control: GroupContainer@1.3.0
+                Variant: AutoLayout
                 Properties:
-                  Text: =Coalesce(LookUp(colEmp, Lower(Email) = ThisItem.AssigneeEmail).Nickname, ThisItem.AssigneeEmail) & " (" & LookUp(colEmp, Lower(Email) = ThisItem.AssigneeEmail).Department & ")"
-                  Font: =Font.'Open Sans'
-                  Size: =14
-                  Color: =clrText
-                  X: =16
-                  Y: =0
-                  Width: =Parent.TemplateWidth - 200
-                  Height: =Parent.TemplateHeight - 1
-                  OnSelect: =Select(Parent)
-            - lblCPersonNums:
-                Control: Label@2.5.1
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  LayoutGap: =12
+                  DropShadow: =DropShadow.None
+                  Fill: =Color.Transparent
+                  BorderThickness: =0
+                  Height: =34
+                  FillPortions: =0
+                  AlignInContainer: =AlignInContainer.Stretch
+                Children:
+                  - lblCPeopleHead:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: ="รายคน"
+                        Font: =Font.'Open Sans'
+                        Size: =15
+                        Color: =clrText
+                        Height: =34
+                        FontWeight: =FontWeight.Bold
+                        FillPortions: =1
+                        AlignInContainer: =AlignInContainer.Stretch
+                        LayoutMinWidth: =0
+                  - lblCPeopleCols:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: ="เปิด · ช้า · เฉลี่ย"
+                        Font: =Font.'Open Sans'
+                        Size: =12
+                        Color: =clrMuted
+                        Width: =220
+                        Height: =34
+                        Align: =Align.Right
+                        FillPortions: =0
+                        AlignInContainer: =AlignInContainer.Stretch
+                        LayoutMinWidth: =220
+            - galCPeople:
+                Control: Gallery@2.15.0
+                Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
                 Properties:
-                  Text: =ThisItem.OpenCount & " · " & ThisItem.LateCount & " · " & If(ThisItem.AvgDays > 0, Text(ThisItem.AvgDays, "0.0") & " วัน", "-")
-                  Font: =Font.'Open Sans'
-                  Size: =14
-                  Color: =If(ThisItem.LateCount > 0, clrDanger, clrText)
-                  X: =Parent.TemplateWidth - 186
-                  Y: =0
-                  Width: =170
-                  Height: =Parent.TemplateHeight - 1
-                  Align: =Align.Right
-                  FontWeight: =FontWeight.Semibold
-                  OnSelect: =Select(Parent)
-            - recCPLine:
-                Control: Rectangle@2.3.0
-                Properties:
-                  X: =16
-                  Y: =Parent.TemplateHeight - 1
-                  Width: =Parent.TemplateWidth - 32
-                  Height: =1
-                  Fill: =clrLine
-                  OnSelect: =Select(Parent)
-      - galCGroups:
-          Control: Gallery@2.15.0
-          Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
+                  Items: |-
+                    =SortByColumns(
+                        AddColumns(GroupBy(colAll, AssigneeEmail, Rows),
+                            OpenCount, CountRows(Rows),
+                            LateCount, CountRows(Filter(Rows, Status.Value <> "Done", DueDate < Today())),
+                            AvgDays, With({who: AssigneeEmail},
+                                With({d: Filter(varClosed30, AssigneeEmail = who, !IsBlank(DoneAt))},
+                                    If(CountRows(d) > 0, Average(d, DateDiff(Created, DoneAt, TimeUnit.Hours)) / 24, 0)))),
+                        "LateCount", SortOrder.Descending, "OpenCount", SortOrder.Descending)
+                  TemplateSize: =76
+                  OnSelect: =Set(varFilter, "person"); Set(varPerson, ThisItem.AssigneeEmail); Navigate(scrCeoTickets)
+                  Fill: =Color.Transparent
+                  BorderThickness: =0
+                  FillPortions: =1
+                  AlignInContainer: =AlignInContainer.Stretch
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                Children:
+                  - btnCPInit:
+                      Control: Classic/Button@2.2.0
+                      Properties:
+                        Text: |-
+                          =With({n: Coalesce(LookUp(colEmp, Lower(Email) = ThisItem.AssigneeEmail).Nickname, ThisItem.AssigneeEmail)}, If(Left(n, 1) in ["เ", "แ", "โ", "ใ", "ไ"], Mid(n, 2, 1), Left(n, 1)))
+                        OnSelect: =Select(Parent)
+                        Font: =Font.'Open Sans'
+                        Size: =15
+                        FontWeight: =FontWeight.Bold
+                        Fill: =ColorFade(clrPrimary, 88%)
+                        Color: =clrPrimary
+                        BorderColor: =clrAccent
+                        BorderThickness: =0
+                        RadiusTopLeft: =26
+                        RadiusTopRight: =26
+                        RadiusBottomLeft: =26
+                        RadiusBottomRight: =26
+                        HoverFill: =ColorFade(Self.Fill, -10%)
+                        HoverColor: =Self.Color
+                        HoverBorderColor: =Self.BorderColor
+                        PressedFill: =ColorFade(Self.Fill, -20%)
+                        PressedColor: =Self.Color
+                        PressedBorderColor: =Self.BorderColor
+                        X: =0
+                        Y: =12
+                        Width: =52
+                        Height: =52
+                  - lblCPName:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: =Coalesce(LookUp(colEmp, Lower(Email) = ThisItem.AssigneeEmail).Nickname, ThisItem.AssigneeEmail)
+                        Font: =Font.'Open Sans'
+                        Size: =14
+                        Color: =clrText
+                        X: =66
+                        Y: =8
+                        Width: =Parent.TemplateWidth - 66 - 200
+                        Height: =32
+                        FontWeight: =FontWeight.Semibold
+                        OnSelect: =Select(Parent)
+                  - lblCPDept:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: =Coalesce(LookUp(colEmp, Lower(Email) = ThisItem.AssigneeEmail).Department, "ไม่พบในรายชื่อพนักงาน")
+                        Font: =Font.'Open Sans'
+                        Size: =12
+                        Color: =clrMuted
+                        X: =66
+                        Y: =40
+                        Width: =Parent.TemplateWidth - 66 - 200
+                        Height: =28
+                        OnSelect: =Select(Parent)
+                  - lblCPOpen:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: =ThisItem.OpenCount
+                        Font: =Font.'Open Sans'
+                        Size: =13
+                        Color: =clrText
+                        Y: =0
+                        Height: =Parent.TemplateHeight - 1
+                        Align: =Align.Right
+                        OnSelect: =Select(Parent)
+                        X: =Parent.TemplateWidth - 196
+                        Width: =50
+                  - lblCPLate:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: =ThisItem.LateCount
+                        Font: =Font.'Open Sans'
+                        Size: =13
+                        Color: =If(ThisItem.LateCount > 0, clrDanger, clrMuted)
+                        Y: =0
+                        Height: =Parent.TemplateHeight - 1
+                        Align: =Align.Right
+                        OnSelect: =Select(Parent)
+                        X: =Parent.TemplateWidth - 140
+                        Width: =50
+                        FontWeight: =FontWeight.Bold
+                  - lblCPAvg:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: =If(ThisItem.AvgDays > 0, Text(ThisItem.AvgDays, "0.0") & " วัน", "-")
+                        Font: =Font.'Open Sans'
+                        Size: =12
+                        Color: =clrMuted
+                        Y: =0
+                        Height: =Parent.TemplateHeight - 1
+                        Align: =Align.Right
+                        OnSelect: =Select(Parent)
+                        X: =Parent.TemplateWidth - 84
+                        Width: =84
+                  - recCPLine:
+                      Control: Rectangle@2.3.0
+                      Properties:
+                        X: =0
+                        Y: =Parent.TemplateHeight - 1
+                        Width: =Parent.TemplateWidth
+                        Height: =1
+                        Fill: =clrLine
+                        OnSelect: =Select(Parent)
+      - conCGroups:
+          Control: GroupContainer@1.3.0
+          Variant: AutoLayout
           Properties:
-            Items: |-
-              =AddColumns(GroupBy(Filter(colAll, !IsBlank(GroupID)), GroupID, Rows),
-                  GTitle, First(Rows).Title,
-                  GOpen, CountRows(Rows),
-                  GDone, CountRows(Filter(Rows, Status.Value = "Done")))
-            X: =24
-            Y: =832
-            Width: =Parent.Width - 48
-            Height: =140
-            TemplateSize: =70
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            LayoutGap: =6
+            DropShadow: =DropShadow.None
             Fill: =Color.White
-            BorderColor: =clrLine
             BorderThickness: =2
-            Visible: =!IsEmpty(Self.AllItems)
-            OnSelect: =Set(varFilter, "group"); Set(varGroup, ThisItem.GroupID); Navigate(scrCeoTickets)
+            BorderColor: =clrLine
+            RadiusTopLeft: =20
+            RadiusTopRight: =20
+            RadiusBottomLeft: =20
+            RadiusBottomRight: =20
+            PaddingTop: =12
+            PaddingBottom: =8
+            PaddingLeft: =18
+            PaddingRight: =18
+            X: =24
+            Y: =Parent.Height - 96 - 12 - 150
+            Width: =Parent.Width - 48
+            Height: =150
+            Visible: =!IsEmpty(galCGroups.AllItems)
           Children:
-            - lblCGroup:
+            - lblCGroupsHead:
                 Control: Label@2.5.1
                 Properties:
-                  Text: ="กลุ่ม T-" & ThisItem.GroupID & " · " & ThisItem.GTitle & Char(10) & "ยังเปิด " & ThisItem.GOpen & " คน · เสร็จรอตรวจ " & ThisItem.GDone
+                  Text: ="งานที่สั่งหลายคน"
                   Font: =Font.'Open Sans'
-                  Size: =13
+                  Size: =15
                   Color: =clrText
-                  X: =16
-                  Y: =0
-                  Width: =Parent.TemplateWidth - 32
-                  Height: =Parent.TemplateHeight - 1
-                  OnSelect: =Select(Parent)
-            - recCGLine:
-                Control: Rectangle@2.3.0
+                  Height: =30
+                  FontWeight: =FontWeight.Bold
+                  FillPortions: =0
+                  AlignInContainer: =AlignInContainer.Stretch
+            - galCGroups:
+                Control: Gallery@2.15.0
+                Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
                 Properties:
-                  X: =16
-                  Y: =Parent.TemplateHeight - 1
-                  Width: =Parent.TemplateWidth - 32
-                  Height: =1
-                  Fill: =clrLine
-                  OnSelect: =Select(Parent)
+                  Items: |-
+                    =AddColumns(GroupBy(Filter(colAll, !IsBlank(GroupID)), GroupID, Rows),
+                        GTitle, First(Rows).Title,
+                        GOpen, CountRows(Rows),
+                        GDone, CountRows(Filter(Rows, Status.Value = "Done")))
+                  TemplateSize: =70
+                  OnSelect: =Set(varFilter, "group"); Set(varGroup, ThisItem.GroupID); Navigate(scrCeoTickets)
+                  Fill: =Color.Transparent
+                  BorderThickness: =0
+                  FillPortions: =1
+                  AlignInContainer: =AlignInContainer.Stretch
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                Children:
+                  - lblCGroup:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: ="กลุ่ม T-" & ThisItem.GroupID & " · " & ThisItem.GTitle & Char(10) & "ยังเปิด " & ThisItem.GOpen & " คน · เสร็จรอตรวจ " & ThisItem.GDone
+                        Font: =Font.'Open Sans'
+                        Size: =13
+                        Color: =clrText
+                        X: =0
+                        Y: =0
+                        Width: =Parent.TemplateWidth
+                        Height: =Parent.TemplateHeight - 1
+                        OnSelect: =Select(Parent)
+                  - recCGLine:
+                      Control: Rectangle@2.3.0
+                      Properties:
+                        X: =0
+                        Y: =Parent.TemplateHeight - 1
+                        Width: =Parent.TemplateWidth
+                        Height: =1
+                        Fill: =clrLine
+                        OnSelect: =Select(Parent)
       - recTabLineCH:
           Control: Rectangle@2.3.0
           Properties:
