@@ -245,6 +245,44 @@ clrSuccess = ColorValue("#2E7D32");
 
 > Control แบบ **Modern** ใช้ชื่อ Property ต่างจากตาราง: สีตัวอักษร `FontColor` · ขนาด `FontSize` · มุมโค้ง `BorderRadius` · ปุ่มใช้ `Appearance` (Primary / Secondary / Outline) และ `BasePaletteColor` = `clrPrimary` แทน Fill · Text input ใช้ `.Value` แทน `.Text`
 
+### 2.4.2 ใช้สีและโลโก้ของบริษัท
+สีอ้างอิงจากเว็บไซต์บริษัท (กรมท่า + แดง บนพื้นขาว) ⚠️ ขอรหัสสีจริงจากฝ่ายการตลาดแล้วแก้ใน App.Formulas จุดเดียว
+
+**App → Formulas** (แทนชุดเดิมใน 2.4.1)
+```powerfx
+clrPrimary = ColorValue("#2E3192");   // กรมท่า: แถบหัว ปุ่มรอง
+clrAccent = ColorValue("#E31E24");    // แดง: ปุ่มหลัก เส้นเน้น
+clrBg = ColorValue("#F4F5FA");
+clrText = ColorValue("#1F2140");
+clrMuted = ColorValue("#6B6F86");
+clrLine = ColorValue("#E3E5F0");
+clrDanger = ColorValue("#E31E24");
+clrSuccess = ColorValue("#2E7D32");
+```
+
+**ฟอนต์:** Canvas app ใช้ฟอนต์จากเว็บไม่ได้ เลือกได้เฉพาะรายการของ Power Apps ใช้ `Font.'Segoe UI'` ทุก Control (ตัวไทยจะแสดงด้วยฟอนต์ไทยของเครื่อง: Windows = Leelawadee UI, iPhone = Thonburi, Android = Noto Sans Thai) หัวข้อใช้ `FontWeight.Semibold` · วิธีเร็ว: คลิกพื้นที่ว่างของหน้าจอ → **Ctrl+A** → Font = `Font.'Segoe UI'` ทำทีละหน้าจอ
+
+**ปุ่ม:** `btnAck` `btnStart` Fill `clrAccent` · `btnDone` Fill `clrPrimary` · ปุ่มรอง (`btnWait` `btnComment` `btnPhotos` `btnRefresh`) พื้นขาว ขอบและตัวอักษร `clrPrimary`
+
+**หัวหน้า `scrTickets` แบบเว็บไซต์ (แถบขาว + โลโก้ + เส้นแดง)**
+1. แถบซ้าย **Media** → **Upload** → ไฟล์โลโก้ PNG พื้นโปร่งใส ความละเอียดสูง (ขอจากฝ่ายการตลาด อย่าใช้ภาพที่ตัดจากหน้าจอ)
+2. เพิ่ม Control
+   | Control | ชื่อ | Property |
+   |---|---|---|
+   | Rectangle | `recTop` | X `0` · Y `0` · Width `Parent.Width` · Height `90` · Fill `Color.White` |
+   | Image | `imgLogo` | X `16` · Y `12` · Width `170` · Height `66` · Image = ชื่อไฟล์โลโก้ที่อัปโหลด · ImagePosition `ImagePosition.Fit` |
+   | Rectangle | `recTopLine` | X `0` · Y `90` · Width `Parent.Width` · Height `3` · Fill `clrAccent` |
+   | `lblHeader` (เดิม) | | X `20` · Y `105` · Size `20` · FontWeight `FontWeight.Semibold` · Color `clrPrimary` |
+   | `galTickets` (เดิม) | | Y `150` · Height `Parent.Height - 230` |
+3. `scrTickets` Fill `clrBg` · `galTickets` Fill `Color.White`
+
+**ไอคอนแอป:** Settings → General → **Icon** → อัปโหลดโลโก้ · Background fill = ขาว (ตามข้อตกลงว่าแอปต้องมีไอคอน Digital Focus แสดงทั้งใน Power Apps และทางลัดบนหน้าจอมือถือ)
+
+**รูป CEO (ไม่บังคับ ต้องได้รับความยินยอมจาก CEO ก่อน)**
+- รูปวงกลมเล็กบนแถบหัว `scrTickets` ข้าง "งานจาก CEO": Image `imgCEO` X `Parent.Width - 76` · Y `15` · Width/Height `60` · มุมโค้งทั้ง 4 = `30` · ImagePosition `ImagePosition.Fill`
+- ใช้รูปที่ครอปเฉพาะใบหน้า ขนาดเล็ก (ประมาณ 300×300 px) เพื่อให้แอปโหลดเร็ว
+- ไม่แนะนำให้ใช้รูป CEO เป็นไอคอนแอป: ไอคอนเล็กมากบนมือถือ ดูไม่ออกว่าเป็นแอปบริษัท และรูปบุคคลบนเครื่องพนักงานทุกคนควรให้ CEO อนุมัติเป็นกรณีพิเศษ
+
 ### 2.5 บันทึก เผยแพร่ และแชร์
 1. **Save** → **Publish**
 2. **Share** → เพิ่มพนักงานกลุ่มทดลองก่อน (PM, การตลาด, Presales, Sales, คุณ Suchada) แบบ **User** (ไม่ใช่ Co-owner ยกเว้นคุณ Suchada)
