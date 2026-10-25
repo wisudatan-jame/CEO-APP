@@ -425,7 +425,7 @@ bodyY = 94;                      // ใต้หัวแอปและเส�
 - ทุก Control ในกล่อง: **Align in container** = Stretch · **Flexible height** = Off (ใช้ Height ของตัวเอง)
 - **สไตล์การ์ด** (ใช้กับทุกกล่องที่เขียนว่า "การ์ด"): Fill `Color.White` · BorderColor `clrLine` · BorderThickness `2` · RadiusTopLeft/TopRight/BottomLeft/BottomRight `20` · PaddingTop/Bottom `14` · PaddingLeft/Right `18` · Gap `10`
 
-0. **scrDetail → OnVisible** ต่อท้าย `; Refresh(TicketHistory)` (เข้าหน้าแล้วเห็นความเคลื่อนไหวล่าสุดเสมอ)
+0. **scrDetail → OnVisible** = `Refresh(TicketHistory)` (เข้าหน้าแล้วเห็นความเคลื่อนไหวล่าสุดเสมอ · ถ้าช่องนี้มีสูตรอยู่แล้ว ให้พิมพ์ `;` ต่อท้ายสูตรเดิมก่อน แล้วค่อยใส่ `Refresh(TicketHistory)`)
 1. **Vertical container** `conDBody` · X `0` · Y `bodyY` · Width `Parent.Width` · Height `Parent.Height - bodyY - tabH` · Fill `clrBg` · PaddingLeft/Right `24` · PaddingTop/Bottom `14` · Gap `12` · **Vertical overflow** = Scroll
 2. ใส่ใน `conDBody` ตามลำดับนี้
 
