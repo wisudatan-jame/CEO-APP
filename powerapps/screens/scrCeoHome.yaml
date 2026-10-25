@@ -595,7 +595,7 @@ Screens:
             Text: ="ภาพรวม"
             OnSelect: =Navigate(scrCeoHome)
             Font: =Font.'Open Sans'
-            Size: =14
+            Size: =13
             FontWeight: =FontWeight.Bold
             Fill: =Color.White
             Color: =clrAccent
@@ -615,13 +615,25 @@ Screens:
             Y: =Parent.Height - 96 + 2
             Width: =Parent.Width / 3
             Height: =94
+            VerticalAlign: =VerticalAlign.Bottom
+            PaddingBottom: =12
+      - icoTabHomeCH:
+          Control: Classic/Icon@2.5.0
+          Properties:
+            Icon: =Icon.Home
+            Color: =clrAccent
+            OnSelect: =Navigate(scrCeoHome)
+            X: =(Parent.Width / 3 - 34) / 2
+            Y: =Parent.Height - 96 + 14
+            Width: =34
+            Height: =34
       - btnTabListCH:
           Control: Classic/Button@2.2.0
           Properties:
             Text: ="งานทั้งหมด"
             OnSelect: =Set(varFilter, "all"); Navigate(scrCeoTickets)
             Font: =Font.'Open Sans'
-            Size: =14
+            Size: =13
             FontWeight: =FontWeight.Normal
             Fill: =Color.White
             Color: =clrMuted
@@ -641,13 +653,25 @@ Screens:
             Y: =Parent.Height - 96 + 2
             Width: =Parent.Width / 3
             Height: =94
+            VerticalAlign: =VerticalAlign.Bottom
+            PaddingBottom: =12
+      - icoTabListCH:
+          Control: Classic/Icon@2.5.0
+          Properties:
+            Icon: =Icon.DetailList
+            Color: =clrMuted
+            OnSelect: =Set(varFilter, "all"); Navigate(scrCeoTickets)
+            X: =Parent.Width * 1 / 3 + (Parent.Width / 3 - 34) / 2
+            Y: =Parent.Height - 96 + 14
+            Width: =34
+            Height: =34
       - btnTabNewCH:
           Control: Classic/Button@2.2.0
           Properties:
             Text: ="สั่งงาน"
             OnSelect: =Navigate(scrCeoCreate)
             Font: =Font.'Open Sans'
-            Size: =14
+            Size: =13
             FontWeight: =FontWeight.Normal
             Fill: =Color.White
             Color: =clrMuted
@@ -667,3 +691,15 @@ Screens:
             Y: =Parent.Height - 96 + 2
             Width: =Parent.Width / 3
             Height: =94
+            VerticalAlign: =VerticalAlign.Bottom
+            PaddingBottom: =12
+      - icoTabNewCH:
+          Control: Classic/Icon@2.5.0
+          Properties:
+            Icon: =Icon.Add
+            Color: =clrMuted
+            OnSelect: =Navigate(scrCeoCreate)
+            X: =Parent.Width * 2 / 3 + (Parent.Width / 3 - 34) / 2
+            Y: =Parent.Height - 96 + 14
+            Width: =34
+            Height: =34

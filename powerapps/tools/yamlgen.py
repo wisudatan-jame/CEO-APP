@@ -137,16 +137,68 @@ def header(sfx):
     ]
 
 TAB_H = 96
+TAB_ICONS = {'Home': 'Icon.Home', 'List': 'Icon.DetailList', 'New': 'Icon.Add'}
 
 def tabs(sfx, items, active):
+    """Bottom tab bar: icon over label, the active tab in red (as in the mockup)."""
     n = len(items)
     out = [(f'recTabLine{sfx}', rect(Fill='clrLine', X=0, Y=f'Parent.Height - {TAB_H}', Width='Parent.Width', Height=2))]
     for i, (key, text, onselect) in enumerate(items):
         on = key == active
+        x = f'Parent.Width * {i} / {n}' if i else 0
+        color = 'clrAccent' if on else 'clrMuted'
         out.append((f'btnTab{key}{sfx}', button(text, onselect,
-            X=f'Parent.Width * {i} / {n}' if i else 0, Y=f'Parent.Height - {TAB_H} + 2', Width=f'Parent.Width / {n}', Height=TAB_H - 2,
-            Fill='Color.White', Color='clrAccent' if on else 'clrMuted', BorderThickness=0,
-            FontWeight='FontWeight.Bold' if on else 'FontWeight.Normal', Size=14,
+            X=x, Y=f'Parent.Height - {TAB_H} + 2', Width=f'Parent.Width / {n}', Height=TAB_H - 2,
+            Fill='Color.White', Color=color, BorderThickness=0, VerticalAlign='VerticalAlign.Bottom', PaddingBottom=12,
+            FontWeight='FontWeight.Bold' if on else 'FontWeight.Normal', Size=13,
             RadiusTopLeft=0, RadiusTopRight=0, RadiusBottomLeft=0, RadiusBottomRight=0,
             HoverFill='clrBg', PressedFill='clrLine')))
+        out.append((f'icoTab{key}{sfx}', {'type': 'Classic/Icon@2.5.0', 'props': {
+            'Icon': TAB_ICONS[key], 'Color': color, 'OnSelect': onselect,
+            'X': f'{x} + (Parent.Width / {n} - 34) / 2' if i else f'(Parent.Width / {n} - 34) / 2',
+            'Y': f'Parent.Height - {TAB_H} + 14', 'Width': 34, 'Height': 34}}))
     return out
+
+def area(children, x, y, w, h, **p):
+    """Invisible box placed on the screen (keeps a gallery where it belongs: a gallery's own X is lost on paste)."""
+    return vbox(children, LayoutGap=0, X=x, Y=y, Width=w, Height=h, **p)
+
+def row_bg(name, gap=12):
+    """White rounded card behind one gallery row; the gap below it separates the cards."""
+    return (name, button('""', 'Select(Parent)', X=0, Y=0, Width='Parent.TemplateWidth', Height=f'Parent.TemplateHeight - {gap}',
+                         Fill='Color.White', BorderColor='clrLine', BorderThickness=2, HoverFill='clrBg', PressedFill='clrLine',
+                         RadiusTopLeft=18, RadiusTopRight=18, RadiusBottomLeft=18, RadiusBottomRight=18))
+
+def pill_colors(status, late):
+    """Background and text colour of a status pill: late red, waiting blue, done green, new and in-progress grey."""
+    cases = [(late, '"#FDE8E8"', 'clrDanger'), (f'{status} = "WaitingCEO"', '"#E9E9F5"', 'clrPrimary'),
+             (f'{status} = "Done"', '"#E3F4EA"', '"#17703A"'), (f'{status} = "New"', '"#EEF0F4"', '"#3F4A5C"')]
+    pick = lambda i, d: 'Switch(true, ' + ', '.join(f'{c}, {v[i] if v[i].startswith("clr") else f"ColorValue({v[i]})"}' for c, *v in cases) + f', {d})'
+    return pick(0, 'ColorValue("#F1F2F6")'), pick(1, 'ColorValue("#3F4A5C")')
+
+def pill(text, status, late, **p):
+    bg, fg = pill_colors(status, late)
+    props = dict(Fill=bg, Color=fg, BorderThickness=0, Size=12, FontWeight='FontWeight.Bold', HoverFill='Self.Fill', PressedFill='Self.Fill',
+                 RadiusTopLeft=20, RadiusTopRight=20, RadiusBottomLeft=20, RadiusBottomRight=20, PaddingLeft=8, PaddingRight=8)
+    props.update(p)
+    return button(text, p.pop('OnSelect', 'Select(Parent)'), **props)
+
+def link(text, onselect, width=190, **p):
+    """Small text button for the right side of a card header (the mockup's "เปิดโฟลเดอร์")."""
+    return in_box(button(text, onselect, Width=width, Height=34, Size=13, Fill='Color.Transparent', Color='clrPrimary', BorderThickness=0,
+                         Align='Align.Right', PaddingRight=0, HoverFill='Color.Transparent', PressedFill='Color.Transparent',
+                         HoverColor='clrAccent', DisabledFill='Color.Transparent', DisabledColor='ColorFade(clrPrimary, 60%)', **p),
+                  0, LayoutMinWidth=width)
+
+def kv(name, key, value, fill=None, key_color='clrMuted', visible=None):
+    """Two-column info row (key on the left, wrapping value on the right); its height follows the value."""
+    val = f'lbl{name}'
+    extra = {'Visible': visible} if visible else {}
+    box = dict(Fill=fill, BorderColor='ColorFade(clrAccent, 50%)', BorderThickness=2, RadiusTopLeft=10, RadiusTopRight=10,
+               RadiusBottomLeft=10, RadiusBottomRight=10, PaddingTop=8, PaddingBottom=8, PaddingLeft=10, PaddingRight=10) if fill else {}
+    pad = 16 if fill else 0
+    return (f'con{name}', in_box(hbox([
+        (f'lbl{name}K', in_box(label(key, Width=140, Size=13, Color=key_color, FontWeight='FontWeight.Semibold' if fill else 'FontWeight.Normal',
+                                     VerticalAlign='VerticalAlign.Top'), 0, LayoutMinWidth=140)),
+        (val, in_box(label(value, AutoHeight='true', Size=13, VerticalAlign='VerticalAlign.Top'), 1, AlignInContainer='AlignInContainer.Start')),
+    ], Height=f'{val}.Height + {pad}', LayoutGap=8, LayoutAlignItems='LayoutAlignItems.Start', **box, **extra)))

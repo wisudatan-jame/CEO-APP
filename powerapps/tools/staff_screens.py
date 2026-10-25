@@ -62,17 +62,17 @@ def scr_tickets():
             '"ส่ง " & Text(ThisItem.DueDate, "ddd d mmm", "th-TH"))')
     children = header('') + [
         ('lblHeader', label('"งานจาก CEO"', X=24, Y=104, Width='Parent.Width - 48', Height=52, Size=20, FontWeight='FontWeight.Bold', Color='clrPrimary')),
-        ('conTickets', panel([
+        ('conTickets', area([
             ('lblEmpty', in_box(label('"ไม่มีงานค้าง"', Height=50, Color='clrMuted', Visible='IsEmpty(galTickets.AllItems)'))),
             ('galTickets', list_in(gallery('SortByColumns(Filter(Tickets, IsOpen = true, AssigneeEmail = varMe), "DueDate", SortOrder.Ascending)', [
-                ('lblTitle', label('"T-" & ThisItem.ID & " " & ThisItem.Title', X=0, Y=10, Width='Parent.TemplateWidth', Height=36, Size=15,
+                row_bg('btnTicketRow'),
+                ('lblTitle', label('"T-" & ThisItem.ID & " " & ThisItem.Title', X=20, Y=10, Width='Parent.TemplateWidth - 40', Height=36, Size=15,
                                    FontWeight='FontWeight.Semibold', OnSelect='Select(Parent)')),
-                ('lblMeta', label(meta, X=0, Y=46, Width='Parent.TemplateWidth - 190', Height=30, Size=13, FontWeight='FontWeight.Semibold',
+                ('lblMeta', label(meta, X=20, Y=48, Width='Parent.TemplateWidth - 230', Height=30, Size=12, FontWeight='FontWeight.Semibold',
                                   Color='If(ThisItem.DueDate < Today(), clrDanger, clrMuted)', OnSelect='Select(Parent)')),
-                ('lblStatus', label(status, X='Parent.TemplateWidth - 190', Y=46, Width=190, Height=30, Size=13, Align='Align.Right',
+                ('lblStatus', label(status, X='Parent.TemplateWidth - 210', Y=48, Width=190, Height=30, Size=12, Align='Align.Right',
                                     FontWeight='FontWeight.Semibold', Color='clrPrimary', OnSelect='Select(Parent)')),
-                ('recTicketLine', rect(X=0, Y='Parent.TemplateHeight - 1', Width='Parent.TemplateWidth', Height=1, Fill='clrLine', OnSelect='Select(Parent)')),
-            ], TemplateSize=86, OnSelect='Set(varTicket, ThisItem); Navigate(scrDetail)'))),
+            ], TemplateSize=102, OnSelect='Set(varTicket, ThisItem); Navigate(scrDetail)'))),
         ], 24, 160, 'Parent.Width - 48', f'Parent.Height - {TAB_H} - 104 - Self.Y')),
         ('btnRefresh', button('"รีเฟรช"', 'Refresh(Tickets)', X=24, Y=f'Parent.Height - {TAB_H} - 92', Width='Parent.Width - 48', Height=80,
                               Size=16, FontWeight='FontWeight.Bold',
@@ -114,24 +114,37 @@ Set(varTicket, LookUp(Tickets, ID = varTicket.ID))'''
            [(n, in_box(c, 1)) for n, c in [('btnAck', btnAck), ('btnStart', btnStart), ('btnComment', btnComment)]]
 
 def history_card(gal_name, line_name, lbl_name, head_name, card_name):
-    hist_text = '''Text(ThisItem.Created, "d mmm hh:mm", "th-TH") & " · " & Switch(ThisItem.Action.Value, "create", "CEO สั่งงาน", "ack", "รับทราบ", "start", "เริ่มทำ", "wait", "ถาม CEO", "reply", "CEO ตอบ", "done", "ทำเสร็จ", "reopen", "CEO ส่งกลับ", "close", "CEO ปิดงาน", "cancel", "ยกเลิกงาน", "comment", "ความเห็น", "due_change", "เลื่อนวันส่ง", "reassign", "โอนงาน", ThisItem.Action.Value) & If(IsBlank(ThisItem.Comment), "", ": " & ThisItem.Comment)'''
+    hist_text = '''Switch(ThisItem.Action.Value, "create", "CEO สั่งงาน", "ack", "รับทราบ", "start", "เริ่มทำ", "wait", "ถาม CEO", "reply", "CEO ตอบ", "done", "ทำเสร็จ", "reopen", "CEO ส่งกลับ", "close", "CEO ปิดงาน", "cancel", "ยกเลิกงาน", "comment", "ความเห็น", "due_change", "เลื่อนวันส่ง", "reassign", "โอนงาน", ThisItem.Action.Value) & If(IsBlank(ThisItem.Comment), "", ": " & ThisItem.Comment)'''
     gal = gallery('SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)', [
-        (lbl_name, label(hist_text, X=0, Y=0, Width='Parent.TemplateWidth', Height='Parent.TemplateHeight - 1', Size=12, Color='clrMuted', OnSelect='Select(Parent)')),
-        (line_name, rect(X=0, Y='Parent.TemplateHeight - 1', Width='Parent.TemplateWidth', Height=1, Fill='clrLine', OnSelect='Select(Parent)')),
-    ], TemplateSize=50, Fill='Color.Transparent', Height=200)
+        (f'{lbl_name}When', label('Text(ThisItem.Created, "d mmm hh:mm", "th-TH")', X=0, Y=0, Width=156, Height='Parent.TemplateHeight - 1', Size=12,
+                                  Color='clrMuted', VerticalAlign='VerticalAlign.Top', PaddingTop=12, OnSelect='Select(Parent)')),
+        (lbl_name, label(hist_text, X=164, Y=0, Width='Parent.TemplateWidth - 164', Height='Parent.TemplateHeight - 1', Size=12,
+                         VerticalAlign='VerticalAlign.Top', PaddingTop=12, OnSelect='Select(Parent)')),
+        (line_name, rect(X=0, Y=0, Width='Parent.TemplateWidth', Height=1, Fill='clrLine', OnSelect='Select(Parent)')),
+    ], TemplateSize=56, Fill='Color.Transparent', Height=224)
     return (card_name, card([
         (head_name, in_box(label('"ความเคลื่อนไหวล่าสุด"', Height=34, Size=15, FontWeight='FontWeight.Bold'))),
         (gal_name, in_box(gal)),
-    ], '34 + 10 + 200 + 28'))
+    ], '34 + 10 + 224 + 28'))
+
+STAFF_STATUS = 'Switch({s}, "New", "ใหม่", "Acknowledged", "รับทราบแล้ว", "InProgress", "กำลังทำ", "WaitingCEO", "รอ CEO ตอบ", "Done", "รอ CEO ตรวจ", "Closed", "ปิดแล้ว", {s})'
+
+def due_text(t):
+    """"ส่ง อังคาร 27 ต.ค. · อีก 1 วัน" (or "· เลย 2 วัน" / "· วันนี้")."""
+    return (f'"ส่ง " & Text({t}.DueDate, "dddd d mmm", "th-TH") & If(!{t}.IsOpen, "", {t}.DueDate < Today(), " · เลย " & DateDiff({t}.DueDate, Today()) & " วัน", '
+            f'{t}.DueDate = Today(), " · วันนี้", " · อีก " & DateDiff(Today(), {t}.DueDate) & " วัน")')
+
+def status_row(name, status_text):
+    """Status pill followed by the due date, as at the top of the mockup's detail pages."""
+    late = 'varTicket.IsOpen && varTicket.Status.Value <> "Done" && varTicket.DueDate < Today()'
+    return (f'con{name}', in_box(hbox([
+        (f'btn{name}Pill', in_box(pill(status_text, 'varTicket.Status.Value', late, OnSelect='false', Width='Len(Self.Text) * 13 + 44', Height=40, Size=13),
+                                   0, AlignInContainer='AlignInContainer.Center')),
+        (f'lbl{name}Due', in_box(label(due_text('varTicket'), Height=40, Size=13, Color=f'If({late}, clrDanger, clrMuted)'), 1)),
+    ], Height=44, LayoutGap=12, LayoutAlignItems='LayoutAlignItems.Center')))
 
 def scr_detail():
-    details = '''"ผู้สั่ง: คุณสมชาย (CEO)" & Char(10) &
-"สั่งเมื่อ: " & Text(varTicket.Created, "d mmm hh:mm", "th-TH") &
-If(IsBlank(varTicket.Details), "", Char(10) & "รายละเอียด: " & varTicket.Details)'''
-    due = '''Switch(varTicket.Status.Value, "New", "ใหม่", "Acknowledged", "รับทราบ", "InProgress", "กำลังทำ", "WaitingCEO", "รอ CEO ตอบ", "Done", "รอ CEO ตรวจ", "Closed", "ปิดแล้ว") &
-" · ส่ง " & Text(varTicket.DueDate, "dddd d mmm", "th-TH") & If(varTicket.IsOpen && varTicket.DueDate < Today(), " · เลย " & DateDiff(varTicket.DueDate, Today()) & " วัน", "")'''
-    sent = '''"ไฟล์ที่ส่งแล้ว" & Char(10) &
-Concat(
+    sent = '''Concat(
     Filter(galHistory.AllItems, StartsWith(Comment, "📎 แนบไฟล์")),
     "• " & Mid(Comment, Find(": ", Comment) + 18) & "  (" & Text(Created, "d mmm hh:mm", "th-TH") & ")",
     Char(10))'''
@@ -149,39 +162,38 @@ Set(varTicket, LookUp(Tickets, ID = varTicket.ID))'''
     folder = 'Launch("https://digitalfocusth.sharepoint.com/sites/CEO-Tickets/TicketFiles/Forms/AllItems.aspx?id=" & EncodeUrl("/sites/CEO-Tickets/TicketFiles/T-" & varTicket.ID))'
     att = {'type': 'Attachments@2.3.0', 'props': {
         'Items': 'Blank()', 'MaxAttachments': 5, 'MaxAttachmentSize': 10, 'NoAttachmentsText': '""',
-        'AddAttachmentText': '"เลือกไฟล์ (Excel, PDF, Word, รูป · สูงสุด 5 ไฟล์ ไฟล์ละ 10 MB)"',
+        'AddAttachmentText': '"เลือกไฟล์ (Excel, PDF, Word, รูป · ไม่เกิน 5 ไฟล์ ไฟล์ละ 10 MB)"',
         'DisplayMode': 'If(varTicket.IsOpen, DisplayMode.Edit, DisplayMode.Disabled)',
         'Font': FONT, 'Size': 13, 'Color': 'clrText', 'Fill': 'Color.White', 'BorderColor': 'clrLine', 'BorderThickness': 2,
-        'BorderStyle': 'BorderStyle.Dashed', 'Height': 110,
+        'BorderStyle': 'BorderStyle.Dashed', 'Height': 96,
         'ItemFill': 'clrBg', 'ItemColor': 'clrText', 'ItemHoverFill': 'clrLine', 'HoverFill': 'clrBg',
         'PaddingTop': 5, 'PaddingBottom': 5, 'PaddingLeft': 5, 'PaddingRight': 5}}
     big, small = status_buttons()
+    sent_rows = 'Filter(galHistory.AllItems, StartsWith(Comment, "📎 แนบไฟล์"))'
     body = vbox([
         ('conDTitle', in_box(hbox([
             ('btnBack', back_button('scrTickets')),
             ('lblDTitle', in_box(label('"T-" & varTicket.ID & " " & varTicket.Title', Size=19, FontWeight='FontWeight.Bold', Color='clrPrimary', Height=60), 1)),
         ], Height=64, LayoutAlignItems='LayoutAlignItems.Center', LayoutGap=14))),
-        ('lblDDue', in_box(label(due, Height=40, Size=14, FontWeight='FontWeight.Bold',
-                                 Color='If(varTicket.IsOpen && varTicket.DueDate < Today(), clrDanger, clrPrimary)'))),
+        status_row('DStatus', STAFF_STATUS.format(s='varTicket.Status.Value')),
         ('conDInfo', card([
-            ('lblDDetails', in_box(label(details, AutoHeight='true', Size=14))),
-            ('lblDExtra', in_box(label('"สั่งเพิ่ม" & Char(10) & varTicket.CEOExtra', AutoHeight='true', Size=14,
-                                       Visible='!IsBlank(varTicket.CEOExtra)', Fill='ColorFade(clrAccent, 92%)', BorderColor='ColorFade(clrAccent, 50%)',
-                                       BorderThickness=2, PaddingTop=10, PaddingBottom=10, PaddingLeft=12, PaddingRight=12))),
-        ], 'lblDDetails.Height + If(lblDExtra.Visible, lblDExtra.Height + 10, 0) + 28')),
+            kv('DFrom', '"ผู้สั่ง"', '"คุณสมชาย (CEO)"'),
+            kv('DWhen', '"สั่งเมื่อ"', 'Text(varTicket.Created, "d mmm hh:mm", "th-TH")'),
+            kv('DDetails', '"รายละเอียด"', 'varTicket.Details', visible='!IsBlank(varTicket.Details)'),
+            kv('DExtra', '"สั่งเพิ่ม"', 'varTicket.CEOExtra', fill='ColorFade(clrAccent, 92%)', key_color='clrDanger', visible='!IsBlank(varTicket.CEOExtra)'),
+        ], 'conDFrom.Height + 6 + conDWhen.Height + If(conDDetails.Visible, 6 + conDDetails.Height, 0) + If(conDExtra.Visible, 6 + conDExtra.Height, 0) + 28',
+           LayoutGap=6)),
         ('conDFiles', card([
-            ('lblSentFiles', in_box(label(sent, AutoHeight='true', Size=13, Visible='CountRows(Filter(galHistory.AllItems, StartsWith(Comment, "📎 แนบไฟล์"))) > 0'))),
+            ('conDFileHead', in_box(hbox([
+                ('lblDFilesHead', in_box(label(f'"ไฟล์ที่ส่งแล้ว (" & CountRows({sent_rows}) & ")"', Height=34, Size=15, FontWeight='FontWeight.Bold'), 1)),
+                ('btnPhotos', link('"เปิดโฟลเดอร์"', folder, DisplayMode='If(varTicket.HasFiles, DisplayMode.Edit, DisplayMode.Disabled)')),
+            ], Height=34))),
+            ('lblSentFiles', in_box(label(sent, AutoHeight='true', Size=13, Color='clrPrimary', Visible=f'CountRows({sent_rows}) > 0'))),
             ('attFiles', in_box(att, AlignInContainer='AlignInContainer.Start', Width='Parent.Width - 40')),
-            ('conDFileBtns', in_box(hbox([
-                ('btnPhotos', in_box(button('"เปิดโฟลเดอร์"', folder, Height=60, Size=14, Fill='Color.White', Color='clrPrimary',
-                                            BorderColor='clrLine', BorderThickness=2,
-                                            DisplayMode='If(varTicket.HasFiles, DisplayMode.Edit, DisplayMode.Disabled)',
-                                            DisabledFill='Color.White', DisabledColor='ColorFade(clrPrimary, 50%)', DisabledBorderColor='clrLine'), 1)),
-                ('btnUpload', in_box(button('"ส่งไฟล์"', upload, Height=60, Size=14,
-                                            DisplayMode='If(varBusy || IsEmpty(attFiles.Attachments) || !varTicket.IsOpen, DisplayMode.Disabled, DisplayMode.Edit)',
-                                            DisabledFill='ColorFade(clrAccent, 60%)', DisabledColor='Color.White'), 1)),
-            ], Height=60))),
-        ], 'If(lblSentFiles.Visible, lblSentFiles.Height + 10, 0) + 110 + 10 + 60 + 28')),
+            ('btnUpload', in_box(button('"ส่งไฟล์"', upload, Height=56, Size=15, FontWeight='FontWeight.Bold',
+                                        DisplayMode='If(varBusy || IsEmpty(attFiles.Attachments) || !varTicket.IsOpen, DisplayMode.Disabled, DisplayMode.Edit)',
+                                        DisabledFill='ColorFade(clrAccent, 60%)', DisabledColor='Color.White'))),
+        ], '34 + 8 + If(lblSentFiles.Visible, lblSentFiles.Height + 8, 0) + 96 + 8 + 56 + 28', LayoutGap=8)),
         history_card('galHistory', 'recHistLine', 'lblHist', 'lblHistHead', 'conDHist'),
         ('conDAction', card([
             ('txtComment', in_box({'type': 'Classic/TextInput@2.3.2', 'props': {

@@ -59,14 +59,31 @@ Screens:
             Size: =12
             Color: =clrMuted
             X: =24
-            Y: =148
+            Y: =152
             Width: =Parent.Width - 48
-            Height: =34
+            Height: =48
+            Fill: =Color.White
+            BorderColor: =clrLine
+            BorderThickness: =2
+            PaddingLeft: =14
+            PaddingRight: =14
+      - lblNTitleHead:
+          Control: Label@2.5.1
+          Properties:
+            Text: ="งานอะไร"
+            Font: =Font.'Open Sans'
+            Size: =13
+            Color: =clrText
+            X: =24
+            Y: =212
+            Width: =300
+            Height: =32
+            FontWeight: =FontWeight.Semibold
       - txtNTitle:
           Control: Classic/TextInput@2.3.2
           Properties:
             Default: =""
-            HintText: ="งานอะไร เช่น เตรียมสไลด์ประชุมบอร์ด"
+            HintText: ="เช่น เตรียมสไลด์ประชุมบอร์ด"
             Height: =60
             Font: =Font.'Open Sans'
             Size: =15
@@ -80,12 +97,24 @@ Screens:
             RadiusTopRight: =10
             RadiusBottomLeft: =10
             RadiusBottomRight: =10
-            Y: =190
+            Y: =248
+      - lblNDetailsHead:
+          Control: Label@2.5.1
+          Properties:
+            Text: ="รายละเอียด (ไม่บังคับ)"
+            Font: =Font.'Open Sans'
+            Size: =13
+            Color: =clrText
+            X: =24
+            Y: =314
+            Width: =300
+            Height: =32
+            FontWeight: =FontWeight.Semibold
       - txtNDetails:
           Control: Classic/TextInput@2.3.2
           Properties:
             Default: =""
-            HintText: ="รายละเอียด (ไม่บังคับ)"
+            HintText: =""
             Height: =76
             Font: =Font.'Open Sans'
             Size: =15
@@ -99,20 +128,20 @@ Screens:
             RadiusTopRight: =10
             RadiusBottomLeft: =10
             RadiusBottomRight: =10
-            Y: =258
+            Y: =350
             Mode: =TextMode.MultiLine
       - lblNWhoHead:
           Control: Label@2.5.1
           Properties:
             Text: ="สั่งใคร"
             Font: =Font.'Open Sans'
-            Size: =14
+            Size: =13
             Color: =clrText
             X: =24
-            Y: =344
+            Y: =440
             Width: =200
             Height: =34
-            FontWeight: =FontWeight.Bold
+            FontWeight: =FontWeight.Semibold
       - btnNMgr:
           Control: Classic/Button@2.2.0
           Properties:
@@ -137,7 +166,7 @@ Screens:
             PressedBorderColor: =Self.BorderColor
             Height: =46
             X: =Parent.Width - 284
-            Y: =338
+            Y: =434
             Width: =260
       - conNWho:
           Control: GroupContainer@1.3.0
@@ -150,7 +179,7 @@ Screens:
             Fill: =Color.Transparent
             BorderThickness: =0
             X: =24
-            Y: =390
+            Y: =486
             Width: =Parent.Width - 48
             Height: =186
           Children:
@@ -204,24 +233,12 @@ Screens:
           Properties:
             Text: ="ส่งเมื่อไร"
             Font: =Font.'Open Sans'
-            Size: =14
+            Size: =13
             Color: =clrText
             X: =24
-            Y: =632
+            Y: =680
             Width: =200
             Height: =34
-            FontWeight: =FontWeight.Bold
-      - lblNWho:
-          Control: Label@2.5.1
-          Properties:
-            Text: =If(varNMgr, "หัวหน้าทุกคน " & CountRows(Filter(colEmp, IsManager = true)) & " คน", IsEmpty(colPick), "ยังไม่ได้เลือกคน", Concat(colPick, Coalesce(Nickname, FirstName), ", "))
-            Font: =Font.'Open Sans'
-            Size: =13
-            Color: =clrPrimary
-            X: =24
-            Y: =584
-            Width: =Parent.Width - 48
-            Height: =40
             FontWeight: =FontWeight.Semibold
       - btnNDayToday:
           Control: Classic/Button@2.2.0
@@ -247,7 +264,7 @@ Screens:
             PressedBorderColor: =Self.BorderColor
             Height: =52
             X: =24 + 0 * ((Parent.Width - 48 - 36) / 4 + 12)
-            Y: =672
+            Y: =716
             Width: =(Parent.Width - 48 - 36) / 4
       - btnNDayTmr:
           Control: Classic/Button@2.2.0
@@ -273,7 +290,7 @@ Screens:
             PressedBorderColor: =Self.BorderColor
             Height: =52
             X: =24 + 1 * ((Parent.Width - 48 - 36) / 4 + 12)
-            Y: =672
+            Y: =716
             Width: =(Parent.Width - 48 - 36) / 4
       - btnNDayFri:
           Control: Classic/Button@2.2.0
@@ -299,7 +316,7 @@ Screens:
             PressedBorderColor: =Self.BorderColor
             Height: =52
             X: =24 + 2 * ((Parent.Width - 48 - 36) / 4 + 12)
-            Y: =672
+            Y: =716
             Width: =(Parent.Width - 48 - 36) / 4
       - btnNDayMon:
           Control: Classic/Button@2.2.0
@@ -325,7 +342,7 @@ Screens:
             PressedBorderColor: =Self.BorderColor
             Height: =52
             X: =24 + 3 * ((Parent.Width - 48 - 36) / 4 + 12)
-            Y: =672
+            Y: =716
             Width: =(Parent.Width - 48 - 36) / 4
       - attNew:
           Control: Attachments@2.3.0
@@ -335,7 +352,7 @@ Screens:
             MaxAttachmentSize: =10
             NoAttachmentsText: =""
             DisplayMode: =DisplayMode.Edit
-            AddAttachmentText: ="แนบรูปหรือไฟล์ (ไม่บังคับ)"
+            AddAttachmentText: ="แนบรูปหรือไฟล์"
             Font: =Font.'Open Sans'
             Size: =13
             Color: =clrPrimary
@@ -348,20 +365,21 @@ Screens:
             ItemHoverFill: =clrLine
             HoverFill: =clrBg
             X: =24
-            Y: =736
+            Y: =782
             Width: =Parent.Width - 48
-            Height: =96
+            Height: =80
       - lblNSummary:
           Control: Label@2.5.1
           Properties:
-            Text: ="ส่ง " & Text(varNDue, "dddd d mmmm", "th-TH")
+            Text: =If(varNMgr, "สั่งหัวหน้าทุกคน " & CountRows(Filter(colEmp, IsManager = true)) & " คน", IsEmpty(colPick), "ยังไม่ได้เลือกคน", "สั่งคุณ" & Concat(colPick, Coalesce(Nickname, FirstName), ", คุณ")) & " · ส่ง " & Text(varNDue, "dddd d mmmm", "th-TH")
             Font: =Font.'Open Sans'
             Size: =13
-            Color: =clrMuted
+            Color: =clrPrimary
             X: =24
-            Y: =840
+            Y: =868
             Width: =Parent.Width - 48
-            Height: =36
+            Height: =60
+            FontWeight: =FontWeight.Semibold
       - btnNCreate:
           Control: Classic/Button@2.2.0
           Properties:
@@ -424,7 +442,7 @@ Screens:
             Text: ="ภาพรวม"
             OnSelect: =Navigate(scrCeoHome)
             Font: =Font.'Open Sans'
-            Size: =14
+            Size: =13
             FontWeight: =FontWeight.Normal
             Fill: =Color.White
             Color: =clrMuted
@@ -444,13 +462,25 @@ Screens:
             Y: =Parent.Height - 96 + 2
             Width: =Parent.Width / 3
             Height: =94
+            VerticalAlign: =VerticalAlign.Bottom
+            PaddingBottom: =12
+      - icoTabHomeCN:
+          Control: Classic/Icon@2.5.0
+          Properties:
+            Icon: =Icon.Home
+            Color: =clrMuted
+            OnSelect: =Navigate(scrCeoHome)
+            X: =(Parent.Width / 3 - 34) / 2
+            Y: =Parent.Height - 96 + 14
+            Width: =34
+            Height: =34
       - btnTabListCN:
           Control: Classic/Button@2.2.0
           Properties:
             Text: ="งานทั้งหมด"
             OnSelect: =Set(varFilter, "all"); Navigate(scrCeoTickets)
             Font: =Font.'Open Sans'
-            Size: =14
+            Size: =13
             FontWeight: =FontWeight.Normal
             Fill: =Color.White
             Color: =clrMuted
@@ -470,13 +500,25 @@ Screens:
             Y: =Parent.Height - 96 + 2
             Width: =Parent.Width / 3
             Height: =94
+            VerticalAlign: =VerticalAlign.Bottom
+            PaddingBottom: =12
+      - icoTabListCN:
+          Control: Classic/Icon@2.5.0
+          Properties:
+            Icon: =Icon.DetailList
+            Color: =clrMuted
+            OnSelect: =Set(varFilter, "all"); Navigate(scrCeoTickets)
+            X: =Parent.Width * 1 / 3 + (Parent.Width / 3 - 34) / 2
+            Y: =Parent.Height - 96 + 14
+            Width: =34
+            Height: =34
       - btnTabNewCN:
           Control: Classic/Button@2.2.0
           Properties:
             Text: ="สั่งงาน"
             OnSelect: =Navigate(scrCeoCreate)
             Font: =Font.'Open Sans'
-            Size: =14
+            Size: =13
             FontWeight: =FontWeight.Bold
             Fill: =Color.White
             Color: =clrAccent
@@ -496,3 +538,15 @@ Screens:
             Y: =Parent.Height - 96 + 2
             Width: =Parent.Width / 3
             Height: =94
+            VerticalAlign: =VerticalAlign.Bottom
+            PaddingBottom: =12
+      - icoTabNewCN:
+          Control: Classic/Icon@2.5.0
+          Properties:
+            Icon: =Icon.Add
+            Color: =clrAccent
+            OnSelect: =Navigate(scrCeoCreate)
+            X: =Parent.Width * 2 / 3 + (Parent.Width / 3 - 34) / 2
+            Y: =Parent.Height - 96 + 14
+            Width: =34
+            Height: =34

@@ -1,11 +1,12 @@
 from yamlgen import *
-from staff_screens import history_card, CARD_W, X2, CONTENT_END
+from staff_screens import history_card, status_row, CARD_W, X2, CONTENT_END
 
 CEO_TABS = [('Home', '"ภาพรวม"', 'Navigate(scrCeoHome)'), ('List', '"งานทั้งหมด"', 'Set(varFilter, "all"); Navigate(scrCeoTickets)'),
             ('New', '"สั่งงาน"', 'Navigate(scrCeoCreate)')]
 HIST = '{Source: {Value: "App"}, Processed: false, CEOPending: false}'
 NAME = 'Coalesce(LookUp(colEmp, Lower(Email) = {e}).Nickname, {e})'
 CHIP_W = '(Parent.Width - 48 - {g}) / {n}'
+CEO_STATUS = 'Switch({s}, "New", "ยังไม่รับทราบ", "Acknowledged", "รับทราบแล้ว", "InProgress", "กำลังทำ", "WaitingCEO", "รอคุณตอบ", "Done", "รอคุณตรวจ", "Closed", "ปิดแล้ว", {s})'
 
 def chip(text, cond, onselect, **p):
     return button(text, onselect, Fill=f'If({cond}, clrPrimary, Color.White)', Color=f'If({cond}, Color.White, clrPrimary)',
@@ -91,7 +92,8 @@ def scr_ceo_tickets():
     "DueDate", SortOrder.Ascending)'''
     row = ('"T-" & ThisItem.ID & " " & ThisItem.Title & Char(10) & ' + NAME.format(e='ThisItem.AssigneeEmail') +
            ' & " · " & If(ThisItem.DueDate < Today(), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & Text(ThisItem.DueDate, "ddd d mmm", "th-TH"))')
-    status = 'Switch(ThisItem.Status.Value, "New", "ใหม่", "Acknowledged", "รับทราบ", "InProgress", "กำลังทำ", "WaitingCEO", "รอคุณตอบ", "Done", "รอคุณตรวจ", ThisItem.Status.Value)'
+    late = 'ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today()'
+    status = f'If({late}, "เลยกำหนด", ' + CEO_STATUS.format(s='ThisItem.Status.Value') + ')'
     bar = ('Switch(true, ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today(), clrAccent, ThisItem.Status.Value = "WaitingCEO", clrPrimary, '
            'ThisItem.Status.Value = "Done", clrSuccess, clrLine)')
     w3 = CHIP_W.format(g=24, n=3)
@@ -104,15 +106,15 @@ def scr_ceo_tickets():
     ] + chip_ctrls + [
         ('lblCFilterNote', label(note, X=24, Y=284, Width='Parent.Width - 48', Height=40, Size=13, Color='clrPrimary', FontWeight='FontWeight.Semibold',
                                  Visible='varFilter in ["person", "group"]')),
-        ('conCAll', panel([
+        ('conCAll', area([
             ('lblCListEmpty', in_box(label('"ไม่มีงานในหมวดนี้"', Height=50, Color='clrMuted', Visible='IsEmpty(galCAll.AllItems)'))),
             ('galCAll', list_in(gallery(items, [
-                ('recCBar', rect(X=0, Y=14, Width=8, Height='Parent.TemplateHeight - 28', Fill=bar, OnSelect='Select(Parent)')),
-                ('lblCRow', label(row, X=22, Y=4, Width='Parent.TemplateWidth - 22 - 150', Height='Parent.TemplateHeight - 8', Size=13, OnSelect='Select(Parent)')),
-                ('lblCRowStatus', label(status, X='Parent.TemplateWidth - 150', Y=0, Width=150, Height='Parent.TemplateHeight - 1', Size=13, Align='Align.Right',
-                                        FontWeight='FontWeight.Semibold', Color='clrPrimary', OnSelect='Select(Parent)')),
-                ('recCRowLine', rect(X=22, Y='Parent.TemplateHeight - 1', Width='Parent.TemplateWidth - 22', Height=1, Fill='clrLine', OnSelect='Select(Parent)')),
-            ], TemplateSize=84, OnSelect='Set(varTicket, ThisItem); Navigate(scrCeoDetail)'))),
+                row_bg('btnCRowBg'),
+                ('recCBar', rect(X=16, Y=18, Width=8, Height='Parent.TemplateHeight - 12 - 36', Fill=bar, OnSelect='Select(Parent)')),
+                ('lblCRow', label(row, X=36, Y=6, Width='Parent.TemplateWidth - 36 - 190', Height='Parent.TemplateHeight - 12 - 12', Size=13, OnSelect='Select(Parent)')),
+                ('btnCRowPill', pill(status, 'ThisItem.Status.Value', late, X='Parent.TemplateWidth - 186', Y='(Parent.TemplateHeight - 12 - 40) / 2',
+                                     Width=170, Height=40)),
+            ], TemplateSize=104, OnSelect='Set(varTicket, ThisItem); Navigate(scrCeoDetail)'))),
         ], 24, 'If(lblCFilterNote.Visible, 330, 290)', 'Parent.Width - 48', f'{CONTENT_END} - Self.Y')),
     ] + tabs('CT', CEO_TABS, 'List')
     on_visible = 'ClearCollect(colAll, Filter(Tickets, IsOpen = true));\nClearCollect(colEmp, Filter(Employees, Active = true))'
@@ -120,13 +122,7 @@ def scr_ceo_tickets():
 
 def scr_ceo_detail():
     who = NAME.format(e='varTicket.AssigneeEmail')
-    status = '''Switch(varTicket.Status.Value, "New", "ใหม่", "Acknowledged", "รับทราบ", "InProgress", "กำลังทำ", "WaitingCEO", "รอคุณตอบ", "Done", "ทำเสร็จ รอคุณตรวจ", "Closed", "ปิดแล้ว") &
-" · ส่ง " & Text(varTicket.DueDate, "dddd d mmm", "th-TH") & If(varTicket.IsOpen && varTicket.DueDate < Today(), " · เลย " & DateDiff(varTicket.DueDate, Today()) & " วัน", "")'''
-    info = f'''"ผู้รับงาน: " & {who} & Char(10) &
-"สั่งเมื่อ: " & Text(varTicket.Created, "d mmm hh:mm", "th-TH") & " ผ่าน " & varTicket.Source.Value &
-If(IsBlank(varTicket.Details), "", Char(10) & "รายละเอียด: " & varTicket.Details)'''
     files = '''With({rows: Filter(galCDHistory.AllItems, StartsWith(Comment, "📎"))},
-    "ไฟล์งาน" & Char(10) &
     If(IsEmpty(rows),
         If(varTicket.HasFiles, "มีไฟล์ในโฟลเดอร์งาน (รูปที่สั่งผ่าน LINE)", "ยังไม่มีไฟล์"),
         Concat(rows, "• " & If(StartsWith(Comment, "📎 แนบไฟล์"), Mid(Comment, Find(": ", Comment) + 18), Trim(Mid(Comment, 3))) & "  (" & Text(Created, "d mmm hh:mm", "th-TH") & ")", Char(10))))'''
@@ -178,20 +174,21 @@ Set(varPickDue, false);
             ('btnCBack', back_button('scrCeoTickets')),
             ('lblCDTitle', in_box(label('"T-" & varTicket.ID & " " & varTicket.Title', Size=19, FontWeight='FontWeight.Bold', Color='clrPrimary', Height=60), 1)),
         ], Height=64, LayoutAlignItems='LayoutAlignItems.Center', LayoutGap=14))),
-        ('lblCDStatus', in_box(label(status, Height=40, Size=14, FontWeight='FontWeight.Bold',
-                                     Color='If(varTicket.Status.Value = "Done", clrSuccess, varTicket.IsOpen && varTicket.DueDate < Today(), clrDanger, clrPrimary)'))),
+        status_row('CDStatus', CEO_STATUS.format(s='varTicket.Status.Value')),
         ('conCDInfo', card([
-            ('lblCDInfo', in_box(label(info, AutoHeight='true', Size=14))),
-            ('lblCDExtra', in_box(label('"สั่งเพิ่ม" & Char(10) & varTicket.CEOExtra', AutoHeight='true', Size=14,
-                                        Visible='!IsBlank(varTicket.CEOExtra)', Fill='ColorFade(clrAccent, 92%)', BorderColor='ColorFade(clrAccent, 50%)',
-                                        BorderThickness=2, PaddingTop=10, PaddingBottom=10, PaddingLeft=12, PaddingRight=12))),
-        ], 'lblCDInfo.Height + If(lblCDExtra.Visible, lblCDExtra.Height + 10, 0) + 28')),
+            kv('CDWho', '"ผู้รับงาน"', who + ' & With({d: LookUp(colEmp, Lower(Email) = varTicket.AssigneeEmail).Department}, If(IsBlank(d), "", " (" & d & ")"))'),
+            kv('CDWhen', '"สั่งเมื่อ"', 'Text(varTicket.Created, "d mmm hh:mm", "th-TH") & " ผ่าน " & varTicket.Source.Value'),
+            kv('CDDetails', '"รายละเอียด"', 'varTicket.Details', visible='!IsBlank(varTicket.Details)'),
+            kv('CDExtra', '"สั่งเพิ่ม"', 'varTicket.CEOExtra', fill='ColorFade(clrAccent, 92%)', key_color='clrDanger', visible='!IsBlank(varTicket.CEOExtra)'),
+        ], 'conCDWho.Height + 6 + conCDWhen.Height + If(conCDDetails.Visible, 6 + conCDDetails.Height, 0) + If(conCDExtra.Visible, 6 + conCDExtra.Height, 0) + 28',
+           LayoutGap=6)),
         ('conCDFiles', card([
-            ('lblCDFiles', in_box(label(files, AutoHeight='true', Size=13))),
-            ('btnCDFolder', in_box(button('"เปิดโฟลเดอร์"', folder, Height=60, Size=14, Fill='Color.White', Color='clrPrimary', BorderColor='clrLine',
-                                          BorderThickness=2, DisplayMode='If(varTicket.HasFiles, DisplayMode.Edit, DisplayMode.Disabled)',
-                                          DisabledFill='Color.White', DisabledColor='ColorFade(clrPrimary, 50%)', DisabledBorderColor='clrLine'))),
-        ], 'lblCDFiles.Height + 10 + 60 + 28')),
+            ('conCDFileHead', in_box(hbox([
+                ('lblCDFilesHead', in_box(label('"ไฟล์งาน"', Height=34, Size=15, FontWeight='FontWeight.Bold'), 1)),
+                ('btnCDFolder', link('"เปิดโฟลเดอร์"', folder, DisplayMode='If(varTicket.HasFiles, DisplayMode.Edit, DisplayMode.Disabled)')),
+            ], Height=34))),
+            ('lblCDFiles', in_box(label(files, AutoHeight='true', Size=13, Color='clrPrimary'))),
+        ], 'conCDFileHead.Height + 8 + lblCDFiles.Height + 28', LayoutGap=8)),
         history_card('galCDHistory', 'recCDHistLine', 'lblCDHist', 'lblCDHistHead', 'conCDHist'),
         ('conCDAction', card([
             ('txtCeo', in_box({'type': 'Classic/TextInput@2.3.2', 'props': {
@@ -244,33 +241,37 @@ Notify("สั่งงานแล้ว " & Concat(colMade, "T-" & ID, ", "), 
 Reset(txtNTitle); Reset(txtNDetails); Reset(attNew); Clear(colPick); Set(varNMgr, false)'''
     picked = '!IsBlank(LookUp(colPick, Email = ThisItem.Email))'
     toggle = f'If({picked}, Remove(colPick, LookUp(colPick, Email = ThisItem.Email)), Collect(colPick, ThisItem))'
-    who_text = ('If(varNMgr, "หัวหน้าทุกคน " & CountRows(Filter(colEmp, IsManager = true)) & " คน", '
-                'IsEmpty(colPick), "ยังไม่ได้เลือกคน", Concat(colPick, Coalesce(Nickname, FirstName), ", "))')
+    summary = ('If(varNMgr, "สั่งหัวหน้าทุกคน " & CountRows(Filter(colEmp, IsManager = true)) & " คน", '
+               'IsEmpty(colPick), "ยังไม่ได้เลือกคน", "สั่งคุณ" & Concat(colPick, Coalesce(Nickname, FirstName), ", คุณ")) & '
+               '" · ส่ง " & Text(varNDue, "dddd d mmmm", "th-TH")')
     monday = 'DateAdd(Today(), If(Mod(9 - Weekday(Today()), 7) = 0, 7, Mod(9 - Weekday(Today()), 7)), TimeUnit.Days)'
     friday = 'DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days)'
     w4 = CHIP_W.format(g=36, n=4)
     days = [('Today', '"วันนี้"', 'Today()'), ('Tmr', '"พรุ่งนี้"', 'DateAdd(Today(), 1, TimeUnit.Days)'), ('Fri', '"ศุกร์นี้"', friday), ('Mon', '"จันทร์หน้า"', monday)]
-    day_ctrls = [(f'btnNDay{k}', chip(t, f'varNDue = {d}', f'Set(varNDue, {d})', X=f'24 + {i} * ({w4} + 12)', Y=672, Width=w4))
+    day_ctrls = [(f'btnNDay{k}', chip(t, f'varNDue = {d}', f'Set(varNDue, {d})', X=f'24 + {i} * ({w4} + 12)', Y=716, Width=w4))
                  for i, (k, t, d) in enumerate(days)]
     tin = lambda hint, h: {'type': 'Classic/TextInput@2.3.2', 'props': {
         'Default': '""', 'HintText': hint, 'Height': h, 'Font': FONT, 'Size': 15, 'BorderColor': 'clrLine', 'BorderThickness': 2,
         'Fill': 'Color.White', 'HoverFill': 'Color.White', 'X': 24, 'Width': 'Parent.Width - 48',
         'RadiusTopLeft': 10, 'RadiusTopRight': 10, 'RadiusBottomLeft': 10, 'RadiusBottomRight': 10}}
-    title_in = tin('"งานอะไร เช่น เตรียมสไลด์ประชุมบอร์ด"', 60); title_in['props']['Y'] = 190
-    det_in = tin('"รายละเอียด (ไม่บังคับ)"', 76); det_in['props'].update(Y=258, Mode='TextMode.MultiLine')
+    title_in = tin('"เช่น เตรียมสไลด์ประชุมบอร์ด"', 60); title_in['props']['Y'] = 248
+    det_in = tin('""', 76); det_in['props'].update(Y=350, Mode='TextMode.MultiLine')
     att = {'type': 'Attachments@2.3.0', 'props': {
         'Items': 'Blank()', 'MaxAttachments': 5, 'MaxAttachmentSize': 10, 'NoAttachmentsText': '""', 'DisplayMode': 'DisplayMode.Edit',
-        'AddAttachmentText': '"แนบรูปหรือไฟล์ (ไม่บังคับ)"', 'Font': FONT, 'Size': 13, 'Color': 'clrPrimary', 'Fill': 'Color.White',
+        'AddAttachmentText': '"แนบรูปหรือไฟล์"', 'Font': FONT, 'Size': 13, 'Color': 'clrPrimary', 'Fill': 'Color.White',
         'BorderColor': 'clrLine', 'BorderThickness': 2, 'BorderStyle': 'BorderStyle.Dashed', 'ItemFill': 'clrBg', 'ItemColor': 'clrText',
-        'ItemHoverFill': 'clrLine', 'HoverFill': 'clrBg', 'X': 24, 'Y': 736, 'Width': 'Parent.Width - 48', 'Height': 96}}
+        'ItemHoverFill': 'clrLine', 'HoverFill': 'clrBg', 'X': 24, 'Y': 782, 'Width': 'Parent.Width - 48', 'Height': 80}}
     children = header('CN') + [
         ('lblNHead', label('"สั่งงาน"', X=24, Y=104, Width='Parent.Width - 48', Height=46, Size=20, FontWeight='FontWeight.Bold', Color='clrPrimary')),
-        ('lblNNote', label('"ปกติสั่งผ่าน LINE ได้เร็วกว่า หน้านี้ใช้เมื่อบอท LINE ไม่ตอบ"', X=24, Y=148, Width='Parent.Width - 48', Height=34, Size=12, Color='clrMuted')),
+        ('lblNNote', label('"ปกติสั่งผ่าน LINE ได้เร็วกว่า หน้านี้ใช้เมื่อบอท LINE ไม่ตอบ"', X=24, Y=152, Width='Parent.Width - 48', Height=48, Size=12,
+                           Color='clrMuted', Fill='Color.White', BorderColor='clrLine', BorderThickness=2, PaddingLeft=14, PaddingRight=14)),
+        ('lblNTitleHead', label('"งานอะไร"', X=24, Y=212, Width=300, Height=32, Size=13, FontWeight='FontWeight.Semibold')),
         ('txtNTitle', title_in),
+        ('lblNDetailsHead', label('"รายละเอียด (ไม่บังคับ)"', X=24, Y=314, Width=300, Height=32, Size=13, FontWeight='FontWeight.Semibold')),
         ('txtNDetails', det_in),
-        ('lblNWhoHead', label('"สั่งใคร"', X=24, Y=344, Width=200, Height=34, Size=14, FontWeight='FontWeight.Bold')),
+        ('lblNWhoHead', label('"สั่งใคร"', X=24, Y=440, Width=200, Height=34, Size=13, FontWeight='FontWeight.Semibold')),
         ('btnNMgr', chip('"หัวหน้าทุกคน (" & CountRows(Filter(colEmp, IsManager = true)) & ")"', 'varNMgr', 'Set(varNMgr, !varNMgr)',
-                         X='Parent.Width - 284', Y=338, Width=260, Height=46)),
+                         X='Parent.Width - 284', Y=434, Width=260, Height=46)),
         ('conNWho', vbox([('galNWho', list_in(gallery('SortByColumns(colEmp, "Nickname", SortOrder.Ascending)', [
             ('btnNWho', button('Coalesce(ThisItem.Nickname, ThisItem.FirstName) & " · " & ThisItem.Department', toggle,
                                X=4, Y=4, Width='Parent.TemplateWidth - 8', Height='Parent.TemplateHeight - 8', Size=12,
@@ -279,12 +280,11 @@ Reset(txtNTitle); Reset(txtNDetails); Reset(attNew); Clear(colPick); Set(varNMgr
                                DisplayMode='If(varNMgr, DisplayMode.Disabled, DisplayMode.Edit)',
                                DisabledFill='clrBg', DisabledColor='clrMuted', DisabledBorderColor='clrLine')),
         ], TemplateSize=62, WrapCount=2, ShowScrollbar='false'))),
-        ], LayoutGap=0, X=24, Y=390, Width='Parent.Width - 48', Height=186)),
-        ('lblNWhenHead', label('"ส่งเมื่อไร"', X=24, Y=632, Width=200, Height=34, Size=14, FontWeight='FontWeight.Bold')),
-        ('lblNWho', label(who_text, X=24, Y=584, Width='Parent.Width - 48', Height=40, Size=13, Color='clrPrimary', FontWeight='FontWeight.Semibold')),
+        ], LayoutGap=0, X=24, Y=486, Width='Parent.Width - 48', Height=186)),
+        ('lblNWhenHead', label('"ส่งเมื่อไร"', X=24, Y=680, Width=200, Height=34, Size=13, FontWeight='FontWeight.Semibold')),
     ] + day_ctrls + [
         ('attNew', att),
-        ('lblNSummary', label('"ส่ง " & Text(varNDue, "dddd d mmmm", "th-TH")', X=24, Y=840, Width='Parent.Width - 48', Height=36, Size=13, Color='clrMuted')),
+        ('lblNSummary', label(summary, X=24, Y=868, Width='Parent.Width - 48', Height=60, Size=13, Color='clrPrimary', FontWeight='FontWeight.Semibold')),
         ('btnNCreate', button('"สั่งงาน"', create, X=24, Y=f'Parent.Height - {TAB_H} - 92', Width='Parent.Width - 48', Height=80, Size=16, FontWeight='FontWeight.Bold',
                               RadiusTopLeft=16, RadiusTopRight=16, RadiusBottomLeft=16, RadiusBottomRight=16,
                               DisplayMode='If(varBusy || IsBlank(Trim(txtNTitle.Text)) || (!varNMgr && IsEmpty(colPick)) || varNDue < Today(), DisplayMode.Disabled, DisplayMode.Edit)',

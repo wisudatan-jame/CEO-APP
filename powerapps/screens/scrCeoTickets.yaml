@@ -200,19 +200,10 @@ Screens:
           Properties:
             LayoutDirection: =LayoutDirection.Vertical
             LayoutAlignItems: =LayoutAlignItems.Stretch
-            LayoutGap: =6
+            LayoutGap: =0
             DropShadow: =DropShadow.None
-            Fill: =Color.White
-            BorderThickness: =2
-            BorderColor: =clrLine
-            RadiusTopLeft: =20
-            RadiusTopRight: =20
-            RadiusBottomLeft: =20
-            RadiusBottomRight: =20
-            PaddingTop: =12
-            PaddingBottom: =8
-            PaddingLeft: =18
-            PaddingRight: =18
+            Fill: =Color.Transparent
+            BorderThickness: =0
             X: =24
             Y: =If(lblCFilterNote.Visible, 330, 290)
             Width: =Parent.Width - 48
@@ -244,7 +235,7 @@ Screens:
                             "group", Filter(colAll, GroupID = varGroup),
                             colAll),
                         "DueDate", SortOrder.Ascending)
-                  TemplateSize: =84
+                  TemplateSize: =104
                   OnSelect: =Set(varTicket, ThisItem); Navigate(scrCeoDetail)
                   Fill: =Color.Transparent
                   BorderThickness: =0
@@ -253,13 +244,39 @@ Screens:
                   LayoutMinHeight: =0
                   LayoutMinWidth: =0
                 Children:
+                  - btnCRowBg:
+                      Control: Classic/Button@2.2.0
+                      Properties:
+                        Text: =""
+                        OnSelect: =Select(Parent)
+                        Font: =Font.'Open Sans'
+                        Size: =15
+                        FontWeight: =FontWeight.Semibold
+                        Fill: =Color.White
+                        Color: =Color.White
+                        BorderColor: =clrLine
+                        BorderThickness: =2
+                        RadiusTopLeft: =18
+                        RadiusTopRight: =18
+                        RadiusBottomLeft: =18
+                        RadiusBottomRight: =18
+                        HoverFill: =clrBg
+                        HoverColor: =Self.Color
+                        HoverBorderColor: =Self.BorderColor
+                        PressedFill: =clrLine
+                        PressedColor: =Self.Color
+                        PressedBorderColor: =Self.BorderColor
+                        X: =0
+                        Y: =0
+                        Width: =Parent.TemplateWidth
+                        Height: =Parent.TemplateHeight - 12
                   - recCBar:
                       Control: Rectangle@2.3.0
                       Properties:
-                        X: =0
-                        Y: =14
+                        X: =16
+                        Y: =18
                         Width: =8
-                        Height: =Parent.TemplateHeight - 28
+                        Height: =Parent.TemplateHeight - 12 - 36
                         Fill: =Switch(true, ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today(), clrAccent, ThisItem.Status.Value = "WaitingCEO", clrPrimary, ThisItem.Status.Value = "Done", clrSuccess, clrLine)
                         OnSelect: =Select(Parent)
                   - lblCRow:
@@ -269,34 +286,39 @@ Screens:
                         Font: =Font.'Open Sans'
                         Size: =13
                         Color: =clrText
-                        X: =22
-                        Y: =4
-                        Width: =Parent.TemplateWidth - 22 - 150
-                        Height: =Parent.TemplateHeight - 8
+                        X: =36
+                        Y: =6
+                        Width: =Parent.TemplateWidth - 36 - 190
+                        Height: =Parent.TemplateHeight - 12 - 12
                         OnSelect: =Select(Parent)
-                  - lblCRowStatus:
-                      Control: Label@2.5.1
+                  - btnCRowPill:
+                      Control: Classic/Button@2.2.0
                       Properties:
-                        Text: =Switch(ThisItem.Status.Value, "New", "ใหม่", "Acknowledged", "รับทราบ", "InProgress", "กำลังทำ", "WaitingCEO", "รอคุณตอบ", "Done", "รอคุณตรวจ", ThisItem.Status.Value)
+                        Text: =If(ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today(), "เลยกำหนด", Switch(ThisItem.Status.Value, "New", "ยังไม่รับทราบ", "Acknowledged", "รับทราบแล้ว", "InProgress", "กำลังทำ", "WaitingCEO", "รอคุณตอบ", "Done", "รอคุณตรวจ", "Closed", "ปิดแล้ว", ThisItem.Status.Value))
+                        OnSelect: =Select(Parent)
                         Font: =Font.'Open Sans'
-                        Size: =13
-                        Color: =clrPrimary
-                        X: =Parent.TemplateWidth - 150
-                        Y: =0
-                        Width: =150
-                        Height: =Parent.TemplateHeight - 1
-                        Align: =Align.Right
-                        FontWeight: =FontWeight.Semibold
-                        OnSelect: =Select(Parent)
-                  - recCRowLine:
-                      Control: Rectangle@2.3.0
-                      Properties:
-                        X: =22
-                        Y: =Parent.TemplateHeight - 1
-                        Width: =Parent.TemplateWidth - 22
-                        Height: =1
-                        Fill: =clrLine
-                        OnSelect: =Select(Parent)
+                        Size: =12
+                        FontWeight: =FontWeight.Bold
+                        Fill: =Switch(true, ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today(), ColorValue("#FDE8E8"), ThisItem.Status.Value = "WaitingCEO", ColorValue("#E9E9F5"), ThisItem.Status.Value = "Done", ColorValue("#E3F4EA"), ThisItem.Status.Value = "New", ColorValue("#EEF0F4"), ColorValue("#F1F2F6"))
+                        Color: =Switch(true, ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today(), clrDanger, ThisItem.Status.Value = "WaitingCEO", clrPrimary, ThisItem.Status.Value = "Done", ColorValue("#17703A"), ThisItem.Status.Value = "New", ColorValue("#3F4A5C"), ColorValue("#3F4A5C"))
+                        BorderColor: =clrAccent
+                        BorderThickness: =0
+                        RadiusTopLeft: =20
+                        RadiusTopRight: =20
+                        RadiusBottomLeft: =20
+                        RadiusBottomRight: =20
+                        HoverFill: =Self.Fill
+                        HoverColor: =Self.Color
+                        HoverBorderColor: =Self.BorderColor
+                        PressedFill: =Self.Fill
+                        PressedColor: =Self.Color
+                        PressedBorderColor: =Self.BorderColor
+                        PaddingLeft: =8
+                        PaddingRight: =8
+                        X: =Parent.TemplateWidth - 186
+                        Y: =(Parent.TemplateHeight - 12 - 40) / 2
+                        Width: =170
+                        Height: =40
       - recTabLineCT:
           Control: Rectangle@2.3.0
           Properties:
@@ -311,7 +333,7 @@ Screens:
             Text: ="ภาพรวม"
             OnSelect: =Navigate(scrCeoHome)
             Font: =Font.'Open Sans'
-            Size: =14
+            Size: =13
             FontWeight: =FontWeight.Normal
             Fill: =Color.White
             Color: =clrMuted
@@ -331,13 +353,25 @@ Screens:
             Y: =Parent.Height - 96 + 2
             Width: =Parent.Width / 3
             Height: =94
+            VerticalAlign: =VerticalAlign.Bottom
+            PaddingBottom: =12
+      - icoTabHomeCT:
+          Control: Classic/Icon@2.5.0
+          Properties:
+            Icon: =Icon.Home
+            Color: =clrMuted
+            OnSelect: =Navigate(scrCeoHome)
+            X: =(Parent.Width / 3 - 34) / 2
+            Y: =Parent.Height - 96 + 14
+            Width: =34
+            Height: =34
       - btnTabListCT:
           Control: Classic/Button@2.2.0
           Properties:
             Text: ="งานทั้งหมด"
             OnSelect: =Set(varFilter, "all"); Navigate(scrCeoTickets)
             Font: =Font.'Open Sans'
-            Size: =14
+            Size: =13
             FontWeight: =FontWeight.Bold
             Fill: =Color.White
             Color: =clrAccent
@@ -357,13 +391,25 @@ Screens:
             Y: =Parent.Height - 96 + 2
             Width: =Parent.Width / 3
             Height: =94
+            VerticalAlign: =VerticalAlign.Bottom
+            PaddingBottom: =12
+      - icoTabListCT:
+          Control: Classic/Icon@2.5.0
+          Properties:
+            Icon: =Icon.DetailList
+            Color: =clrAccent
+            OnSelect: =Set(varFilter, "all"); Navigate(scrCeoTickets)
+            X: =Parent.Width * 1 / 3 + (Parent.Width / 3 - 34) / 2
+            Y: =Parent.Height - 96 + 14
+            Width: =34
+            Height: =34
       - btnTabNewCT:
           Control: Classic/Button@2.2.0
           Properties:
             Text: ="สั่งงาน"
             OnSelect: =Navigate(scrCeoCreate)
             Font: =Font.'Open Sans'
-            Size: =14
+            Size: =13
             FontWeight: =FontWeight.Normal
             Fill: =Color.White
             Color: =clrMuted
@@ -383,3 +429,15 @@ Screens:
             Y: =Parent.Height - 96 + 2
             Width: =Parent.Width / 3
             Height: =94
+            VerticalAlign: =VerticalAlign.Bottom
+            PaddingBottom: =12
+      - icoTabNewCT:
+          Control: Classic/Icon@2.5.0
+          Properties:
+            Icon: =Icon.Add
+            Color: =clrMuted
+            OnSelect: =Navigate(scrCeoCreate)
+            X: =Parent.Width * 2 / 3 + (Parent.Width / 3 - 34) / 2
+            Y: =Parent.Height - 96 + 14
+            Width: =34
+            Height: =34
