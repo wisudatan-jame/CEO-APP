@@ -1,7 +1,7 @@
 # คู่มือ ฉ: พนักงานแนบไฟล์งานในแอป
 
 ใช้เวลาประมาณ 2 ชั่วโมง ทำหลัง [คู่มือ ค](C-staff-app.md)
-ผลลัพธ์: ในหน้ารายละเอียดงาน พนักงานกด **📎 เลือกไฟล์** (Excel, PDF, Word, รูป ฯลฯ ครั้งละไม่เกิน 5 ไฟล์) → **ส่งไฟล์** ไฟล์เก็บใน `TicketFiles/T-<เลข>` ของ Site `CEO-Tickets` แล้ว CEO ได้ LINE พร้อมลิงก์เปิดโฟลเดอร์
+ผลลัพธ์: ในหน้ารายละเอียดงาน พนักงานกด **📎 เลือกไฟล์** (Excel, PDF, Word, รูป ฯลฯ ครั้งละไม่เกิน 5 ไฟล์ ไฟล์ละ 10 MB) → **ส่งไฟล์** ไฟล์เก็บใน `TicketFiles/T-<เลข>` ของ Site `CEO-Tickets` แล้ว CEO ได้ LINE พร้อมลิงก์เปิดโฟลเดอร์
 
 ทำไมทำแบบนี้ (ตัดสินใจ 25 ต.ค. 2026)
 - ไฟล์งานอยู่ใน M365 ของบริษัทที่เดียว ไม่หายเมื่อพนักงานลาออก และนำไปทำ RAG ได้
@@ -97,8 +97,8 @@
    | Items | `Blank()` |
    | DisplayMode | `If(varTicket.IsOpen, DisplayMode.Edit, DisplayMode.Disabled)` |
    | MaxAttachments | `5` |
-   | MaxAttachmentSize | `20` (MB) |
-   | AddAttachmentText | `"📎 เลือกไฟล์ (Excel, PDF, Word, รูป · สูงสุด 5 ไฟล์ ไฟล์ละ 20 MB)"` |
+   | MaxAttachmentSize | `10` (MB · Microsoft แนะนำไม่เกิน 10 ไฟล์ใหญ่กว่านั้นให้ส่งลิงก์ OneDrive ในความเห็น) |
+   | AddAttachmentText | `"📎 เลือกไฟล์ (Excel, PDF, Word, รูป · สูงสุด 5 ไฟล์ ไฟล์ละ 10 MB)"` |
    | NoAttachmentsText | `""` |
    | X · Y · Width · Height | `20` · `btnComment.Y + 60` · `Parent.Width - 40` · `100` |
    ถ้ามี ❌ ที่ Property อื่นที่อ้าง `Parent.Default` หรือ `ThisItem` ให้ลบสูตรนั้นออก
@@ -116,7 +116,7 @@
 Set(varBusy, true);
 ClearCollect(colUpload,
     ForAll(attFiles.Attachments As f,
-        AttachTicketFile.Run({number: varTicket.ID, file: {contentBytes: f.Value, name: f.Name}})));
+        AttachTicketFile.Run(varTicket.ID, {contentBytes: f.Value, name: f.Name})));
 Set(varBusy, false);
 If(CountIf(colUpload, ok = "true") = CountRows(colUpload),
     Notify("ส่งไฟล์แล้ว " & CountRows(colUpload) & " ไฟล์", NotificationType.Success); Reset(attFiles),
@@ -125,7 +125,7 @@ Refresh(Tickets);
 Refresh(TicketHistory);
 Set(varTicket, LookUp(Tickets, ID = varTicket.ID))
 ```
-⚠️ พิมพ์ `AttachTicketFile.Run(` แล้วดูกล่องคำแนะนำว่าชื่อค่าเป็น `number` และ `file` หรือไม่ ถ้าต่างให้แก้ชื่อในสูตรตาม (ดู [คู่มือ ค](C-staff-app.md) เรื่องชื่อภายใน)
+⚠️ Input ของ Flow นี้เป็นแบบบังคับ จึงส่งค่าตามลำดับ (เลขงาน, ไฟล์) ถ้าขึ้น "Invalid number of arguments" ให้พิมพ์ `AttachTicketFile.Run(` แล้วดูกล่องคำแนะนำ ถ้าค่าอยู่ในวงเล็บปีกกา (Input ไม่บังคับ) ให้ใช้ `AttachTicketFile.Run({number: varTicket.ID, file: {contentBytes: f.Value, name: f.Name}})` แทน
 
 ### 2.4 ปรับตำแหน่ง
 - `btnPhotos` ย้ายมาอยู่แถวเดียวกับ `btnUpload` แล้ว ให้แก้ `txtComment` → **Y** = `lblDDetails.Y + lblDDetails.Height + 10`
