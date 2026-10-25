@@ -350,6 +350,50 @@ CEO เพิ่มรายละเอียดให้งานที่ส�
    ```
 4. ทดสอบ: เปิดงานที่ CEO เพิ่มรายละเอียดแล้ว ต้องเห็นกรอบสีชมพูอ่อน **➕ คำสั่งเพิ่มเติมจาก CEO** พร้อมวันเวลา ส่วนงานที่ไม่มี กรอบต้องไม่แสดงและช่องพิมพ์ข้อความต่อจากรายละเอียดเหมือนเดิม
 
+### 2.4.5 หน้าภาพรวม `scrHome` (หน้าแรกของพนักงาน)
+หน้าตาตามภาพตัวอย่าง "พนักงาน: ภาพรวม" ใน Artifact ออกแบบ (หัวแอปมีโลโก้และรูปคุณสมชายสั่งงานเหมือนหน้าอื่น) เห็นเฉพาะงานของตัวเอง ใช้เวลาประมาณ 45 นาที
+
+1. **New screen** → Blank → ชื่อ `scrHome` → ลากขึ้นเป็นหน้าแรกใน Tree view
+2. คัดลอก `recTop` `recTopLine` `imgLogo` `imgCEO` จาก `scrTickets` มาวาง (Ctrl+C / Ctrl+V)
+3. **scrHome → OnVisible** โหลดงานของตัวเองครั้งเดียว (Filter ด้วยอีเมลเป็นแบบ Delegable)
+   ```powerfx
+   ClearCollect(colMine, Filter(Tickets, AssigneeEmail = varMe))
+   ```
+4. **App → Formulas** เพิ่มต่อท้าย
+   ```powerfx
+   myOpen = Filter(colMine, IsOpen = true);
+   myLate = Filter(myOpen, Status.Value <> "Done", DueDate < Today());
+   myDone30 = Filter(colMine, !IsBlank(DoneAt), DoneAt >= DateAdd(Today(), -30, TimeUnit.Days));
+   ```
+5. ใส่ Control
+
+| Control | ชื่อ | ค่า |
+|---|---|---|
+| Label | `lblHello` | Text `"สวัสดีค่ะคุณ" & First(Split(User().FullName, " ")).Value` · Size `22` · Bold · Color `clrPrimary` · X `20` · Y `110` |
+| Label | `lblHelloSub` | Text `Text(Today(), "dddd d mmmm", "th-TH") & " · งานจาก CEO เปิดอยู่ " & CountRows(myOpen) & " งาน"` · Size `13` · Color `clrMuted` · Y `lblHello.Y + 34` |
+| Button ×4 (การ์ด) | `btnKLate` `btnKNew` `btnKWait` `btnKDone` | Width `(Parent.Width - 50) / 2` · Height `88` · RadiusTopLeft…BottomRight `14` · Align `Align.Left` · VerticalAlign `VerticalAlign.Top` · PaddingLeft/Top `14` · X `20` และ `30 + (Parent.Width - 50) / 2` · Y `lblHelloSub.Y + 36` และ `+ 98` |
+| | `btnKLate` | Text `"เลยกำหนด" & Char(10) & CountRows(myLate)` · Fill `clrAccent` · Color `Color.White` |
+| | `btnKNew` | Text `"ยังไม่รับทราบ" & Char(10) & CountRows(Filter(myOpen, Status.Value = "New"))` · Fill `Color.White` · Color `clrPrimary` · BorderColor `clrLine` |
+| | `btnKWait` | Text `"รอ CEO ตอบ" & Char(10) & CountRows(Filter(myOpen, Status.Value = "WaitingCEO"))` · สไตล์เดียวกับ `btnKNew` · Color `clrMuted` |
+| | `btnKDone` | Text `"รอ CEO ตรวจ" & Char(10) & CountRows(Filter(myOpen, Status.Value = "Done"))` · สไตล์เดียวกับ `btnKNew` · Color `clrSuccess` |
+| | ทั้ง 4 ปุ่ม | OnSelect `Navigate(scrTickets)` |
+| Label | `lblTodoHead` | Text `"ต้องทำก่อน"` · Bold · Y `btnKDone.Y + 100` |
+| Vertical gallery (Blank) | `galTodo` | Items `FirstN(SortByColumns(Filter(myOpen, Status.Value <> "Done"), "DueDate", SortOrder.Ascending), 4)` · TemplateSize `52` · Height `210` · Y `lblTodoHead.Y + 30` · OnSelect `Set(varTicket, ThisItem); Navigate(scrDetail)` |
+| Label ในแกลเลอรี | `lblTodo` | Text `"T-" & ThisItem.ID & " " & ThisItem.Title & Char(10) & If(ThisItem.DueDate < Today(), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & Text(ThisItem.DueDate, "ddd d mmm", "th-TH"))` · Color `If(ThisItem.DueDate < Today(), clrDanger, clrText)` |
+| Label | `lblStats` | Text ด้านล่าง · Fill `Color.White` · BorderColor `clrLine` · Padding `12` · AutoHeight · Y `galTodo.Y + galTodo.Height + 10` |
+
+`lblStats` Text:
+```powerfx
+"ผลงาน 30 วันที่ผ่านมา" & Char(10) &
+"ได้รับ " & CountRows(Filter(colMine, Created >= DateAdd(Today(), -30, TimeUnit.Days))) & " งาน · " &
+"เสร็จทันกำหนด " & CountIf(myDone30, DoneAt < DateAdd(DueDate, 1, TimeUnit.Days)) & "/" & CountRows(myDone30) &
+If(CountRows(myDone30) > 0, " · เฉลี่ย " & Round(Average(myDone30, DateDiff(Created, DoneAt, TimeUnit.Hours)) / 24, 1) & " วัน/งาน", "")
+```
+
+6. **แถบล่าง 2 ปุ่ม** (ใส่ทั้ง `scrHome` และ `scrTickets`): `btnTabHome` "ภาพรวม" → `Navigate(scrHome)` · `btnTabList` "งานจาก CEO" → `Navigate(scrTickets)` · Y `Parent.Height - 66` · Height `66` · Width `Parent.Width / 2` · หน้าที่เปิดอยู่ใช้ Color `clrAccent` อีกปุ่ม `clrMuted` · แล้วลด `galTickets.Height` ลง 66
+7. **App → StartScreen** = `If(!IsBlank(Param("ticketId")), scrDetail, scrHome)` (ลิงก์จาก Teams ยังเปิดหน้างานโดยตรง)
+8. ทดสอบด้วยบัญชีพนักงาน: ตัวเลขตรงกับงานของตัวเองเท่านั้น · แตะงานใน "ต้องทำก่อน" แล้วเปิดหน้ารายละเอียด · ส่งไฟล์หรือเปลี่ยนสถานะแล้วกลับมา ตัวเลขอัปเดต (OnVisible โหลดใหม่ทุกครั้งที่เข้าหน้า)
+
 ### 2.4.3 แสดงสวยทั้งมือถือและคอมพิวเตอร์ (Responsive)
 บนคอม แถบหัวกว้างเต็มจอ เนื้อหาเป็นคอลัมน์กว้างไม่เกิน 720 อยู่กลางจอแบบหน้าเว็บ บนมือถือเต็มจอเหมือนเดิม
 
