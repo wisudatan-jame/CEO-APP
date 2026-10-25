@@ -328,6 +328,35 @@ clrSuccess = ColorValue("#1F9A4B");   // เขียวจากโลโก้
 
 **รูป CEO:** ต้องได้รับอนุญาตจาก CEO ก่อน เพราะรูปจะอยู่บนเครื่องพนักงานทุกคน ใช้เป็นรูปวงกลมเล็กบนแถบหัวเท่านั้น ไม่ใช้เป็นไอคอนแอป (ไอคอนเล็กมาก ดูไม่ออกว่าเป็นแอปบริษัท และข้อตกลงคือไอคอนเป็นโลโก้ Digital Focus)
 
+### 2.4.3 แสดงสวยทั้งมือถือและคอมพิวเตอร์ (Responsive)
+บนคอม แถบหัวกว้างเต็มจอ เนื้อหาเป็นคอลัมน์กว้างไม่เกิน 720 อยู่กลางจอแบบหน้าเว็บ บนมือถือเต็มจอเหมือนเดิม
+
+1. **Settings** → **Display** → **Scale to fit** = Off (Lock aspect ratio จะปิดตามเอง) · Lock orientation = Off
+2. **App → Formulas** เพิ่มต่อท้าย
+   ```powerfx
+   colW = Min(App.Width, 720);          // ความกว้างคอลัมน์เนื้อหา
+   colX = (App.Width - colW) / 2;       // ระยะจากขอบซ้ายให้อยู่กลางจอ
+   halfW = (colW - 50) / 2;             // ปุ่มครึ่งแถว
+   ```
+3. ตั้ง X และ Width ใหม่ (Y และ Height เดิมใช้ได้)
+
+| หน้าจอ | Control | X | Width |
+|---|---|---|---|
+| ทั้งสอง | `recTop` `recTopLine` `recHeader` `recHeaderLine` | `0` | `Parent.Width` |
+| scrTickets | `imgLogo` | `colX + 16` | (เดิม) |
+| | `imgCEO` | `colX + colW - 76` | (เดิม) |
+| | `lblHeader` `galTickets` | `colX` | `colW` |
+| | `btnRefresh` | `colX + 20` | `colW - 40` |
+| scrDetail | `icoBack` | `colX + 10` | (เดิม) |
+| | `lblDTitle` | `colX + 60` | `colW - 80` |
+| | `lblDDue` `lblDDetails` `txtComment` `lblCommentHelp` `btnComment` `attFiles` | `colX + 20` | `colW - 40` |
+| | `btnAck` `btnWait` `btnPhotos` | `colX + 20` | `halfW` |
+| | `btnStart` `btnDone` `btnUpload` | `colX + 30 + halfW` | `halfW` |
+| | `galHistory` | `colX` | `colW` |
+
+ตัวใน Gallery (`lblTitle` `lblMeta` `lblStatus` `lblHist` `recHistLine`) อ้าง `Parent.TemplateWidth` อยู่แล้ว ไม่ต้องแก้
+ทดสอบ: แถบล่างของ Studio เปลี่ยนขนาดจอ (ไอคอนมือถือ / แท็บเล็ต / คอม) ทุกขนาดต้องไม่มีปุ่มล้นหรือซ้อน
+
 ### 2.5 บันทึก เผยแพร่ และแชร์
 1. **Save** → **Publish**
 2. **Share** → เพิ่มพนักงานกลุ่มทดลองก่อน (PM, การตลาด, Presales, Sales, คุณ Suchada) แบบ **User** (ไม่ใช่ Co-owner ยกเว้นคุณ Suchada)
