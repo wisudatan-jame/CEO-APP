@@ -100,13 +100,17 @@
    | MaxAttachmentSize | `10` (MB · Microsoft แนะนำไม่เกิน 10 ไฟล์ใหญ่กว่านั้นให้ส่งลิงก์ OneDrive ในความเห็น) |
    | AddAttachmentText | `"📎 เลือกไฟล์ (Excel, PDF, Word, รูป · สูงสุด 5 ไฟล์ ไฟล์ละ 10 MB)"` |
    | NoAttachmentsText | `""` |
-   | X · Y · Width · Height | `20` · `btnComment.Y + 60` · `Parent.Width - 40` · `100` |
+   | X · Y · Width · Height | `20` · `btnComment.Y + 60` · `Parent.Width - 40` · `160` |
+   | Color · Size | `clrText` · `14` |
    ถ้ามี ❌ ที่ Property อื่นที่อ้าง `Parent.Default` หรือ `ThisItem` ให้ลบสูตรนั้นออก
+7. คลิกขวา `attFiles` → **Reorder** → **Bring to front** (กันกรอบหรือพื้นหลังอื่นบังลิงก์)
+
+> **ไม่เห็นลิงก์ "📎 เลือกไฟล์"** ลิงก์อยู่**ใต้**รายการไฟล์ในกล่อง ถ้ากล่องเตี้ยจะถูกดันออกนอกกรอบ (เห็นแค่กล่องว่างมีแถบเลื่อน) ให้เพิ่ม Height เป็น `160` ขึ้นไป ถ้ายังไม่เห็น ลองตั้ง DisplayMode เป็น `DisplayMode.Edit` ชั่วคราว (ถ้าเห็นแปลว่า `varTicket.IsOpen` ไม่เป็น true) และทดสอบใน **Preview (F5)** เพราะในหน้าแก้ไขต้องกด **Alt** ค้างแล้วคลิกลิงก์
 
 ### 2.3 ปุ่มส่งไฟล์และดูไฟล์
 | Control | ชื่อ | Property |
 |---|---|---|
-| Button | `btnUpload` | Text `"ส่งไฟล์"` · X `330` · Y `attFiles.Y + 110` · Width `290` · Height `50` · สไตล์เดียวกับปุ่มสถานะ (แดง) |
+| Button | `btnUpload` | Text `"ส่งไฟล์"` · X `330` · Y `attFiles.Y + attFiles.Height + 10` · Width `290` · Height `50` · สไตล์เดียวกับปุ่มสถานะ (แดง) |
 | | | DisplayMode `If(varBusy \|\| IsEmpty(attFiles.Attachments) \|\| !varTicket.IsOpen, DisplayMode.Disabled, DisplayMode.Edit)` |
 | `btnPhotos` (เดิม) | | Text `"📂 ดูไฟล์แนบ"` · X `20` · Y `btnUpload.Y` · Width `290` · Height `50` · Visible `varTicket.HasFiles` |
 | | | OnSelect `Launch("https://digitalfocusth.sharepoint.com/sites/CEO-Tickets/TicketFiles/Forms/AllItems.aspx?id=" & EncodeUrl("/sites/CEO-Tickets/TicketFiles/T-" & varTicket.ID))` |
