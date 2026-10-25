@@ -215,15 +215,15 @@ Set(varTicket, LookUp(Tickets, ID = varTicket.ID))
 
 `btnWait` ควรบังคับให้พิมพ์คำถาม: ตั้ง DisplayMode เป็น `If(varBusy || IsBlank(Trim(txtComment.Text)), DisplayMode.Disabled, DisplayMode.Edit)`
 
-### 2.4.0 ปุ่มสถานะ: แดงทั้งหมด กดแล้วทึบ ไม่บังคับลำดับ
+### 2.4.0 ปุ่มสถานะ: แดงทั้งหมด กดแล้วเป็นพื้นขาวมี ✓ ไม่บังคับลำดับ
 ทุกปุ่มแสดงตลอด (**Visible** = `true`) สไตล์เดียวกันทั้ง 5 ปุ่ม
-- **กดได้:** ขอบแดง พื้นขาว ตัวอักษรแดง
-- **กดแล้ว:** พื้นแดงทึบ ตัวอักษรขาว มี ✓ กดซ้ำไม่ได้
-- **กดไม่ได้ตอนนี้** (เช่น ยังไม่พิมพ์ข้อความ หรืองานปิดแล้ว): ขอบและตัวอักษรแดงจาง
+- **กดได้:** พื้นแดงทึบ ตัวอักษรขาว
+- **กดแล้ว:** พื้นขาว ขอบและตัวอักษรแดง มี ✓ กดซ้ำไม่ได้
+- **กดไม่ได้ตอนนี้** (เช่น ยังไม่พิมพ์ข้อความ หรืองานปิดแล้ว): พื้นแดงจาง ตัวอักษรขาว
 
 ไม่บังคับลำดับ กด "ทำเสร็จแล้ว" ได้เลยโดยไม่ต้องรับทราบก่อน ขั้นที่ข้ามไปจะขึ้นทึบเอง (ถือว่าผ่านแล้ว) · "ส่งความเห็น" กดได้ไม่จำกัดจนกว่างานปิด · "ถาม CEO" กดได้อีกหลัง CEO ตอบ (งานกลับเป็น "กำลังทำ")
 
-**ทุกปุ่ม (เลือกพร้อมกันแล้วตั้งครั้งเดียว):** Visible `true` · Fill `Color.White` · Color `clrAccent` · BorderColor `clrAccent` · BorderThickness `2` · HoverFill `ColorFade(clrAccent, 90%)` · PressedFill `ColorFade(clrAccent, 80%)`
+**ทุกปุ่ม (เลือกพร้อมกันแล้วตั้งครั้งเดียว):** Visible `true` · Fill `clrAccent` · Color `Color.White` · BorderColor `clrAccent` · BorderThickness `2` · HoverFill `ColorFade(clrAccent, -15%)` · PressedFill `ColorFade(clrAccent, -25%)`
 
 | ปุ่ม | Text | DisplayMode | สถานะ "กดแล้ว" (ใช้ในสูตรสี) |
 |---|---|---|---|
@@ -234,9 +234,9 @@ Set(varTicket, LookUp(Tickets, ID = varTicket.ID))
 | `btnComment` | `"ส่งความเห็น"` | `If(varBusy \|\| IsBlank(Trim(txtComment.Text)) \|\| varTicket.Status.Value = "Closed", DisplayMode.Disabled, DisplayMode.Edit)` | `false` (กดได้หลายครั้ง ไม่ทึบ) |
 
 **สูตรสีเมื่อกดไม่ได้** ใส่ทุกปุ่ม โดยแทน `<กดแล้ว>` ด้วยค่าคอลัมน์ขวาสุดของปุ่มนั้น
-- DisabledFill: `If(<กดแล้ว>, clrAccent, Color.White)`
-- DisabledColor: `If(<กดแล้ว>, Color.White, ColorFade(clrAccent, 50%))`
-- DisabledBorderColor: `If(<กดแล้ว>, clrAccent, ColorFade(clrAccent, 50%))`
+- DisabledFill: `If(<กดแล้ว>, Color.White, ColorFade(clrAccent, 60%))`
+- DisabledColor: `If(<กดแล้ว>, clrAccent, Color.White)`
+- DisabledBorderColor: `If(<กดแล้ว>, clrAccent, ColorFade(clrAccent, 60%))`
 
 `galHistory` Y = `btnComment.Y + 70` · ต้องแก้ Flow `UpdateTicket` ให้รับลำดับอิสระด้วย (Transitions ข้อ e และ AckedAt ข้อ h ด้านบน)
 
