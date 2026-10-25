@@ -107,6 +107,34 @@
 
 > **ไม่เห็นลิงก์ "📎 เลือกไฟล์"** ลิงก์อยู่**ใต้**รายการไฟล์ในกล่อง ถ้ากล่องเตี้ยจะถูกดันออกนอกกรอบ (เห็นแค่กล่องว่างมีแถบเลื่อน) ให้เพิ่ม Height เป็น `160` ขึ้นไป ถ้ายังไม่เห็น ลองตั้ง DisplayMode เป็น `DisplayMode.Edit` ชั่วคราว (ถ้าเห็นแปลว่า `varTicket.IsOpen` ไม่เป็น true) และทดสอบใน **Preview (F5)** เพราะในหน้าแก้ไขต้องกด **Alt** ค้างแล้วคลิกลิงก์
 
+### 2.2.1 แสดงชื่อไฟล์ที่ส่งแล้ว (อยู่บนช่องเลือกไฟล์)
+ช่องแนบไฟล์แสดงเฉพาะไฟล์ที่รอส่ง (ส่งแล้วจะว่าง) จึงเพิ่มกรอบรายชื่อไฟล์ที่ส่งแล้วไว้ด้านบน ดึงจากประวัติ `📎 แนบไฟล์:` ที่ Flow เขียนไว้
+1. Insert → **Text label** ชื่อ `lblSentFiles`
+
+| Property | ค่า |
+|---|---|
+| Text | สูตรด้านล่าง |
+| Visible | `CountRows(Filter(galHistory.AllItems, StartsWith(Comment, "📎 แนบไฟล์"))) > 0` |
+| X · Width | เหมือน `attFiles` |
+| Y | `btnComment.Y + 60` |
+| AutoHeight | `true` |
+| Size · Color · Fill | `13` · `clrText` · `Color.White` |
+| BorderColor · BorderThickness | `clrLine` · `1` |
+| PaddingLeft/Right/Top/Bottom | `12` |
+
+Text:
+```powerfx
+"✅ ไฟล์ที่ส่งแล้ว" & Char(10) &
+Concat(
+    Filter(galHistory.AllItems, StartsWith(Comment, "📎 แนบไฟล์")),
+    "• " & Mid(Comment, Find(": ", Comment) + 18) & "  (" & Text(Created, "d mmm hh:mm", "th-TH") & ")",
+    Char(10))
+```
+(`+ 18` ข้ามเครื่องหมาย `: ` และวันเวลา `yyyyMMdd-HHmmss-` ที่ Flow ใส่หน้าชื่อไฟล์ จึงเหลือชื่อไฟล์เดิม)
+
+2. แก้ `attFiles` → **Y** = `If(lblSentFiles.Visible, lblSentFiles.Y + lblSentFiles.Height, btnComment.Y + 60)`
+3. ทดสอบ: งานที่ยังไม่เคยส่งไฟล์ ไม่มีกรอบนี้ · ส่งไฟล์แล้วชื่อไฟล์ขึ้นทันที (ปุ่มส่งไฟล์ Refresh ประวัติให้แล้ว) · เปิดไฟล์ได้จากปุ่ม **📂 ดูไฟล์แนบ**
+
 ### 2.3 ปุ่มส่งไฟล์และดูไฟล์
 | Control | ชื่อ | Property |
 |---|---|---|
