@@ -143,7 +143,7 @@ SortByColumns(
 | 2 | `lblCDStatus` | Label | ป้ายสถานะ (สูตรด้านล่าง) · Bold · Color `If(varTicket.Status.Value = "Done", clrSuccess, clrPrimary)` | `40` |
 | 3 | `conCDInfo` | การ์ด | `lblCDInfo` (AutoHeight) · `lblCDExtra` (เหมือน `lblDExtra` ในคู่มือ ค ข้อ 2.4.4 · AutoHeight) | `lblCDInfo.Height + If(lblCDExtra.Visible, lblCDExtra.Height + 10, 0) + 28` |
 | 4 | `conCDFiles` | การ์ด | `lblCDFiles` (เหมือน `lblSentFiles` ในคู่มือ ฉ ข้อ 2.2.1 แต่อ้าง `galCDHistory.AllItems` · Text บรรทัดแรก `"ไฟล์งาน"` · Visible `true`) · ปุ่ม `btnCDFolder` "เปิดโฟลเดอร์" (OnSelect เดียวกับ `btnPhotos`, Height `56`) | `lblCDFiles.Height + 10 + 56 + 28` |
-| 5 | `conCDHist` | การ์ด | Label `"ความเคลื่อนไหวล่าสุด"` (Height `36`) · `galCDHistory` (Items เหมือน `galHistory` · TemplateSize `52` · Height `Min(CountRows(galCDHistory.AllItems), 4) * 52`) | `36 + 10 + galCDHistory.Height + 28` |
+| 5 | `conCDHist` | การ์ด | Label `"ความเคลื่อนไหวล่าสุด"` (Height `36`) · `galCDHistory` (Items `SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)` · TemplateSize `52` · Height `Min(CountRows(galCDHistory.AllItems), 4) * 52`) | `36 + 10 + galCDHistory.Height + 28` |
 | 6 | `conCDAction` | การ์ด | `txtCeo` (Height `70`) · `conCDDue` (Horizontal · Visible `varPickDue` · Height `64`: `dpCDue` + ปุ่ม `btnCDueOK` "ยืนยันวันส่ง") · `conCDBig` (Horizontal · Height `76`: `btnCPass` + `btnCReject`) · `conCDSmall` (Horizontal · Height `64`: `btnCReply` + `btnCFollow` + `btnCDue`) | `70 + If(varPickDue, 64 + 10, 0) + 76 + 64 + 2 * 10 + 28` |
 
    `lblCDStatus` Text:
@@ -162,7 +162,7 @@ SortByColumns(
    - ปุ่มใหญ่ (Size `16` Bold Radius `16`): `btnCPass` "ผ่าน ปิดงาน" Fill `clrSuccess` Color ขาว · `btnCReject` "ไม่ผ่าน ส่งกลับ" Fill ขาว Color/BorderColor `clrAccent` BorderThickness `3` · DisplayMode ทั้งคู่ `If(varTicket.Status.Value = "Done", DisplayMode.Edit, DisplayMode.Disabled)` · DisabledFill `Color.White` · DisabledColor `ColorFade(clrMuted, 40%)`
    - ปุ่มเล็ก (Fill ขาว · BorderColor `clrLine` · Color `clrPrimary` · Size `14` Radius `14`): `btnCReply` "ตอบ" (DisplayMode `If(varTicket.IsOpen && !IsBlank(Trim(txtCeo.Text)), DisplayMode.Edit, DisplayMode.Disabled)`) · `btnCFollow` "ติดตาม" · `btnCDue` "เลื่อนวันส่ง" OnSelect `Set(varPickDue, !varPickDue)` (สองปุ่มหลัง DisplayMode `If(varTicket.IsOpen, DisplayMode.Edit, DisplayMode.Disabled)`)
    - `dpCDue` · DefaultDate `varTicket.DueDate` · Format `"dd/mm/yyyy"` · `btnCDueOK` OnSelect = สูตร **btnCDue** ด้านล่าง ต่อท้ายด้วย `; Set(varPickDue, false)`
-   - **scrCeoDetail → OnVisible** `Set(varPickDue, false)`
+   - **scrCeoDetail → OnVisible** `Set(varPickDue, false); Refresh(TicketHistory)`
    - ไม่มีปุ่ม "สั่งเพิ่ม" ในหน้านี้ตามภาพ (CEO สั่งเพิ่มผ่าน LINE ด้วย "เพิ่มเติม ...") ถ้าต้องการ เพิ่มเป็นปุ่มเล็กปุ่มที่ 4 ใน `conCDSmall` แล้วใช้สูตร **btnCExtra** ด้านล่าง
 4. **App → Formulas** เพิ่ม (ค่าคงที่ของประวัติที่ CEO เขียน)
    ```powerfx

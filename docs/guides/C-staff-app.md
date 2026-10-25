@@ -195,7 +195,7 @@ or(not(equals(outputs('Current'), outputs('In_expected'))), empty(outputs('NewSt
 | Button | `btnWait` | Text / Visible | `"ถาม CEO"` / `varTicket.Status.Value in ["New", "Acknowledged", "InProgress"]` |
 | Button | `btnDone` | Text / Visible | `"ทำเสร็จแล้ว"` / `varTicket.Status.Value = "InProgress"` |
 | Button | `btnComment` | Text / Visible | `"ส่งความเห็น"` / `!IsBlank(Trim(txtComment.Text))` |
-| Vertical gallery | `galHistory` | Items | `SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "Created", SortOrder.Descending)` |
+| Vertical gallery | `galHistory` | Items | `SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)` (เรียงตามเลขรายการ ใหม่สุดอยู่บนสุดเสมอ แม้หลายรายการเกิดในนาทีเดียวกัน) |
 | Label (ในแกลเลอรี) | | Text | `Text(ThisItem.Created, "d mmm hh:mm", "th-TH") & " · " & ThisItem.Action.Value & If(IsBlank(ThisItem.Comment), "", ": " & ThisItem.Comment)` |
 
 **OnSelect ของปุ่มสถานะ** ใช้รูปแบบเดียวกัน เปลี่ยนแค่คำใน `"ack"`:
@@ -425,6 +425,7 @@ bodyY = 94;                      // ใต้หัวแอปและเส�
 - ทุก Control ในกล่อง: **Align in container** = Stretch · **Flexible height** = Off (ใช้ Height ของตัวเอง)
 - **สไตล์การ์ด** (ใช้กับทุกกล่องที่เขียนว่า "การ์ด"): Fill `Color.White` · BorderColor `clrLine` · BorderThickness `2` · RadiusTopLeft/TopRight/BottomLeft/BottomRight `20` · PaddingTop/Bottom `14` · PaddingLeft/Right `18` · Gap `10`
 
+0. **scrDetail → OnVisible** ต่อท้าย `; Refresh(TicketHistory)` (เข้าหน้าแล้วเห็นความเคลื่อนไหวล่าสุดเสมอ)
 1. **Vertical container** `conDBody` · X `0` · Y `bodyY` · Width `Parent.Width` · Height `Parent.Height - bodyY - tabH` · Fill `clrBg` · PaddingLeft/Right `24` · PaddingTop/Bottom `14` · Gap `12` · **Vertical overflow** = Scroll
 2. ใส่ใน `conDBody` ตามลำดับนี้
 
