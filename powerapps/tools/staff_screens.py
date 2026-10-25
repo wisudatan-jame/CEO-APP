@@ -195,10 +195,11 @@ Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID",
         'Items': 'Blank()', 'MaxAttachments': 5, 'MaxAttachmentSize': 10, 'NoAttachmentsText': '""',
         'AddAttachmentText': '"เลือกไฟล์"',
         'DisplayMode': 'If(varTicket.IsOpen, DisplayMode.Edit, DisplayMode.Disabled)',
-        'Font': FONT, 'Size': 14, 'FontWeight': 'FontWeight.Bold', 'Color': 'clrPrimary', 'Fill': 'Color.White',
+        'Font': FONT, 'Size': 13, 'FontWeight': 'FontWeight.Bold', 'Color': 'clrPrimary', 'Fill': 'Color.White',
         'BorderColor': 'ColorValue("#8A94A6")', 'BorderThickness': 2, 'BorderStyle': 'BorderStyle.Dashed',
         # grows to list the chosen files; while empty the box is just the add link, centred by the left padding
-        'Height': 'If(IsEmpty(Self.Attachments), 56, 52 + CountRows(Self.Attachments) * 40)',
+        # the control keeps an empty "no files" line above the add link, so it needs about 80 to show both without a scrollbar
+        'Height': 'If(IsEmpty(Self.Attachments), 80, 60 + CountRows(Self.Attachments) * 40)',
         'ItemFill': 'clrBg', 'ItemColor': 'clrText', 'ItemHoverFill': 'clrLine', 'HoverFill': 'clrBg',
         # no top/bottom padding while empty: any padding left less room than the link needs and showed a scrollbar
         'PaddingTop': 'If(IsEmpty(Self.Attachments), 0, 6)', 'PaddingBottom': 'If(IsEmpty(Self.Attachments), 0, 6)', 'PaddingRight': 8,
@@ -224,7 +225,7 @@ Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID",
             file_list('galSentFiles', sent_rows, 'Mid(ThisItem.Comment, Find(": ", ThisItem.Comment) + 18)'),
             ('conDUpload', in_box(hbox([
                 ('attFiles', in_box(att, 1)),
-                ('btnUpload', in_box(button('"ส่งไฟล์"', upload, Height=56, Size=15, FontWeight='FontWeight.Bold', BorderThickness=0,
+                ('btnUpload', in_box(button('"ส่งไฟล์"', upload, Height='If(IsEmpty(attFiles.Attachments), attFiles.Height, 56)', Size=15, FontWeight='FontWeight.Bold', BorderThickness=0,
                                             DisplayMode='If(varBusy || IsEmpty(attFiles.Attachments) || !varTicket.IsOpen, DisplayMode.Disabled, DisplayMode.Edit)',
                                             DisabledFill='ColorFade(clrAccent, 60%)', DisabledColor='Color.White'), 1)),
             ], Height='attFiles.Height', LayoutGap=12))),
