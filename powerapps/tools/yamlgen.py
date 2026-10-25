@@ -83,6 +83,14 @@ def hbox(children, **p):
              'PaddingTop': 0, 'PaddingBottom': 0, 'PaddingLeft': 0, 'PaddingRight': 0,
              'LayoutGap': 12, 'DropShadow': 'DropShadow.None', 'Fill': 'Color.Transparent', 'BorderThickness': 0}
     props.update(p)
+    # A stretched item in a row came out taller than the row on paste (text pushed down and cut off),
+    # so row items sit at the top with their own height; items without one take the row's inner height.
+    inner = f"Parent.Height - {props['PaddingTop']} - {props['PaddingBottom']}"
+    for _, c in children:
+        cp = c['props']
+        if cp.get('AlignInContainer', 'AlignInContainer.Stretch') == 'AlignInContainer.Stretch':
+            cp['AlignInContainer'] = 'AlignInContainer.Start'
+            cp.setdefault('Height', inner)
     return {'type': 'GroupContainer@1.3.0', 'variant': 'AutoLayout', 'props': props, 'children': children}
 
 def card(children, height, **p):

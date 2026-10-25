@@ -23,7 +23,7 @@ Set(varDone30, Filter(varMine, !IsBlank(DoneAt), DoneAt >= DateAdd(Today(), -30,
     children = header('H') + [
         ('lblHello', label('"สวัสดีค่ะคุณ" & Coalesce(varMeEmp.Nickname, First(Split(User().FullName, " ")).Value)',
                            X=24, Y=108, Width='Parent.Width - 48', Height=46, Size=22, FontWeight='FontWeight.Bold', Color='clrPrimary')),
-        ('lblHelloSub', label('Text(Today(), "dddd d mmmm", "th-TH") & " · งานจาก CEO เปิดอยู่ " & CountRows(varOpen) & " งาน"',
+        ('lblHelloSub', label('"วัน" & Text(Today(), "dddd d mmmm", "th-TH") & " · งานจาก CEO เปิดอยู่ " & CountRows(varOpen) & " งาน"',
                               X=24, Y=154, Width='Parent.Width - 48', Height=32, Size=13, Color='clrMuted')),
     ] + kpi_card('KLate', '"เลยกำหนด"', 'CountRows(varLate)', '"รีบทำก่อน"', to_list, 24, 196, CARD_W, hot=True) \
       + kpi_card('KNew', '"ยังไม่รับทราบ"', 'CountRows(Filter(varOpen, Status.Value = "New"))', '"งานใหม่จาก CEO"', to_list, X2, 196, CARD_W) \

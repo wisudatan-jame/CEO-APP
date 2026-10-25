@@ -56,7 +56,7 @@ Screens:
       - lblCHelloSub:
           Control: Label@2.5.1
           Properties:
-            Text: =Text(Today(), "dddd d mmmm", "th-TH") & " · งานเปิดอยู่ " & CountRows(colAll) & " งาน"
+            Text: ="วัน" & Text(Today(), "dddd d mmmm", "th-TH") & " · งานเปิดอยู่ " & CountRows(colAll) & " งาน"
             Font: =Font.'Open Sans'
             Size: =13
             Color: =clrMuted
@@ -342,7 +342,7 @@ Screens:
             X: =24
             Y: =500
             Width: =Parent.Width - 48
-            Height: =Parent.Height - 96 - 12 - If(conCGroups.Visible, 150 + 12, 0) - Self.Y
+            Height: =Min(12 + 34 + 6 + Max(CountRows(galCPeople.AllItems), 1) * 76 + 8 + 4, Parent.Height - 96 - 12 - If(conCGroups.Visible, 150 + 12, 0) - Self.Y)
           Children:
             - conCPeopleHead:
                 Control: GroupContainer@1.3.0
@@ -372,7 +372,7 @@ Screens:
                         Height: =34
                         FontWeight: =FontWeight.Bold
                         FillPortions: =1
-                        AlignInContainer: =AlignInContainer.Stretch
+                        AlignInContainer: =AlignInContainer.Start
                         LayoutMinWidth: =0
                   - lblCPeopleCols:
                       Control: Label@2.5.1
@@ -385,7 +385,7 @@ Screens:
                         Height: =34
                         Align: =Align.Right
                         FillPortions: =0
-                        AlignInContainer: =AlignInContainer.Stretch
+                        AlignInContainer: =AlignInContainer.Start
                         LayoutMinWidth: =220
             - galCPeople:
                 Control: Gallery@2.15.0
@@ -531,7 +531,7 @@ Screens:
             RadiusBottomLeft: =20
             RadiusBottomRight: =20
             X: =24
-            Y: =Parent.Height - 96 - 12 - 150
+            Y: =conCPeople.Y + conCPeople.Height + 12
             Width: =Parent.Width - 48
             Height: =150
             Visible: =!IsEmpty(galCGroups.AllItems)

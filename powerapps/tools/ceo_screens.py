@@ -39,7 +39,7 @@ Set(varCLate, Filter(colAll, Status.Value <> "Done", DueDate < Today()))'''
     groups_h = 150
     children = header('CH') + [
         ('lblCHello', label('"สวัสดีค่ะคุณสมชาย"', X=24, Y=108, Width='Parent.Width - 48', Height=46, Size=22, FontWeight='FontWeight.Bold', Color='clrPrimary')),
-        ('lblCHelloSub', label('Text(Today(), "dddd d mmmm", "th-TH") & " · งานเปิดอยู่ " & CountRows(colAll) & " งาน"',
+        ('lblCHelloSub', label('"วัน" & Text(Today(), "dddd d mmmm", "th-TH") & " · งานเปิดอยู่ " & CountRows(colAll) & " งาน"',
                                X=24, Y=154, Width='Parent.Width - 48', Height=32, Size=13, Color='clrMuted')),
     ] + kpi_card('CLate', '"เลยกำหนด"', 'CountRows(varCLate)', '"รวม " & Sum(varCLate, DateDiff(DueDate, Today())) & " วัน"',
                  goto('late'), 24, 196, CARD_W, hot=True) \
@@ -67,7 +67,8 @@ Set(varCLate, Filter(colAll, Status.Value <> "Done", DueDate < Today()))'''
                                  Size=12, Color='clrMuted')),
                 ('recCPLine', rect(X=0, Y='Parent.TemplateHeight - 1', Width='Parent.TemplateWidth', Height=1, Fill='clrLine', OnSelect=sel)),
             ], TemplateSize=76, OnSelect='Set(varFilter, "person"); Set(varPerson, ThisItem.AssigneeEmail); Navigate(scrCeoTickets)'))),
-        ], 24, 500, 'Parent.Width - 48', f'{CONTENT_END} - If(conCGroups.Visible, {groups_h} + 12, 0) - Self.Y')),
+        ], 24, 500, 'Parent.Width - 48',
+           f'Min(12 + 34 + 6 + Max(CountRows(galCPeople.AllItems), 1) * 76 + 8 + 4, {CONTENT_END} - If(conCGroups.Visible, {groups_h} + 12, 0) - Self.Y)')),
         ('conCGroups', panel([
             ('lblCGroupsHead', in_box(label('"งานที่สั่งหลายคน"', Height=30, Size=15, FontWeight='FontWeight.Bold'))),
             ('galCGroups', list_in(gallery(groups, [
@@ -75,7 +76,7 @@ Set(varCLate, Filter(colAll, Status.Value <> "Done", DueDate < Today()))'''
                                     X=0, Y=0, Width='Parent.TemplateWidth', Height='Parent.TemplateHeight - 1', Size=13, OnSelect=sel)),
                 ('recCGLine', rect(X=0, Y='Parent.TemplateHeight - 1', Width='Parent.TemplateWidth', Height=1, Fill='clrLine', OnSelect=sel)),
             ], TemplateSize=70, OnSelect='Set(varFilter, "group"); Set(varGroup, ThisItem.GroupID); Navigate(scrCeoTickets)'))),
-        ], 24, f'{CONTENT_END} - {groups_h}', 'Parent.Width - 48', groups_h, Visible='!IsEmpty(galCGroups.AllItems)')),
+        ], 24, 'conCPeople.Y + conCPeople.Height + 12', 'Parent.Width - 48', groups_h, Visible='!IsEmpty(galCGroups.AllItems)')),
     ] + tabs('CH', CEO_TABS, 'Home')
     return screen('scrCeoHome', {'Fill': 'clrBg', 'OnVisible': on_visible}, children)
 

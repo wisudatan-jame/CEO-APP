@@ -57,7 +57,7 @@ Screens:
       - lblHelloSub:
           Control: Label@2.5.1
           Properties:
-            Text: =Text(Today(), "dddd d mmmm", "th-TH") & " · งานจาก CEO เปิดอยู่ " & CountRows(varOpen) & " งาน"
+            Text: ="วัน" & Text(Today(), "dddd d mmmm", "th-TH") & " · งานจาก CEO เปิดอยู่ " & CountRows(varOpen) & " งาน"
             Font: =Font.'Open Sans'
             Size: =13
             Color: =clrMuted
@@ -495,8 +495,9 @@ Screens:
                         Fill: =Color.Transparent
                         BorderThickness: =0
                         FillPortions: =1
-                        AlignInContainer: =AlignInContainer.Stretch
+                        AlignInContainer: =AlignInContainer.Start
                         LayoutMinWidth: =0
+                        Height: =Parent.Height - 0 - 0
                       Children:
                         - lblSGotN:
                             Control: Label@2.5.1
@@ -536,8 +537,9 @@ Screens:
                         Fill: =Color.Transparent
                         BorderThickness: =0
                         FillPortions: =1
-                        AlignInContainer: =AlignInContainer.Stretch
+                        AlignInContainer: =AlignInContainer.Start
                         LayoutMinWidth: =0
+                        Height: =Parent.Height - 0 - 0
                       Children:
                         - lblSOnTimeN:
                             Control: Label@2.5.1
@@ -577,8 +579,9 @@ Screens:
                         Fill: =Color.Transparent
                         BorderThickness: =0
                         FillPortions: =1
-                        AlignInContainer: =AlignInContainer.Stretch
+                        AlignInContainer: =AlignInContainer.Start
                         LayoutMinWidth: =0
+                        Height: =Parent.Height - 0 - 0
                       Children:
                         - lblSAvgN:
                             Control: Label@2.5.1
