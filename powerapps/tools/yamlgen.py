@@ -73,12 +73,14 @@ def gallery(items, children, **p):
 
 def vbox(children, **p):
     props = {'LayoutDirection': 'LayoutDirection.Vertical', 'LayoutAlignItems': 'LayoutAlignItems.Stretch',
+             'PaddingTop': 0, 'PaddingBottom': 0, 'PaddingLeft': 0, 'PaddingRight': 0,
              'LayoutGap': 10, 'DropShadow': 'DropShadow.None', 'Fill': 'Color.Transparent', 'BorderThickness': 0}
     props.update(p)
     return {'type': 'GroupContainer@1.3.0', 'variant': 'AutoLayout', 'props': props, 'children': children}
 
 def hbox(children, **p):
     props = {'LayoutDirection': 'LayoutDirection.Horizontal', 'LayoutAlignItems': 'LayoutAlignItems.Stretch',
+             'PaddingTop': 0, 'PaddingBottom': 0, 'PaddingLeft': 0, 'PaddingRight': 0,
              'LayoutGap': 12, 'DropShadow': 'DropShadow.None', 'Fill': 'Color.Transparent', 'BorderThickness': 0}
     props.update(p)
     return {'type': 'GroupContainer@1.3.0', 'variant': 'AutoLayout', 'props': props, 'children': children}
@@ -116,10 +118,11 @@ def kpi_card(key, title, num, sub, onselect, x, y, w, hot=False, title_c='clrPri
     ]
 
 def back_button(target):
-    return in_box(button('"‹"', f'Navigate({target})', Width=60, Height=60, Size=26, FontWeight='FontWeight.Bold',
+    return in_box(button('"‹"', f'Navigate({target})', Width=56, Height=56, Size=26, FontWeight='FontWeight.Bold',
                          Fill='Color.White', Color='clrPrimary', BorderColor='clrPrimary', BorderThickness=2,
                          PaddingTop=0, PaddingBottom=6, PaddingLeft=0, PaddingRight=0,
-                         RadiusTopLeft=30, RadiusTopRight=30, RadiusBottomLeft=30, RadiusBottomRight=30), 0, LayoutMinWidth=60)
+                         RadiusTopLeft=28, RadiusTopRight=28, RadiusBottomLeft=28, RadiusBottomRight=28),
+                  0, LayoutMinWidth=56, AlignInContainer='AlignInContainer.Center')
 
 def in_box(c, fill=0, **p):
     """Placement inside an auto-layout box: fixed size unless fill > 0."""

@@ -46,6 +46,10 @@ Screens:
           Properties:
             LayoutDirection: =LayoutDirection.Vertical
             LayoutAlignItems: =LayoutAlignItems.Stretch
+            PaddingTop: =12
+            PaddingBottom: =16
+            PaddingLeft: =20
+            PaddingRight: =20
             LayoutGap: =12
             DropShadow: =DropShadow.None
             Fill: =clrBg
@@ -54,10 +58,6 @@ Screens:
             Y: =94
             Width: =Parent.Width
             Height: =Parent.Height - 94 - 96
-            PaddingTop: =12
-            PaddingBottom: =16
-            PaddingLeft: =20
-            PaddingRight: =20
             LayoutOverflowY: =LayoutOverflow.Scroll
           Children:
             - conCDTitle:
@@ -66,6 +66,10 @@ Screens:
                 Properties:
                   LayoutDirection: =LayoutDirection.Horizontal
                   LayoutAlignItems: =LayoutAlignItems.Center
+                  PaddingTop: =0
+                  PaddingBottom: =0
+                  PaddingLeft: =0
+                  PaddingRight: =0
                   LayoutGap: =14
                   DropShadow: =DropShadow.None
                   Fill: =Color.Transparent
@@ -86,25 +90,25 @@ Screens:
                         Color: =clrPrimary
                         BorderColor: =clrPrimary
                         BorderThickness: =2
-                        RadiusTopLeft: =30
-                        RadiusTopRight: =30
-                        RadiusBottomLeft: =30
-                        RadiusBottomRight: =30
+                        RadiusTopLeft: =28
+                        RadiusTopRight: =28
+                        RadiusBottomLeft: =28
+                        RadiusBottomRight: =28
                         HoverFill: =ColorFade(Self.Fill, -10%)
                         HoverColor: =Self.Color
                         HoverBorderColor: =Self.BorderColor
                         PressedFill: =ColorFade(Self.Fill, -20%)
                         PressedColor: =Self.Color
                         PressedBorderColor: =Self.BorderColor
-                        Width: =60
-                        Height: =60
+                        Width: =56
+                        Height: =56
                         PaddingTop: =0
                         PaddingBottom: =6
                         PaddingLeft: =0
                         PaddingRight: =0
                         FillPortions: =0
-                        AlignInContainer: =AlignInContainer.Stretch
-                        LayoutMinWidth: =60
+                        AlignInContainer: =AlignInContainer.Center
+                        LayoutMinWidth: =56
                   - lblCDTitle:
                       Control: Label@2.5.1
                       Properties:
@@ -115,7 +119,7 @@ Screens:
                         FontWeight: =FontWeight.Bold
                         Height: =60
                         FillPortions: =1
-                        AlignInContainer: =AlignInContainer.Stretch
+                        AlignInContainer: =AlignInContainer.Center
                         LayoutMinWidth: =0
             - conCDStatus:
                 Control: GroupContainer@1.3.0
@@ -123,6 +127,10 @@ Screens:
                 Properties:
                   LayoutDirection: =LayoutDirection.Horizontal
                   LayoutAlignItems: =LayoutAlignItems.Center
+                  PaddingTop: =0
+                  PaddingBottom: =0
+                  PaddingLeft: =0
+                  PaddingRight: =0
                   LayoutGap: =12
                   DropShadow: =DropShadow.None
                   Fill: =Color.Transparent
@@ -155,7 +163,7 @@ Screens:
                         PressedBorderColor: =Self.BorderColor
                         PaddingLeft: =8
                         PaddingRight: =8
-                        Width: =Len(Self.Text) * 13 + 44
+                        Width: =Len(Self.Text) * 11 + 40
                         Height: =40
                         FillPortions: =0
                         AlignInContainer: =AlignInContainer.Center
@@ -176,6 +184,10 @@ Screens:
                 Properties:
                   LayoutDirection: =LayoutDirection.Vertical
                   LayoutAlignItems: =LayoutAlignItems.Stretch
+                  PaddingTop: =14
+                  PaddingBottom: =14
+                  PaddingLeft: =18
+                  PaddingRight: =18
                   LayoutGap: =6
                   DropShadow: =DropShadow.None
                   Fill: =Color.White
@@ -185,10 +197,6 @@ Screens:
                   RadiusTopRight: =20
                   RadiusBottomLeft: =20
                   RadiusBottomRight: =20
-                  PaddingTop: =14
-                  PaddingBottom: =14
-                  PaddingLeft: =18
-                  PaddingRight: =18
                   FillPortions: =0
                   AlignInContainer: =AlignInContainer.Stretch
                   Height: =conCDWho.Height + 6 + conCDWhen.Height + If(conCDDetails.Visible, 6 + conCDDetails.Height, 0) + If(conCDExtra.Visible, 6 + conCDExtra.Height, 0) + 28 + 4
@@ -199,6 +207,10 @@ Screens:
                       Properties:
                         LayoutDirection: =LayoutDirection.Horizontal
                         LayoutAlignItems: =LayoutAlignItems.Start
+                        PaddingTop: =0
+                        PaddingBottom: =0
+                        PaddingLeft: =0
+                        PaddingRight: =0
                         LayoutGap: =8
                         DropShadow: =DropShadow.None
                         Fill: =Color.Transparent
@@ -224,7 +236,7 @@ Screens:
                             Control: Label@2.5.1
                             Properties:
                               Text: |-
-                                =Coalesce(LookUp(colEmp, Lower(Email) = varTicket.AssigneeEmail).Nickname, varTicket.AssigneeEmail) & With({d: LookUp(colEmp, Lower(Email) = varTicket.AssigneeEmail).Department}, If(IsBlank(d), "", " (" & d & ")"))
+                                =Coalesce(LookUp(colEmp, Lower(Email) = varTicket.AssigneeEmail).Nickname, First(Split(varTicket.AssigneeEmail, "@")).Value) & With({d: LookUp(colEmp, Lower(Email) = varTicket.AssigneeEmail).Department}, If(IsBlank(d), "", " (" & d & ")"))
                               Font: =Font.'Open Sans'
                               Size: =13
                               Color: =clrText
@@ -239,6 +251,10 @@ Screens:
                       Properties:
                         LayoutDirection: =LayoutDirection.Horizontal
                         LayoutAlignItems: =LayoutAlignItems.Start
+                        PaddingTop: =0
+                        PaddingBottom: =0
+                        PaddingLeft: =0
+                        PaddingRight: =0
                         LayoutGap: =8
                         DropShadow: =DropShadow.None
                         Fill: =Color.Transparent
@@ -278,6 +294,10 @@ Screens:
                       Properties:
                         LayoutDirection: =LayoutDirection.Horizontal
                         LayoutAlignItems: =LayoutAlignItems.Start
+                        PaddingTop: =0
+                        PaddingBottom: =0
+                        PaddingLeft: =0
+                        PaddingRight: =0
                         LayoutGap: =8
                         DropShadow: =DropShadow.None
                         Fill: =Color.Transparent
@@ -318,6 +338,10 @@ Screens:
                       Properties:
                         LayoutDirection: =LayoutDirection.Horizontal
                         LayoutAlignItems: =LayoutAlignItems.Start
+                        PaddingTop: =8
+                        PaddingBottom: =8
+                        PaddingLeft: =10
+                        PaddingRight: =10
                         LayoutGap: =8
                         DropShadow: =DropShadow.None
                         Fill: =ColorFade(clrAccent, 92%)
@@ -328,10 +352,6 @@ Screens:
                         RadiusTopRight: =10
                         RadiusBottomLeft: =10
                         RadiusBottomRight: =10
-                        PaddingTop: =8
-                        PaddingBottom: =8
-                        PaddingLeft: =10
-                        PaddingRight: =10
                         Visible: =!IsBlank(varTicket.CEOExtra)
                         FillPortions: =0
                         AlignInContainer: =AlignInContainer.Stretch
@@ -367,6 +387,10 @@ Screens:
                 Properties:
                   LayoutDirection: =LayoutDirection.Vertical
                   LayoutAlignItems: =LayoutAlignItems.Stretch
+                  PaddingTop: =14
+                  PaddingBottom: =14
+                  PaddingLeft: =18
+                  PaddingRight: =18
                   LayoutGap: =8
                   DropShadow: =DropShadow.None
                   Fill: =Color.White
@@ -376,10 +400,6 @@ Screens:
                   RadiusTopRight: =20
                   RadiusBottomLeft: =20
                   RadiusBottomRight: =20
-                  PaddingTop: =14
-                  PaddingBottom: =14
-                  PaddingLeft: =18
-                  PaddingRight: =18
                   FillPortions: =0
                   AlignInContainer: =AlignInContainer.Stretch
                   Height: =conCDFileHead.Height + 8 + lblCDFiles.Height + 28 + 4
@@ -390,6 +410,10 @@ Screens:
                       Properties:
                         LayoutDirection: =LayoutDirection.Horizontal
                         LayoutAlignItems: =LayoutAlignItems.Stretch
+                        PaddingTop: =0
+                        PaddingBottom: =0
+                        PaddingLeft: =0
+                        PaddingRight: =0
                         LayoutGap: =12
                         DropShadow: =DropShadow.None
                         Fill: =Color.Transparent
@@ -462,6 +486,10 @@ Screens:
                 Properties:
                   LayoutDirection: =LayoutDirection.Vertical
                   LayoutAlignItems: =LayoutAlignItems.Stretch
+                  PaddingTop: =14
+                  PaddingBottom: =14
+                  PaddingLeft: =18
+                  PaddingRight: =18
                   LayoutGap: =10
                   DropShadow: =DropShadow.None
                   Fill: =Color.White
@@ -471,13 +499,9 @@ Screens:
                   RadiusTopRight: =20
                   RadiusBottomLeft: =20
                   RadiusBottomRight: =20
-                  PaddingTop: =14
-                  PaddingBottom: =14
-                  PaddingLeft: =18
-                  PaddingRight: =18
                   FillPortions: =0
                   AlignInContainer: =AlignInContainer.Stretch
-                  Height: =34 + 10 + 224 + 28 + 4
+                  Height: =34 + 10 + galCDHistory.Height + 28 + 4
                 Children:
                   - lblCDHistHead:
                       Control: Label@2.5.1
@@ -497,7 +521,7 @@ Screens:
                         Items: =SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)
                         TemplateSize: =56
                         Fill: =Color.Transparent
-                        Height: =224
+                        Height: =Min(Max(CountRows(Self.AllItems), 1), 5) * Self.TemplateHeight
                         FillPortions: =0
                         AlignInContainer: =AlignInContainer.Stretch
                       Children:
@@ -545,6 +569,10 @@ Screens:
                 Properties:
                   LayoutDirection: =LayoutDirection.Vertical
                   LayoutAlignItems: =LayoutAlignItems.Stretch
+                  PaddingTop: =14
+                  PaddingBottom: =14
+                  PaddingLeft: =18
+                  PaddingRight: =18
                   LayoutGap: =10
                   DropShadow: =DropShadow.None
                   Fill: =Color.White
@@ -554,10 +582,6 @@ Screens:
                   RadiusTopRight: =20
                   RadiusBottomLeft: =20
                   RadiusBottomRight: =20
-                  PaddingTop: =14
-                  PaddingBottom: =14
-                  PaddingLeft: =18
-                  PaddingRight: =18
                   FillPortions: =0
                   AlignInContainer: =AlignInContainer.Stretch
                   Height: =70 + If(varPickDue, 56 + 10, 0) + 64 + 56 + 2 * 10 + 28 + 4
@@ -570,7 +594,7 @@ Screens:
                         Height: =70
                         Font: =Font.'Open Sans'
                         Size: =14
-                        HintText: ="ข้อความถึง" & Coalesce(LookUp(colEmp, Lower(Email) = varTicket.AssigneeEmail).Nickname, varTicket.AssigneeEmail) & " (ไม่ผ่าน / ตอบ / ติดตาม ใส่ได้) เช่น ขอเพิ่มเงื่อนไขการต่ออายุสัญญา"
+                        HintText: ="ข้อความถึงคุณ" & Coalesce(LookUp(colEmp, Lower(Email) = varTicket.AssigneeEmail).Nickname, First(Split(varTicket.AssigneeEmail, "@")).Value) & " (ไม่ผ่าน / ตอบ / ติดตาม ใส่ได้) เช่น ขอเพิ่มเงื่อนไขการต่ออายุสัญญา"
                         BorderColor: =clrLine
                         BorderThickness: =2
                         Fill: =Color.White
@@ -587,6 +611,10 @@ Screens:
                       Properties:
                         LayoutDirection: =LayoutDirection.Horizontal
                         LayoutAlignItems: =LayoutAlignItems.Stretch
+                        PaddingTop: =0
+                        PaddingBottom: =0
+                        PaddingLeft: =0
+                        PaddingRight: =0
                         LayoutGap: =12
                         DropShadow: =DropShadow.None
                         Fill: =Color.Transparent
@@ -716,6 +744,10 @@ Screens:
                       Properties:
                         LayoutDirection: =LayoutDirection.Horizontal
                         LayoutAlignItems: =LayoutAlignItems.Stretch
+                        PaddingTop: =0
+                        PaddingBottom: =0
+                        PaddingLeft: =0
+                        PaddingRight: =0
                         LayoutGap: =12
                         DropShadow: =DropShadow.None
                         Fill: =Color.Transparent
@@ -806,6 +838,10 @@ Screens:
                       Properties:
                         LayoutDirection: =LayoutDirection.Horizontal
                         LayoutAlignItems: =LayoutAlignItems.Stretch
+                        PaddingTop: =0
+                        PaddingBottom: =0
+                        PaddingLeft: =0
+                        PaddingRight: =0
                         LayoutGap: =12
                         DropShadow: =DropShadow.None
                         Fill: =Color.Transparent

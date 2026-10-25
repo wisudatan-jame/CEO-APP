@@ -4,7 +4,7 @@ from staff_screens import history_card, status_row, CARD_W, X2, CONTENT_END
 CEO_TABS = [('Home', '"ภาพรวม"', 'Navigate(scrCeoHome)'), ('List', '"งานทั้งหมด"', 'Set(varFilter, "all"); Navigate(scrCeoTickets)'),
             ('New', '"สั่งงาน"', 'Navigate(scrCeoCreate)')]
 HIST = '{Source: {Value: "App"}, Processed: false, CEOPending: false}'
-NAME = 'Coalesce(LookUp(colEmp, Lower(Email) = {e}).Nickname, {e})'
+NAME = 'Coalesce(LookUp(colEmp, Lower(Email) = {e}).Nickname, First(Split({e}, "@")).Value)'  # nickname, else the part before @
 CHIP_W = '(Parent.Width - 48 - {g}) / {n}'
 CEO_STATUS = 'Switch({s}, "New", "ยังไม่รับทราบ", "Acknowledged", "รับทราบแล้ว", "InProgress", "กำลังทำ", "WaitingCEO", "รอคุณตอบ", "Done", "รอคุณตรวจ", "Closed", "ปิดแล้ว", {s})'
 
@@ -31,7 +31,7 @@ Set(varCLate, Filter(colAll, Status.Value <> "Done", DueDate < Today()))'''
     GOpen, CountRows(Rows),
     GDone, CountRows(Filter(Rows, Status.Value = "Done")))'''
     emp = 'LookUp(colEmp, Lower(Email) = ThisItem.AssigneeEmail)'
-    pname = f'Coalesce({emp}.Nickname, ThisItem.AssigneeEmail)'
+    pname = NAME.format(e='ThisItem.AssigneeEmail')
     initial = f'With({{n: {pname}}}, If(Left(n, 1) in ["เ", "แ", "โ", "ใ", "ไ"], Mid(n, 2, 1), Left(n, 1)))'
     sel = 'Select(Parent)'
     num = lambda **p: label(Y=0, Height='Parent.TemplateHeight - 1', Align='Align.Right', OnSelect=sel, **p)
@@ -57,7 +57,7 @@ Set(varCLate, Filter(colAll, Status.Value <> "Done", DueDate < Today()))'''
                 ('btnCPInit', button(initial, sel, X=0, Y=12, Width=52, Height=52, Size=15, FontWeight='FontWeight.Bold',
                                      Fill='ColorFade(clrPrimary, 88%)', Color='clrPrimary', BorderThickness=0,
                                      RadiusTopLeft=26, RadiusTopRight=26, RadiusBottomLeft=26, RadiusBottomRight=26)),
-                ('lblCPName', label(pname, X=66, Y=8, Width='Parent.TemplateWidth - 66 - 200', Height=32, Size=14, FontWeight='FontWeight.Semibold', OnSelect=sel)),
+                ('lblCPName', label(pname, X=66, Y=8, Width='Parent.TemplateWidth - 66 - 200', Height=32, Size=14, FontWeight='FontWeight.Semibold', Wrap='false', OnSelect=sel)),
                 ('lblCPDept', label(f'Coalesce({emp}.Department, "ไม่พบในรายชื่อพนักงาน")', X=66, Y=40, Width='Parent.TemplateWidth - 66 - 200', Height=28,
                                     Size=12, Color='clrMuted', OnSelect=sel)),
                 ('lblCPOpen', num(text='ThisItem.OpenCount', X='Parent.TemplateWidth - 196', Width=50, Size=13)),
@@ -90,8 +90,7 @@ def scr_ceo_tickets():
         "group", Filter(colAll, GroupID = varGroup),
         colAll),
     "DueDate", SortOrder.Ascending)'''
-    row = ('"T-" & ThisItem.ID & " " & ThisItem.Title & Char(10) & ' + NAME.format(e='ThisItem.AssigneeEmail') +
-           ' & " · " & If(ThisItem.DueDate < Today(), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & Text(ThisItem.DueDate, "ddd d mmm", "th-TH"))')
+    row_sub = (NAME.format(e='ThisItem.AssigneeEmail') + ' & " · " & If(ThisItem.DueDate < Today(), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & Text(ThisItem.DueDate, "ddd d mmm", "th-TH"))')
     late = 'ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today()'
     status = f'If({late}, "เลยกำหนด", ' + CEO_STATUS.format(s='ThisItem.Status.Value') + ')'
     bar = ('Switch(true, ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today(), clrAccent, ThisItem.Status.Value = "WaitingCEO", clrPrimary, '
@@ -111,7 +110,10 @@ def scr_ceo_tickets():
             ('galCAll', list_in(gallery(items, [
                 row_bg('btnCRowBg'),
                 ('recCBar', rect(X=16, Y=18, Width=8, Height='Parent.TemplateHeight - 12 - 36', Fill=bar, OnSelect='Select(Parent)')),
-                ('lblCRow', label(row, X=36, Y=6, Width='Parent.TemplateWidth - 36 - 190', Height='Parent.TemplateHeight - 12 - 12', Size=13, OnSelect='Select(Parent)')),
+                ('lblCRow', label('"T-" & ThisItem.ID & " " & ThisItem.Title', X=36, Y=10, Width='Parent.TemplateWidth - 36 - 190', Height=38, Size=14,
+                                  FontWeight='FontWeight.Semibold', Wrap='false', OnSelect='Select(Parent)')),
+                ('lblCRowSub', label(row_sub, X=36, Y=48, Width='Parent.TemplateWidth - 36 - 190', Height=32, Size=12, Color='clrMuted',
+                                     Wrap='false', OnSelect='Select(Parent)')),
                 ('btnCRowPill', pill(status, 'ThisItem.Status.Value', late, X='Parent.TemplateWidth - 186', Y='(Parent.TemplateHeight - 12 - 40) / 2',
                                      Width=170, Height=40)),
             ], TemplateSize=104, OnSelect='Set(varTicket, ThisItem); Navigate(scrCeoDetail)'))),
@@ -172,7 +174,7 @@ Set(varPickDue, false);
     body = vbox([
         ('conCDTitle', in_box(hbox([
             ('btnCBack', back_button('scrCeoTickets')),
-            ('lblCDTitle', in_box(label('"T-" & varTicket.ID & " " & varTicket.Title', Size=19, FontWeight='FontWeight.Bold', Color='clrPrimary', Height=60), 1)),
+            ('lblCDTitle', in_box(label('"T-" & varTicket.ID & " " & varTicket.Title', Size=19, FontWeight='FontWeight.Bold', Color='clrPrimary', Height=60), 1, AlignInContainer='AlignInContainer.Center')),
         ], Height=64, LayoutAlignItems='LayoutAlignItems.Center', LayoutGap=14))),
         status_row('CDStatus', CEO_STATUS.format(s='varTicket.Status.Value')),
         ('conCDInfo', card([
@@ -193,7 +195,7 @@ Set(varPickDue, false);
         ('conCDAction', card([
             ('txtCeo', in_box({'type': 'Classic/TextInput@2.3.2', 'props': {
                 'Default': '""', 'Mode': 'TextMode.MultiLine', 'Height': 70, 'Font': FONT, 'Size': 14,
-                'HintText': f'"ข้อความถึง" & {who} & " (ไม่ผ่าน / ตอบ / ติดตาม ใส่ได้) เช่น ขอเพิ่มเงื่อนไขการต่ออายุสัญญา"',
+                'HintText': f'"ข้อความถึงคุณ" & {who} & " (ไม่ผ่าน / ตอบ / ติดตาม ใส่ได้) เช่น ขอเพิ่มเงื่อนไขการต่ออายุสัญญา"',
                 'BorderColor': 'clrLine', 'BorderThickness': 2, 'Fill': 'Color.White', 'HoverFill': 'Color.White',
                 'RadiusTopLeft': 10, 'RadiusTopRight': 10, 'RadiusBottomLeft': 10, 'RadiusBottomRight': 10}})),
             ('conCDDue', in_box(hbox([

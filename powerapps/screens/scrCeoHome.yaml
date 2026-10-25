@@ -326,6 +326,10 @@ Screens:
           Properties:
             LayoutDirection: =LayoutDirection.Vertical
             LayoutAlignItems: =LayoutAlignItems.Stretch
+            PaddingTop: =12
+            PaddingBottom: =8
+            PaddingLeft: =18
+            PaddingRight: =18
             LayoutGap: =6
             DropShadow: =DropShadow.None
             Fill: =Color.White
@@ -335,10 +339,6 @@ Screens:
             RadiusTopRight: =20
             RadiusBottomLeft: =20
             RadiusBottomRight: =20
-            PaddingTop: =12
-            PaddingBottom: =8
-            PaddingLeft: =18
-            PaddingRight: =18
             X: =24
             Y: =500
             Width: =Parent.Width - 48
@@ -350,6 +350,10 @@ Screens:
                 Properties:
                   LayoutDirection: =LayoutDirection.Horizontal
                   LayoutAlignItems: =LayoutAlignItems.Stretch
+                  PaddingTop: =0
+                  PaddingBottom: =0
+                  PaddingLeft: =0
+                  PaddingRight: =0
                   LayoutGap: =12
                   DropShadow: =DropShadow.None
                   Fill: =Color.Transparent
@@ -409,7 +413,7 @@ Screens:
                       Control: Classic/Button@2.2.0
                       Properties:
                         Text: |-
-                          =With({n: Coalesce(LookUp(colEmp, Lower(Email) = ThisItem.AssigneeEmail).Nickname, ThisItem.AssigneeEmail)}, If(Left(n, 1) in ["เ", "แ", "โ", "ใ", "ไ"], Mid(n, 2, 1), Left(n, 1)))
+                          =With({n: Coalesce(LookUp(colEmp, Lower(Email) = ThisItem.AssigneeEmail).Nickname, First(Split(ThisItem.AssigneeEmail, "@")).Value)}, If(Left(n, 1) in ["เ", "แ", "โ", "ใ", "ไ"], Mid(n, 2, 1), Left(n, 1)))
                         OnSelect: =Select(Parent)
                         Font: =Font.'Open Sans'
                         Size: =15
@@ -435,7 +439,7 @@ Screens:
                   - lblCPName:
                       Control: Label@2.5.1
                       Properties:
-                        Text: =Coalesce(LookUp(colEmp, Lower(Email) = ThisItem.AssigneeEmail).Nickname, ThisItem.AssigneeEmail)
+                        Text: =Coalesce(LookUp(colEmp, Lower(Email) = ThisItem.AssigneeEmail).Nickname, First(Split(ThisItem.AssigneeEmail, "@")).Value)
                         Font: =Font.'Open Sans'
                         Size: =14
                         Color: =clrText
@@ -444,6 +448,7 @@ Screens:
                         Width: =Parent.TemplateWidth - 66 - 200
                         Height: =32
                         FontWeight: =FontWeight.Semibold
+                        Wrap: =false
                         OnSelect: =Select(Parent)
                   - lblCPDept:
                       Control: Label@2.5.1
@@ -512,6 +517,10 @@ Screens:
           Properties:
             LayoutDirection: =LayoutDirection.Vertical
             LayoutAlignItems: =LayoutAlignItems.Stretch
+            PaddingTop: =12
+            PaddingBottom: =8
+            PaddingLeft: =18
+            PaddingRight: =18
             LayoutGap: =6
             DropShadow: =DropShadow.None
             Fill: =Color.White
@@ -521,10 +530,6 @@ Screens:
             RadiusTopRight: =20
             RadiusBottomLeft: =20
             RadiusBottomRight: =20
-            PaddingTop: =12
-            PaddingBottom: =8
-            PaddingLeft: =18
-            PaddingRight: =18
             X: =24
             Y: =Parent.Height - 96 - 12 - 150
             Width: =Parent.Width - 48

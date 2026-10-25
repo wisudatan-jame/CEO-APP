@@ -121,11 +121,11 @@ def history_card(gal_name, line_name, lbl_name, head_name, card_name):
         (lbl_name, label(hist_text, X=164, Y=0, Width='Parent.TemplateWidth - 164', Height='Parent.TemplateHeight - 1', Size=12,
                          VerticalAlign='VerticalAlign.Top', PaddingTop=12, OnSelect='Select(Parent)')),
         (line_name, rect(X=0, Y=0, Width='Parent.TemplateWidth', Height=1, Fill='clrLine', OnSelect='Select(Parent)')),
-    ], TemplateSize=56, Fill='Color.Transparent', Height=224)
+    ], TemplateSize=56, Fill='Color.Transparent', Height='Min(Max(CountRows(Self.AllItems), 1), 5) * Self.TemplateHeight')
     return (card_name, card([
         (head_name, in_box(label('"ความเคลื่อนไหวล่าสุด"', Height=34, Size=15, FontWeight='FontWeight.Bold'))),
         (gal_name, in_box(gal)),
-    ], '34 + 10 + 224 + 28'))
+    ], f'34 + 10 + {gal_name}.Height + 28'))
 
 STAFF_STATUS = 'Switch({s}, "New", "ใหม่", "Acknowledged", "รับทราบแล้ว", "InProgress", "กำลังทำ", "WaitingCEO", "รอ CEO ตอบ", "Done", "รอ CEO ตรวจ", "Closed", "ปิดแล้ว", {s})'
 
@@ -138,7 +138,7 @@ def status_row(name, status_text):
     """Status pill followed by the due date, as at the top of the mockup's detail pages."""
     late = 'varTicket.IsOpen && varTicket.Status.Value <> "Done" && varTicket.DueDate < Today()'
     return (f'con{name}', in_box(hbox([
-        (f'btn{name}Pill', in_box(pill(status_text, 'varTicket.Status.Value', late, OnSelect='false', Width='Len(Self.Text) * 13 + 44', Height=40, Size=13),
+        (f'btn{name}Pill', in_box(pill(status_text, 'varTicket.Status.Value', late, OnSelect='false', Width='Len(Self.Text) * 11 + 40', Height=40, Size=13),
                                    0, AlignInContainer='AlignInContainer.Center')),
         (f'lbl{name}Due', in_box(label(due_text('varTicket'), Height=40, Size=13, Color=f'If({late}, clrDanger, clrMuted)'), 1)),
     ], Height=44, LayoutGap=12, LayoutAlignItems='LayoutAlignItems.Center')))
@@ -173,7 +173,7 @@ Set(varTicket, LookUp(Tickets, ID = varTicket.ID))'''
     body = vbox([
         ('conDTitle', in_box(hbox([
             ('btnBack', back_button('scrTickets')),
-            ('lblDTitle', in_box(label('"T-" & varTicket.ID & " " & varTicket.Title', Size=19, FontWeight='FontWeight.Bold', Color='clrPrimary', Height=60), 1)),
+            ('lblDTitle', in_box(label('"T-" & varTicket.ID & " " & varTicket.Title', Size=19, FontWeight='FontWeight.Bold', Color='clrPrimary', Height=60), 1, AlignInContainer='AlignInContainer.Center')),
         ], Height=64, LayoutAlignItems='LayoutAlignItems.Center', LayoutGap=14))),
         status_row('DStatus', STAFF_STATUS.format(s='varTicket.Status.Value')),
         ('conDInfo', card([

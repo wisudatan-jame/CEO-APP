@@ -184,7 +184,7 @@ Screens:
       - lblCFilterNote:
           Control: Label@2.5.1
           Properties:
-            Text: =If(varFilter = "person", "เฉพาะงานของ" & Coalesce(LookUp(colEmp, Lower(Email) = varPerson).Nickname, varPerson), varFilter = "group", "เฉพาะงานกลุ่ม T-" & varGroup, "")
+            Text: =If(varFilter = "person", "เฉพาะงานของ" & Coalesce(LookUp(colEmp, Lower(Email) = varPerson).Nickname, First(Split(varPerson, "@")).Value), varFilter = "group", "เฉพาะงานกลุ่ม T-" & varGroup, "")
             Font: =Font.'Open Sans'
             Size: =13
             Color: =clrPrimary
@@ -200,6 +200,10 @@ Screens:
           Properties:
             LayoutDirection: =LayoutDirection.Vertical
             LayoutAlignItems: =LayoutAlignItems.Stretch
+            PaddingTop: =0
+            PaddingBottom: =0
+            PaddingLeft: =0
+            PaddingRight: =0
             LayoutGap: =0
             DropShadow: =DropShadow.None
             Fill: =Color.Transparent
@@ -282,14 +286,29 @@ Screens:
                   - lblCRow:
                       Control: Label@2.5.1
                       Properties:
-                        Text: ="T-" & ThisItem.ID & " " & ThisItem.Title & Char(10) & Coalesce(LookUp(colEmp, Lower(Email) = ThisItem.AssigneeEmail).Nickname, ThisItem.AssigneeEmail) & " · " & If(ThisItem.DueDate < Today(), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & Text(ThisItem.DueDate, "ddd d mmm", "th-TH"))
+                        Text: ="T-" & ThisItem.ID & " " & ThisItem.Title
                         Font: =Font.'Open Sans'
-                        Size: =13
+                        Size: =14
                         Color: =clrText
                         X: =36
-                        Y: =6
+                        Y: =10
                         Width: =Parent.TemplateWidth - 36 - 190
-                        Height: =Parent.TemplateHeight - 12 - 12
+                        Height: =38
+                        FontWeight: =FontWeight.Semibold
+                        Wrap: =false
+                        OnSelect: =Select(Parent)
+                  - lblCRowSub:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: =Coalesce(LookUp(colEmp, Lower(Email) = ThisItem.AssigneeEmail).Nickname, First(Split(ThisItem.AssigneeEmail, "@")).Value) & " · " & If(ThisItem.DueDate < Today(), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & Text(ThisItem.DueDate, "ddd d mmm", "th-TH"))
+                        Font: =Font.'Open Sans'
+                        Size: =12
+                        Color: =clrMuted
+                        X: =36
+                        Y: =48
+                        Width: =Parent.TemplateWidth - 36 - 190
+                        Height: =32
+                        Wrap: =false
                         OnSelect: =Select(Parent)
                   - btnCRowPill:
                       Control: Classic/Button@2.2.0
