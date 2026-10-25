@@ -205,9 +205,9 @@ Set(varPickDue, false);
     friday = 'DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days)'
     big = dict(Height=56, Size=16, FontWeight='FontWeight.Bold', RadiusTopLeft=16, RadiusTopRight=16, RadiusBottomLeft=16, RadiusBottomRight=16,
                DisplayMode='If(varTicket.Status.Value = "Done", DisplayMode.Edit, DisplayMode.Disabled)',
-               DisabledFill='Color.White', DisabledColor='ColorFade(clrMuted, 40%)', DisabledBorderColor='clrLine')
+               DisabledFill='clrBg', DisabledColor='clrMuted', DisabledBorderColor='clrBg')  # greyed out = plain fill, no outline
     small = dict(Height=50, Size=14, Fill='Color.White', Color='clrPrimary', BorderColor='clrLine', BorderThickness=2,
-                 DisabledFill='Color.White', DisabledColor='ColorFade(clrPrimary, 50%)', DisabledBorderColor='clrLine')
+                 DisabledFill='clrBg', DisabledColor='clrMuted', DisabledBorderColor='clrBg')
     open_mode = 'If(varTicket.IsOpen, DisplayMode.Edit, DisplayMode.Disabled)'
     body = vbox([
         ('conCDTitle', in_box(hbox([
@@ -243,7 +243,7 @@ Set(varPickDue, false);
             ], Height=50, Visible='varPickDue'))),
             ('conCDBig', in_box(hbox([
                 ('btnCPass', in_box(button('"ผ่าน ปิดงาน"', pass_, Fill='clrSuccess', BorderColor='clrSuccess', **big), 1)),
-                ('btnCReject', in_box(button('"ไม่ผ่าน ส่งกลับ"', reject, Fill='Color.White', Color='clrAccent', BorderColor='clrAccent', BorderThickness=3, **big), 1)),
+                ('btnCReject', in_box(button('"ไม่ผ่าน ส่งกลับ"', reject, Fill='Color.White', Color='clrAccent', BorderColor='clrAccent', BorderThickness=2, **big), 1)),
             ], Height=56))),
             ('conCDSmall', in_box(hbox([
                 ('btnCReply', in_box(button('"ตอบ"', reply, DisplayMode='If(varTicket.IsOpen && !IsBlank(Trim(txtCeo.Text)), DisplayMode.Edit, DisplayMode.Disabled)', **small), 1)),

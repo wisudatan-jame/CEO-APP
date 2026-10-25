@@ -436,7 +436,7 @@ Screens:
                   RadiusBottomRight: =20
                   FillPortions: =0
                   AlignInContainer: =AlignInContainer.Stretch
-                  Height: =34 + 8 + If(galSentFiles.Visible, galSentFiles.Height + 8, 0) + 96 + 8 + 50 + 24 + 4
+                  Height: =34 + 8 + If(galSentFiles.Visible, galSentFiles.Height + 8, 0) + attFiles.Height + 24 + 4
                 Children:
                   - conDFilesHead:
                       Control: GroupContainer@1.3.0
@@ -501,7 +501,7 @@ Screens:
                               PaddingRight: =0
                               DisabledFill: =Color.Transparent
                               DisabledColor: =ColorFade(clrPrimary, 60%)
-                              DisplayMode: =If(varTicket.HasFiles, DisplayMode.Edit, DisplayMode.Disabled)
+                              DisplayMode: =If(varTicket.HasFiles || !IsEmpty(Filter(varHist, StartsWith(Comment, "📎 แนบไฟล์"))), DisplayMode.Edit, DisplayMode.Disabled)
                               FillPortions: =0
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =190
@@ -556,74 +556,96 @@ Screens:
                               Height: =36
                               Align: =Align.Right
                               OnSelect: =Select(Parent)
-                  - attFiles:
-                      Control: Attachments@2.3.0
+                  - conDUpload:
+                      Control: GroupContainer@1.3.0
+                      Variant: AutoLayout
                       Properties:
-                        Items: =Blank()
-                        MaxAttachments: =5
-                        MaxAttachmentSize: =10
-                        NoAttachmentsText: =""
-                        AddAttachmentText: ="เลือกไฟล์ (Excel, PDF, Word, รูป · ไม่เกิน 5 ไฟล์ ไฟล์ละ 10 MB)"
-                        DisplayMode: =If(varTicket.IsOpen, DisplayMode.Edit, DisplayMode.Disabled)
-                        Font: =Font.'Open Sans'
-                        Size: =13
-                        Color: =clrText
-                        Fill: =Color.White
-                        BorderColor: =clrLine
-                        BorderThickness: =2
-                        BorderStyle: =BorderStyle.Dashed
-                        Height: =96
-                        ItemFill: =clrBg
-                        ItemColor: =clrText
-                        ItemHoverFill: =clrLine
-                        HoverFill: =clrBg
-                        PaddingTop: =5
-                        PaddingBottom: =5
-                        PaddingLeft: =5
-                        PaddingRight: =5
-                        FillPortions: =0
-                        AlignInContainer: =AlignInContainer.Start
-                        Width: =Parent.Width - 40
-                  - btnUpload:
-                      Control: Classic/Button@2.2.0
-                      Properties:
-                        Text: ="ส่งไฟล์"
-                        OnSelect: |-
-                          =Set(varBusy, true);
-                          Set(varUpload,
-                              ForAll(attFiles.Attachments As f,
-                                  AttachTicketFile.Run(varTicket.ID, {contentBytes: f.Value, name: f.Name})));
-                          Set(varBusy, false);
-                          If(CountIf(varUpload, Lower(ok) = "true") = CountRows(varUpload),
-                              Notify("ส่งไฟล์แล้ว " & CountRows(varUpload) & " ไฟล์", NotificationType.Success); Reset(attFiles),
-                              Notify("ส่งไม่สำเร็จบางไฟล์: " & First(Filter(varUpload, Lower(ok) <> "true")).message, NotificationType.Error));
-                          Refresh(Tickets);
-                          Refresh(TicketHistory);
-                          Set(varTicket, LookUp(Tickets, ID = varTicket.ID));
-                          Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)); Set(varHistPos, 0)
-                        Font: =Font.'Open Sans'
-                        Size: =15
-                        FontWeight: =FontWeight.Bold
-                        Fill: =clrAccent
-                        Color: =Color.White
-                        BorderColor: =clrAccent
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutAlignItems: =LayoutAlignItems.Stretch
+                        PaddingTop: =0
+                        PaddingBottom: =0
+                        PaddingLeft: =0
+                        PaddingRight: =0
+                        LayoutGap: =12
+                        DropShadow: =DropShadow.None
+                        Fill: =Color.Transparent
                         BorderThickness: =0
-                        RadiusTopLeft: =14
-                        RadiusTopRight: =14
-                        RadiusBottomLeft: =14
-                        RadiusBottomRight: =14
-                        HoverFill: =ColorFade(Self.Fill, -10%)
-                        HoverColor: =Self.Color
-                        HoverBorderColor: =Self.BorderColor
-                        PressedFill: =ColorFade(Self.Fill, -20%)
-                        PressedColor: =Self.Color
-                        PressedBorderColor: =Self.BorderColor
-                        Height: =50
-                        DisplayMode: =If(varBusy || IsEmpty(attFiles.Attachments) || !varTicket.IsOpen, DisplayMode.Disabled, DisplayMode.Edit)
-                        DisabledFill: =ColorFade(clrAccent, 60%)
-                        DisabledColor: =Color.White
+                        Height: =attFiles.Height
                         FillPortions: =0
                         AlignInContainer: =AlignInContainer.Stretch
+                      Children:
+                        - attFiles:
+                            Control: Attachments@2.3.0
+                            Properties:
+                              Items: =Blank()
+                              MaxAttachments: =5
+                              MaxAttachmentSize: =10
+                              NoAttachmentsText: =""
+                              AddAttachmentText: ="เลือกไฟล์"
+                              DisplayMode: =If(varTicket.IsOpen, DisplayMode.Edit, DisplayMode.Disabled)
+                              Font: =Font.'Open Sans'
+                              Size: =14
+                              FontWeight: =FontWeight.Bold
+                              Color: =clrPrimary
+                              Fill: =Color.White
+                              BorderColor: =ColorValue("#8A94A6")
+                              BorderThickness: =2
+                              BorderStyle: =BorderStyle.Dashed
+                              Height: =If(IsEmpty(Self.Attachments), 56, 52 + CountRows(Self.Attachments) * 40)
+                              ItemFill: =clrBg
+                              ItemColor: =clrText
+                              ItemHoverFill: =clrLine
+                              HoverFill: =clrBg
+                              PaddingTop: =6
+                              PaddingRight: =8
+                              PaddingLeft: =If(IsEmpty(Self.Attachments), (Self.Width - 110) / 2, 8)
+                              PaddingBottom: =If(IsEmpty(Self.Attachments), (Self.Height - 44) / 2, 6)
+                              FillPortions: =1
+                              AlignInContainer: =AlignInContainer.Start
+                              LayoutMinWidth: =0
+                              LayoutMinHeight: =0
+                        - btnUpload:
+                            Control: Classic/Button@2.2.0
+                            Properties:
+                              Text: ="ส่งไฟล์"
+                              OnSelect: |-
+                                =Set(varBusy, true);
+                                Set(varUpload,
+                                    ForAll(attFiles.Attachments As f,
+                                        AttachTicketFile.Run(varTicket.ID, {contentBytes: f.Value, name: f.Name})));
+                                Set(varBusy, false);
+                                If(CountIf(varUpload, Lower(ok) = "true") = CountRows(varUpload),
+                                    Notify("ส่งไฟล์แล้ว " & CountRows(varUpload) & " ไฟล์", NotificationType.Success); Reset(attFiles),
+                                    Notify("ส่งไม่สำเร็จบางไฟล์: " & First(Filter(varUpload, Lower(ok) <> "true")).message, NotificationType.Error));
+                                Refresh(Tickets);
+                                Refresh(TicketHistory);
+                                Set(varTicket, LookUp(Tickets, ID = varTicket.ID));
+                                Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)); Set(varHistPos, 0)
+                              Font: =Font.'Open Sans'
+                              Size: =15
+                              FontWeight: =FontWeight.Bold
+                              Fill: =clrAccent
+                              Color: =Color.White
+                              BorderColor: =clrAccent
+                              BorderThickness: =0
+                              RadiusTopLeft: =14
+                              RadiusTopRight: =14
+                              RadiusBottomLeft: =14
+                              RadiusBottomRight: =14
+                              HoverFill: =ColorFade(Self.Fill, -10%)
+                              HoverColor: =Self.Color
+                              HoverBorderColor: =Self.BorderColor
+                              PressedFill: =ColorFade(Self.Fill, -20%)
+                              PressedColor: =Self.Color
+                              PressedBorderColor: =Self.BorderColor
+                              Height: =56
+                              DisplayMode: =If(varBusy || IsEmpty(attFiles.Attachments) || !varTicket.IsOpen, DisplayMode.Disabled, DisplayMode.Edit)
+                              DisabledFill: =ColorFade(clrAccent, 60%)
+                              DisabledColor: =Color.White
+                              FillPortions: =1
+                              AlignInContainer: =AlignInContainer.Start
+                              LayoutMinWidth: =0
+                              LayoutMinHeight: =0
             - conDHist:
                 Control: GroupContainer@1.3.0
                 Variant: AutoLayout
@@ -868,7 +890,7 @@ Screens:
                               Fill: =clrAccent
                               Color: =Color.White
                               BorderColor: =clrAccent
-                              BorderThickness: =2
+                              BorderThickness: =0
                               RadiusTopLeft: =16
                               RadiusTopRight: =16
                               RadiusBottomLeft: =16
@@ -880,9 +902,8 @@ Screens:
                               PressedColor: =Self.Color
                               PressedBorderColor: =Self.BorderColor
                               DisplayMode: =If(varBusy || varTicket.Status.Value in ["Done", "Closed"], DisplayMode.Disabled, DisplayMode.Edit)
-                              DisabledFill: =If(varTicket.Status.Value in ["Done", "Closed"], Color.White, ColorFade(clrAccent, 60%))
+                              DisabledFill: =If(varTicket.Status.Value in ["Done", "Closed"], ColorFade(clrAccent, 88%), ColorFade(clrAccent, 60%))
                               DisabledColor: =If(varTicket.Status.Value in ["Done", "Closed"], clrAccent, Color.White)
-                              DisabledBorderColor: =clrAccent
                               Height: =56
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
@@ -907,7 +928,7 @@ Screens:
                               Fill: =Color.White
                               Color: =clrAccent
                               BorderColor: =clrAccent
-                              BorderThickness: =3
+                              BorderThickness: =2
                               RadiusTopLeft: =16
                               RadiusTopRight: =16
                               RadiusBottomLeft: =16
@@ -919,9 +940,9 @@ Screens:
                               PressedColor: =Self.Color
                               PressedBorderColor: =Self.BorderColor
                               DisplayMode: =If(varBusy || IsBlank(Trim(txtComment.Text)) || !(varTicket.Status.Value in ["New", "Acknowledged", "InProgress"]), DisplayMode.Disabled, DisplayMode.Edit)
-                              DisabledFill: =Color.White
-                              DisabledColor: =ColorFade(clrAccent, 50%)
-                              DisabledBorderColor: =ColorFade(clrAccent, 50%)
+                              DisabledFill: =clrBg
+                              DisabledColor: =clrMuted
+                              DisabledBorderColor: =clrBg
                               Height: =56
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
@@ -978,7 +999,7 @@ Screens:
                               DisplayMode: =If(varBusy || varTicket.Status.Value <> "New", DisplayMode.Disabled, DisplayMode.Edit)
                               DisabledFill: =clrBg
                               DisabledColor: =clrMuted
-                              DisabledBorderColor: =clrLine
+                              DisabledBorderColor: =clrBg
                               Height: =50
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
@@ -1017,7 +1038,7 @@ Screens:
                               DisplayMode: =If(varBusy || !(varTicket.Status.Value in ["New", "Acknowledged", "WaitingCEO"]), DisplayMode.Disabled, DisplayMode.Edit)
                               DisabledFill: =clrBg
                               DisabledColor: =clrMuted
-                              DisabledBorderColor: =clrLine
+                              DisabledBorderColor: =clrBg
                               Height: =50
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
@@ -1054,9 +1075,9 @@ Screens:
                               PressedColor: =Self.Color
                               PressedBorderColor: =Self.BorderColor
                               DisplayMode: =If(varBusy || IsBlank(Trim(txtComment.Text)) || varTicket.Status.Value = "Closed", DisplayMode.Disabled, DisplayMode.Edit)
-                              DisabledFill: =Color.White
-                              DisabledColor: =ColorFade(clrPrimary, 50%)
-                              DisabledBorderColor: =clrLine
+                              DisabledFill: =clrBg
+                              DisabledColor: =clrMuted
+                              DisabledBorderColor: =clrBg
                               Height: =50
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start

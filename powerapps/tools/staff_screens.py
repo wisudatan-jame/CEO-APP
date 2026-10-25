@@ -95,23 +95,24 @@ Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID",
     done_set = 'varTicket.Status.Value in ["Done", "Closed"]'
     btnDone = button(f'If({done_set}, "✓ ทำเสร็จแล้ว", "ทำเสร็จแล้ว")', run('done'),
                      DisplayMode=f'If(varBusy || {done_set}, DisplayMode.Disabled, DisplayMode.Edit)',
-                     DisabledFill=f'If({done_set}, Color.White, ColorFade(clrAccent, 60%))',
+                     DisabledFill=f'If({done_set}, ColorFade(clrAccent, 88%), ColorFade(clrAccent, 60%))',
                      DisabledColor=f'If({done_set}, clrAccent, Color.White)',
-                     DisabledBorderColor='clrAccent', BorderThickness=2, **big)
+                     BorderThickness=0, **big)
     btnWait = button('If(varTicket.Status.Value = "WaitingCEO", "⏳ รอ CEO ตอบ", "ถาม CEO")', run('wait'),
                      DisplayMode='If(varBusy || IsBlank(Trim(txtComment.Text)) || !(varTicket.Status.Value in ["New", "Acknowledged", "InProgress"]), DisplayMode.Disabled, DisplayMode.Edit)',
-                     Fill='Color.White', Color='clrAccent', BorderColor='clrAccent', BorderThickness=3,
-                     DisabledFill='Color.White', DisabledColor='ColorFade(clrAccent, 50%)', DisabledBorderColor='ColorFade(clrAccent, 50%)', **big)
+                     Fill='Color.White', Color='clrAccent', BorderColor='clrAccent', BorderThickness=2,
+                     # greyed-out buttons are a plain fill: thin outlines on rounded buttons rendered unevenly
+                     DisabledFill='clrBg', DisabledColor='clrMuted', DisabledBorderColor='clrBg', **big)
     start_set = 'varTicket.Status.Value in ["InProgress", "Done", "Closed"]'
     btnAck = button('If(varTicket.Status.Value = "New", "รับทราบ", "✓ รับทราบ")', run('ack'),
                     DisplayMode='If(varBusy || varTicket.Status.Value <> "New", DisplayMode.Disabled, DisplayMode.Edit)',
-                    DisabledFill='clrBg', DisabledColor='clrMuted', DisabledBorderColor='clrLine', **small)
+                    DisabledFill='clrBg', DisabledColor='clrMuted', DisabledBorderColor='clrBg', **small)
     btnStart = button(f'If({start_set}, "✓ เริ่มทำ", "เริ่มทำ")', run('start'),
                       DisplayMode='If(varBusy || !(varTicket.Status.Value in ["New", "Acknowledged", "WaitingCEO"]), DisplayMode.Disabled, DisplayMode.Edit)',
-                      DisabledFill='clrBg', DisabledColor='clrMuted', DisabledBorderColor='clrLine', **small)
+                      DisabledFill='clrBg', DisabledColor='clrMuted', DisabledBorderColor='clrBg', **small)
     btnComment = button('"ส่งความเห็น"', run('comment'),
                         DisplayMode='If(varBusy || IsBlank(Trim(txtComment.Text)) || varTicket.Status.Value = "Closed", DisplayMode.Disabled, DisplayMode.Edit)',
-                        DisabledFill='Color.White', DisabledColor='ColorFade(clrPrimary, 50%)', DisabledBorderColor='clrLine', **small)
+                        DisabledFill='clrBg', DisabledColor='clrMuted', DisabledBorderColor='clrBg', **small)
     return [(n, in_box(c, 1)) for n, c in [('btnDone', btnDone), ('btnWait', btnWait)]], \
            [(n, in_box(c, 1)) for n, c in [('btnAck', btnAck), ('btnStart', btnStart), ('btnComment', btnComment)]]
 
@@ -192,12 +193,16 @@ Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID",
     folder = 'Launch("https://digitalfocusth.sharepoint.com/sites/CEO-Tickets/TicketFiles/Forms/AllItems.aspx?id=" & EncodeUrl("/sites/CEO-Tickets/TicketFiles/T-" & varTicket.ID))'
     att = {'type': 'Attachments@2.3.0', 'props': {
         'Items': 'Blank()', 'MaxAttachments': 5, 'MaxAttachmentSize': 10, 'NoAttachmentsText': '""',
-        'AddAttachmentText': '"เลือกไฟล์ (Excel, PDF, Word, รูป · ไม่เกิน 5 ไฟล์ ไฟล์ละ 10 MB)"',
+        'AddAttachmentText': '"เลือกไฟล์"',
         'DisplayMode': 'If(varTicket.IsOpen, DisplayMode.Edit, DisplayMode.Disabled)',
-        'Font': FONT, 'Size': 13, 'Color': 'clrText', 'Fill': 'Color.White', 'BorderColor': 'clrLine', 'BorderThickness': 2,
-        'BorderStyle': 'BorderStyle.Dashed', 'Height': 96,
+        'Font': FONT, 'Size': 14, 'FontWeight': 'FontWeight.Bold', 'Color': 'clrPrimary', 'Fill': 'Color.White',
+        'BorderColor': 'ColorValue("#8A94A6")', 'BorderThickness': 2, 'BorderStyle': 'BorderStyle.Dashed',
+        # grows to list the chosen files; while empty, the bottom-anchored add link is padded into the middle
+        'Height': 'If(IsEmpty(Self.Attachments), 56, 52 + CountRows(Self.Attachments) * 40)',
         'ItemFill': 'clrBg', 'ItemColor': 'clrText', 'ItemHoverFill': 'clrLine', 'HoverFill': 'clrBg',
-        'PaddingTop': 5, 'PaddingBottom': 5, 'PaddingLeft': 5, 'PaddingRight': 5}}
+        'PaddingTop': 6, 'PaddingRight': 8,
+        'PaddingLeft': 'If(IsEmpty(Self.Attachments), (Self.Width - 110) / 2, 8)',
+        'PaddingBottom': 'If(IsEmpty(Self.Attachments), (Self.Height - 44) / 2, 6)'}}
     big, small = status_buttons()
     sent_rows = 'Filter(varHist, StartsWith(Comment, "📎 แนบไฟล์"))'
     body = vbox([
@@ -215,13 +220,15 @@ Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID",
            LayoutGap=6)),
         ('conDFiles', card([
             card_head('DFiles', f'"ไฟล์ที่ส่งแล้ว (" & CountRows({sent_rows}) & ")"',
-                      ('btnPhotos', link('"เปิดโฟลเดอร์"', folder, DisplayMode='If(varTicket.HasFiles, DisplayMode.Edit, DisplayMode.Disabled)'))),
+                      ('btnPhotos', link('"เปิดโฟลเดอร์"', folder, DisplayMode=f'If(varTicket.HasFiles || !IsEmpty({sent_rows}), DisplayMode.Edit, DisplayMode.Disabled)'))),
             file_list('galSentFiles', sent_rows, 'Mid(ThisItem.Comment, Find(": ", ThisItem.Comment) + 18)'),
-            ('attFiles', in_box(att, AlignInContainer='AlignInContainer.Start', Width='Parent.Width - 40')),
-            ('btnUpload', in_box(button('"ส่งไฟล์"', upload, Height=50, Size=15, FontWeight='FontWeight.Bold',
-                                        DisplayMode='If(varBusy || IsEmpty(attFiles.Attachments) || !varTicket.IsOpen, DisplayMode.Disabled, DisplayMode.Edit)',
-                                        DisabledFill='ColorFade(clrAccent, 60%)', DisabledColor='Color.White'))),
-        ], '34 + 8 + If(galSentFiles.Visible, galSentFiles.Height + 8, 0) + 96 + 8 + 50 + 24', LayoutGap=8)),
+            ('conDUpload', in_box(hbox([
+                ('attFiles', in_box(att, 1)),
+                ('btnUpload', in_box(button('"ส่งไฟล์"', upload, Height=56, Size=15, FontWeight='FontWeight.Bold', BorderThickness=0,
+                                            DisplayMode='If(varBusy || IsEmpty(attFiles.Attachments) || !varTicket.IsOpen, DisplayMode.Disabled, DisplayMode.Edit)',
+                                            DisabledFill='ColorFade(clrAccent, 60%)', DisabledColor='Color.White'), 1)),
+            ], Height='attFiles.Height', LayoutGap=12))),
+        ], '34 + 8 + If(galSentFiles.Visible, galSentFiles.Height + 8, 0) + attFiles.Height + 24', LayoutGap=8)),
         history_card('galHistory', 'recHistLine', 'lblHist', 'lblHistHead', 'conDHist', 'CEO', '"คุณ"'),
         ('conDAction', card([
             ('txtComment', in_box({'type': 'Classic/TextInput@2.3.2', 'props': {

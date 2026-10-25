@@ -830,9 +830,9 @@ Screens:
                               PressedColor: =Self.Color
                               PressedBorderColor: =Self.BorderColor
                               Height: =50
-                              DisabledFill: =Color.White
-                              DisabledColor: =ColorFade(clrPrimary, 50%)
-                              DisabledBorderColor: =clrLine
+                              DisabledFill: =clrBg
+                              DisabledColor: =clrMuted
+                              DisabledBorderColor: =clrBg
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
@@ -870,9 +870,9 @@ Screens:
                               PressedColor: =Self.Color
                               PressedBorderColor: =Self.BorderColor
                               Height: =50
-                              DisabledFill: =Color.White
-                              DisabledColor: =ColorFade(clrPrimary, 50%)
-                              DisabledBorderColor: =clrLine
+                              DisabledFill: =clrBg
+                              DisabledColor: =clrMuted
+                              DisabledBorderColor: =clrBg
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
@@ -910,9 +910,9 @@ Screens:
                               PressedColor: =Self.Color
                               PressedBorderColor: =Self.BorderColor
                               Height: =50
-                              DisabledFill: =Color.White
-                              DisabledColor: =ColorFade(clrPrimary, 50%)
-                              DisabledBorderColor: =clrLine
+                              DisabledFill: =clrBg
+                              DisabledColor: =clrMuted
+                              DisabledBorderColor: =clrBg
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
@@ -968,9 +968,9 @@ Screens:
                               PressedBorderColor: =Self.BorderColor
                               Height: =56
                               DisplayMode: =If(varTicket.Status.Value = "Done", DisplayMode.Edit, DisplayMode.Disabled)
-                              DisabledFill: =Color.White
-                              DisabledColor: =ColorFade(clrMuted, 40%)
-                              DisabledBorderColor: =clrLine
+                              DisabledFill: =clrBg
+                              DisabledColor: =clrMuted
+                              DisabledBorderColor: =clrBg
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
@@ -995,7 +995,7 @@ Screens:
                               Fill: =Color.White
                               Color: =clrAccent
                               BorderColor: =clrAccent
-                              BorderThickness: =3
+                              BorderThickness: =2
                               RadiusTopLeft: =16
                               RadiusTopRight: =16
                               RadiusBottomLeft: =16
@@ -1008,9 +1008,9 @@ Screens:
                               PressedBorderColor: =Self.BorderColor
                               Height: =56
                               DisplayMode: =If(varTicket.Status.Value = "Done", DisplayMode.Edit, DisplayMode.Disabled)
-                              DisabledFill: =Color.White
-                              DisabledColor: =ColorFade(clrMuted, 40%)
-                              DisabledBorderColor: =clrLine
+                              DisabledFill: =clrBg
+                              DisabledColor: =clrMuted
+                              DisabledBorderColor: =clrBg
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
@@ -1065,9 +1065,9 @@ Screens:
                               PressedBorderColor: =Self.BorderColor
                               DisplayMode: =If(varTicket.IsOpen && !IsBlank(Trim(txtCeo.Text)), DisplayMode.Edit, DisplayMode.Disabled)
                               Height: =50
-                              DisabledFill: =Color.White
-                              DisabledColor: =ColorFade(clrPrimary, 50%)
-                              DisabledBorderColor: =clrLine
+                              DisabledFill: =clrBg
+                              DisabledColor: =clrMuted
+                              DisabledBorderColor: =clrBg
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
@@ -1100,9 +1100,9 @@ Screens:
                               PressedBorderColor: =Self.BorderColor
                               DisplayMode: =If(varTicket.IsOpen, DisplayMode.Edit, DisplayMode.Disabled)
                               Height: =50
-                              DisabledFill: =Color.White
-                              DisabledColor: =ColorFade(clrPrimary, 50%)
-                              DisabledBorderColor: =clrLine
+                              DisabledFill: =clrBg
+                              DisabledColor: =clrMuted
+                              DisabledBorderColor: =clrBg
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
@@ -1131,9 +1131,9 @@ Screens:
                               PressedBorderColor: =Self.BorderColor
                               DisplayMode: =If(varTicket.IsOpen, DisplayMode.Edit, DisplayMode.Disabled)
                               Height: =50
-                              DisabledFill: =Color.White
-                              DisabledColor: =ColorFade(clrPrimary, 50%)
-                              DisabledBorderColor: =clrLine
+                              DisabledFill: =clrBg
+                              DisabledColor: =clrMuted
+                              DisabledBorderColor: =clrBg
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
