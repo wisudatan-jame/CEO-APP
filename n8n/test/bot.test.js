@@ -984,3 +984,34 @@ test('replay of the 25 Oct chat: "แนบงานร่าง MOU NT" after a
   assert.match(w.calls.uploads[w.calls.uploads.length - 1].path, new RegExp(`^T-${mou}/photo-`));
   assert.equal(w.items.Tickets.length, 2);
 });
+
+test('date picker on a Buddhist-calendar phone ("2569-10-27") is read as 27 Oct 2026; "ที 19" is T-19', async () => {
+  const w = statusWorld();
+  await send(w, postbackEv({ a: 'due', t: 201 }));
+  const pick = quick(lastReply(w)).find((a) => a.type === 'datetimepicker');
+  await send(w, postbackEv(actionData(pick), { date: '2569-10-27' }));
+  assert.equal(w.items.Tickets.find((x) => x.id === '201').fields.DueDate, '2026-10-27T00:00:00Z');
+  assert.match(lastReply(w).text, /เป็นส่ง อังคาร 27 ต\.ค\./);
+  // new task by date picker too
+  await send(w, textEv('งานปีพุทธ'));
+  const d = actionData(quick(lastReply(w))[0]).d;
+  await send(w, postbackEv({ a: 'who', d, e: 'pm@df.co.th' }));
+  await send(w, postbackEv({ a: 'date', d }, { date: '2569-11-02' }));
+  assert.equal(w.items.Tickets[w.items.Tickets.length - 1].fields.DueDate, '2026-11-02T00:00:00Z');
+  // far future is refused
+  await send(w, postbackEv({ a: 'due', t: 202 }));
+  await send(w, postbackEv(actionData(quick(lastReply(w)).find((a) => a.type === 'datetimepicker')), { date: '2031-01-01' }));
+  assert.match(lastReply(w).text, /^วันส่งไกลเกิน 2 ปี/);
+  await send(w, textEv('ยกเลิก'));
+  // spoken ticket number
+  await send(w, textEv('ที 201 ถึงไหน'));
+  assert.match(lastReply(w).text, /^T-201 ปิดงบเดือน/);
+  // a question while a detail is awaited is answered, not saved as the detail
+  await send(w, textEv('เพิ่มเติม'));
+  await send(w, textEv('202'));
+  await send(w, textEv('ใช่'));
+  assert.match(lastReply(w).text, /^พิมพ์หรือพูดรายละเอียด/);
+  await send(w, textEv('ที 201 ถึงไหน'));
+  assert.match(lastReply(w).text, /^T-201 ปิดงบเดือน/);
+  assert.equal(w.items.Tickets.find((x) => x.id === '202').fields.CEOExtra, undefined);
+});

@@ -11,6 +11,7 @@ const SEEN_TTL_MS = 24 * 3600 * 1000;
 const PENDING_IMAGES_TTL_MS = 10 * 60 * 1000; // photos sent before the task text wait this long for it
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_IMAGES = 5;
+const MAX_DUE_DAYS = 730; // a due date further away than this is a mistake (e.g. a Buddhist year)
 const MAX_QUICK_PEOPLE = 8;
 const ADD_TTL_MS = 30 * 60 * 1000; // "add to an existing ticket" waits this long for an answer
 const RECENT_TICKET_MS = 2 * 3600 * 1000; // a photo sent this soon after a new ticket is offered to that ticket
@@ -99,6 +100,13 @@ const pad2 = (n) => String(n).padStart(2, '0');
 function bkkYmd(instant) {
   const t = new Date(instant.getTime() + TZ_OFFSET_MS);
   return `${t.getUTCFullYear()}-${pad2(t.getUTCMonth() + 1)}-${pad2(t.getUTCDate())}`;
+}
+// LINE's date picker on a phone set to the Buddhist calendar returns e.g. "2569-10-27".
+function pickerDate(value) {
+  const m = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return value || null;
+  const y = Number(m[1]);
+  return y > 2400 ? `${y - 543}-${m[2]}-${m[3]}` : value;
 }
 function ymdParts(ymd) {
   const [y, m, d] = ymd.split('-').map(Number);
@@ -942,10 +950,10 @@ async function onPostback(ctx, ev, cfg) {
     return afterWho(ctx, ev, dr, emp);
   }
   if ((p.a === 'when' || p.a === 'date') && dr.stage === 'when') {
-    const date = p.a === 'date' ? ev.postback.params && ev.postback.params.date : p.v;
+    const date = p.a === 'date' ? pickerDate(ev.postback.params && ev.postback.params.date) : p.v;
     const today = bkkYmd(ctx.now());
-    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date < today) {
-      await lineReply(ctx, ev, textMsg('เลือกวันที่ผ่านมาแล้วไม่ได้'));
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date < today || date > addDays(today, MAX_DUE_DAYS)) {
+      await lineReply(ctx, ev, textMsg(date > today ? 'วันส่งไกลเกิน 2 ปี เลือกใหม่อีกครั้ง' : 'เลือกวันที่ผ่านมาแล้วไม่ได้'));
       const emp = (await getEmployees(ctx)).find((e) => e.email === dr.assignee);
       return askWhen(ctx, { source: ev.source }, dr, emp);
     }
@@ -1474,8 +1482,9 @@ function findPersonInQuestion(employees, text) {
   return found.filter((f) => f.len === longest).map((f) => f.e);
 }
 
+// Spoken "T 19" often comes out of the keyboard mic as "ที 19" or "ทีสิบเก้า"-free digits "ที19".
 function ticketRef(text) {
-  const m = String(text).replace(/\s+/g, '').match(/^(?:t-?|ticket|ทิกเก็ต|ทิคเก็ต|งาน(?:ที่)?|เลขที่)(\d{1,6})/i);
+  const m = String(text).replace(/\s+/g, '').match(/^(?:t-?|ที-?|ticket|ทิกเก็ต|ทิคเก็ต|งาน(?:ที่)?|เลขที่)(\d{1,6})/i);
   return m ? Number(m[1]) : null;
 }
 
@@ -1767,6 +1776,7 @@ async function setDue(ctx, ev, cfg, d, date) {
   const today = bkkYmd(ctx.now());
   const it = await getItem(ctx, 'Tickets', d.ticketId);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date)) || date < today) return askNewDue(ctx, ev, d, it, 'เลือกวันที่ผ่านมาแล้วไม่ได้\n\n');
+  if (date > addDays(today, MAX_DUE_DAYS)) return askNewDue(ctx, ev, d, it, 'วันส่งไกลเกิน 2 ปี เลือกใหม่อีกครั้ง\n\n');
   delete ctx.store.dueChange;
   if (!it.fields.IsOpen) {
     await lineReply(ctx, ev, textMsg(`T-${d.ticketId} ปิดไปแล้ว ไม่ได้เลื่อน`));
@@ -1796,7 +1806,7 @@ async function onFollowOrDuePostback(ctx, ev, cfg, p) {
     return { cancelled: isFollow ? 'follow' : 'due' };
   }
   if (p.a === 'fusend') return sendFollow(ctx, ev, cfg, pending, FOLLOW_PRESETS[Number(p.m)] || FOLLOW_PRESETS[0]);
-  const date = (ev.postback.params && ev.postback.params.date) || p.v;
+  const date = pickerDate(ev.postback.params && ev.postback.params.date) || p.v;
   return setDue(ctx, ev, cfg, pending, date);
 }
 
@@ -1913,7 +1923,7 @@ async function attachByText(ctx, ev, cfg, add, t) {
 }
 
 function ticketNumber(t) {
-  const m = String(t).replace(/\s+/g, '').match(/^(?:ticket|ทิกเก็ต|ทิคเก็ต|งาน|เลขที่|เลข|ที่|t)?(?:ที่)?-?(\d{1,6})$/i);
+  const m = String(t).replace(/\s+/g, '').match(/^(?:ticket|ทิกเก็ต|ทิคเก็ต|งาน|เลขที่|เลข|ที่|ที|t)?(?:ที่)?-?(\d{1,6})$/i);
   return m ? Number(m[1]) : null;
 }
 
@@ -2009,6 +2019,11 @@ async function onAddYes(ctx, ev, cfg, add) {
 // Text while an "add" is waiting. Returns null when the text is not an answer, so it becomes a new task.
 async function onAddText(ctx, ev, cfg, add, t) {
   const flat = t.replace(/\s+/g, '');
+  if (add.stage === 'text' && ticketRef(t) && QUERY_WORDS.test(t)) {
+    // "T-19 ถึงไหน" is a question, not the detail being waited for: drop the half-done addition.
+    delete ctx.store.addTo;
+    return null;
+  }
   if (add.stage === 'text') {
     add.text = t;
     return saveAdd(ctx, ev, cfg, add);
