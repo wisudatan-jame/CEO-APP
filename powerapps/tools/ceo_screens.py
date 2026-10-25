@@ -218,10 +218,11 @@ Set(varFirst, Patch(Tickets, Defaults(Tickets), varBase, {{AssigneeEmail: Lower(
 ClearCollect(colMade, varFirst);
 If(CountRows(varWho) > 1,
     Patch(Tickets, varFirst, {{GroupID: varFirst.ID}});
-    ForAll(LastN(varWho, CountRows(varWho) - 1) As p,
-        Collect(colMade, Patch(Tickets, Defaults(Tickets), varBase, {{AssigneeEmail: Lower(p.Email), GroupID: varFirst.ID}}))));
-ForAll(colMade As t,
-    Patch(TicketHistory, Defaults(TicketHistory), {HIST}, {{Title: "T-" & t.ID, TicketID: t.ID, Action: {{Value: "create"}}, ToStatus: "New", ActorEmail: Lower(User().Email)}}));
+    Collect(colMade, ForAll(LastN(varWho, CountRows(varWho) - 1) As p,
+        Patch(Tickets, Defaults(Tickets), varBase, {{AssigneeEmail: Lower(p.Email), GroupID: varFirst.ID}}))));
+Collect(TicketHistory, ForAll(colMade As t,
+    {{Title: "T-" & t.ID, TicketID: t.ID, Action: {{Value: "create"}}, ToStatus: "New", ActorEmail: Lower(User().Email),
+      Source: {{Value: "App"}}, Processed: false, CEOPending: false}}));
 ForAll(attNew.Attachments As f, ForAll(colMade As t, AttachTicketFile.Run(t.ID, {{contentBytes: f.Value, name: f.Name}})));
 Set(varBusy, false);
 Notify("สั่งงานแล้ว " & Concat(colMade, "T-" & ID, ", "), NotificationType.Success);
