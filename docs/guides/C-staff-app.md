@@ -387,9 +387,75 @@ CEO เพิ่มรายละเอียดให้งานที่ส�
 If(CountRows(varDone30) > 0, " · เฉลี่ย " & Round(Average(varDone30, DateDiff(Created, DoneAt, TimeUnit.Hours)) / 24, 1) & " วัน/งาน", "")
 ```
 
-5. **แถบล่าง 2 ปุ่ม** (ใส่ทั้ง `scrHome` และ `scrTickets`): `btnTabHome` "ภาพรวม" → `Navigate(scrHome)` · `btnTabList` "งานจาก CEO" → `Navigate(scrTickets)` · Y `Parent.Height - 66` · Height `66` · Width `Parent.Width / 2` · หน้าที่เปิดอยู่ใช้ Color `clrAccent` อีกปุ่ม `clrMuted` · แล้วลด `galTickets.Height` ลง 66
+5. **แถบล่าง 2 ปุ่ม**: ทำตามข้อ 2.4.6 ข (ใช้กล่อง `conTabs` ชุดเดียวกันทุกหน้า)
 6. **App → StartScreen** = `If(!IsBlank(Param("ticketId")), scrDetail, scrHome)` (ลิงก์จาก Teams ยังเปิดหน้างานโดยตรง)
 7. ทดสอบด้วยบัญชีพนักงาน: ตัวเลขตรงกับงานของตัวเองเท่านั้น · แตะงานใน "ต้องทำก่อน" แล้วเปิดหน้ารายละเอียด · ส่งไฟล์หรือเปลี่ยนสถานะแล้วกลับมา ตัวเลขอัปเดต (OnVisible โหลดใหม่ทุกครั้งที่เข้าหน้า)
+
+### 2.4.6 จัดหน้าให้ตรงกับภาพออกแบบ (ทำหลัง 2.4.0–2.4.5)
+ภาพอ้างอิง: แถวล่างของ Artifact ออกแบบ (พนักงาน 1–3) · ทุกหน้ามีหัวแอป (โลโก้ + รูปคุณสมชายสั่งงาน) และแถบล่าง 2 ปุ่ม · สูตรการทำงานของปุ่มทุกตัวใช้ของเดิม แก้แค่ตำแหน่งและสี · ใช้เวลาประมาณ 90 นาที
+
+**ก. ค่าที่ใช้ซ้ำ** (App → Formulas เพิ่มต่อท้าย)
+```powerfx
+tabH = 96;                       // ความสูงแถบล่าง
+bodyY = 94;                      // ใต้หัวแอปและเส้นแดง (recTop 90 + recTopLine 4)
+```
+
+**ข. แถบล่าง (ทำที่ `scrHome` แล้วคัดลอกไป `scrTickets` และ `scrDetail`)**
+1. Insert → **Layout** → **Horizontal container** ชื่อ `conTabs` · X `0` · Y `Parent.Height - tabH` · Width `Parent.Width` · Height `tabH` · Fill `Color.White`
+2. Rectangle `recTabLine` (ไม่อยู่ในกล่อง) · X `0` · Y `conTabs.Y` · Width `Parent.Width` · Height `2` · Fill `clrLine`
+3. ใน `conTabs` ใส่ปุ่ม 2 ปุ่ม แต่ละปุ่ม **Flexible width = On** (FillPortions `1`) · Height `tabH` · Fill `Color.White` · BorderThickness `0` · Size `13` · RadiusTopLeft…BottomRight `0`
+
+| ปุ่ม | Text | OnSelect | Color |
+|---|---|---|---|
+| `btnTabHome` | `"ภาพรวม"` | `Navigate(scrHome)` | `If(App.ActiveScreen = scrHome, clrAccent, clrMuted)` |
+| `btnTabList` | `"งานจาก CEO"` | `Navigate(scrTickets)` | `If(App.ActiveScreen = scrHome, clrMuted, clrAccent)` |
+
+   ใส่ FontWeight `If(Self.Color = clrAccent, FontWeight.Bold, FontWeight.Normal)` · คัดลอก `conTabs` + `recTabLine` ไปวางทุกหน้า (สูตร Color ใช้ได้เลย เพราะหน้ารายละเอียดนับเป็นหมวด "งานจาก CEO")
+
+**ค. หน้า `scrTickets` (พนักงาน 2)**
+| Control | ค่าใหม่ |
+|---|---|
+| `lblHeader` | Text `"งานจาก CEO"` · Y `bodyY + 16` · Size `20` · Bold · Color `clrPrimary` |
+| `btnRefresh` | ย้ายลงล่าง: X `20` · Y `Parent.Height - tabH - 96` · Width `Parent.Width - 40` · Height `80` · Fill `clrAccent` · Color `Color.White` · Size `16` · Bold · Radius `16` · Text `"รีเฟรช"` |
+| `galTickets` | Y `lblHeader.Y + 56` · Height `btnRefresh.Y - Self.Y - 16` |
+
+**ง. หน้า `scrDetail` (พนักงาน 3): จัดเป็นการ์ดเรียงลงมาด้วย Vertical container**
+ใช้กล่องจัดเรียงอัตโนมัติ (Auto layout) แทนการตั้ง Y ทีละตัว การ์ดจะยืดหดตามเนื้อหาและเลื่อนดูได้ถ้ายาวเกินจอ
+- ย้าย Control เข้ากล่อง: เลือก Control ใน Tree view → **Ctrl+X** → เลือกกล่อง → **Ctrl+V** (สูตรเดิมยังอยู่ ค่า X/Y เดิมไม่มีผลแล้ว)
+- ทุก Control ในกล่อง: **Align in container** = Stretch · **Flexible height** = Off (ใช้ Height ของตัวเอง)
+- **สไตล์การ์ด** (ใช้กับทุกกล่องที่เขียนว่า "การ์ด"): Fill `Color.White` · BorderColor `clrLine` · BorderThickness `2` · RadiusTopLeft/TopRight/BottomLeft/BottomRight `20` · PaddingTop/Bottom `14` · PaddingLeft/Right `18` · Gap `10`
+
+1. **Vertical container** `conDBody` · X `0` · Y `bodyY` · Width `Parent.Width` · Height `Parent.Height - bodyY - tabH` · Fill `clrBg` · PaddingLeft/Right `24` · PaddingTop/Bottom `14` · Gap `12` · **Vertical overflow** = Scroll
+2. ใส่ใน `conDBody` ตามลำดับนี้
+
+| # | ชื่อ | ชนิด | เนื้อหา (ย้ายเข้า) | Height |
+|---|---|---|---|---|
+| 1 | `conDTitle` | Horizontal container (ไม่มีสไตล์การ์ด · Gap `14` · Align items Center) | `icoBack` (Width/Height `64` · ขอบวงกลม `clrPrimary`) · `lblDTitle` (Flexible width On · Color `clrPrimary` · Size `20` · Bold) | `72` |
+| 2 | `lblDDue` | Label (เดิม) | ป้ายสถานะ · Size `14` · Bold · Color `clrPrimary` | `40` |
+| 3 | `conDInfo` | การ์ด | `lblDDetails` (AutoHeight On) · `lblDExtra` (AutoHeight On) | `lblDDetails.Height + If(lblDExtra.Visible, lblDExtra.Height + 10, 0) + 28` |
+| 4 | `conDFiles` | การ์ด | `lblSentFiles` (AutoHeight On) · `attFiles` (Height `110`) · `conDFileBtns` (Horizontal · Gap `12` · Height `64`: `btnPhotos` + `btnUpload` ทั้งคู่ Flexible width On) | `If(lblSentFiles.Visible, lblSentFiles.Height + 10, 0) + 110 + 10 + 64 + 28` |
+| 5 | `conDHist` | การ์ด | Label `lblHistHead` Text `"ความเคลื่อนไหวล่าสุด"` Bold Height `36` · `galHistory` (TemplateSize `52` · Height `Min(CountRows(galHistory.AllItems), 4) * 52`) | `36 + 10 + galHistory.Height + 28` |
+| 6 | `conDAction` | การ์ด | `txtComment` (Height `70`) · `conDBig` (Horizontal · Gap `12` · Height `76`: `btnDone` + `btnWait`) · `conDSmall` (Horizontal · Gap `12` · Height `64`: `btnAck` + `btnStart` + `btnComment`) ทุกปุ่ม Flexible width On | `70 + 76 + 64 + 2 * 10 + 28` |
+
+3. ลบ `lblCommentHelp` และ Label อธิบายเหนือกล่องพิมพ์ แล้วตั้ง `txtComment` → **HintText** = `"ข้อความถึง CEO (ถาม CEO / ส่งความเห็น ต้องพิมพ์ก่อน) เช่น รับทราบค่ะ จะเริ่มพรุ่งนี้"`
+4. `lblDDetails` → Text (ให้มีผู้สั่งและวันที่สั่งเหมือนภาพ)
+   ```powerfx
+   "ผู้สั่ง: คุณสมชาย (CEO)" & Char(10) &
+   "สั่งเมื่อ: " & Text(varTicket.Created, "d mmm hh:mm", "th-TH") &
+   If(IsBlank(varTicket.Details), "", Char(10) & "รายละเอียด: " & varTicket.Details)
+   ```
+5. `btnPhotos` → Text `"เปิดโฟลเดอร์"` · Visible `true` · DisplayMode `If(varTicket.HasFiles, DisplayMode.Edit, DisplayMode.Disabled)` · Fill `Color.White` · Color `clrPrimary` · BorderColor `clrLine`
+6. **สีปุ่มสถานะแบบใหม่** (แทนสูตรสีใน 2.4.0 ส่วน Text และ DisplayMode ใช้ของเดิม)
+
+| ปุ่ม | Fill · Color · BorderColor | Disabled (กดแล้ว / กดไม่ได้) |
+|---|---|---|
+| `btnDone` (ใหญ่) | `clrAccent` · `Color.White` · `clrAccent` | DisabledFill `If(varTicket.Status.Value in ["Done", "Closed"], Color.White, ColorFade(clrAccent, 60%))` · DisabledColor `If(varTicket.Status.Value in ["Done", "Closed"], clrAccent, Color.White)` |
+| `btnWait` (ใหญ่) | `Color.White` · `clrAccent` · `clrAccent` (BorderThickness `3`) | DisabledFill `Color.White` · DisabledColor `ColorFade(clrAccent, 50%)` · DisabledBorderColor `ColorFade(clrAccent, 50%)` |
+| `btnAck` `btnStart` (เล็ก) | `Color.White` · `clrPrimary` · `clrLine` | DisabledFill `clrBg` · DisabledColor `clrMuted` · DisabledBorderColor `clrLine` (ปุ่มที่ทำแล้วเป็นสีเทามี ✓) |
+| `btnComment` (เล็ก) | `Color.White` · `clrPrimary` · `clrLine` | DisabledFill `Color.White` · DisabledColor `ColorFade(clrPrimary, 50%)` |
+
+   ปุ่มใหญ่ Size `16` Bold Radius `16` · ปุ่มเล็ก Size `14` Radius `14` · Text ปุ่มเล็กให้สั้นลง: `btnAck` `If(varTicket.Status.Value = "New", "รับทราบ", "✓ รับทราบ")` · `btnStart` `If(varTicket.Status.Value in ["InProgress", "Done", "Closed"], "✓ เริ่มทำ", "เริ่มทำ")`
+7. ทดสอบในโหมด Preview: เลื่อนดูได้ถึงการ์ดปุ่ม · แถบล่างติดขอบจอตลอด · งานที่ไม่มีไฟล์ ไม่มีกรอบไฟล์ที่ส่งแล้ว · งานที่ไม่มีคำสั่งเพิ่ม ไม่มีกรอบสีชมพู
 
 ### 2.4.3 แสดงสวยทั้งมือถือและคอมพิวเตอร์ (Responsive)
 บนคอม แถบหัวกว้างเต็มจอ เนื้อหาเป็นคอลัมน์กว้างไม่เกิน 720 อยู่กลางจอแบบหน้าเว็บ บนมือถือเต็มจอเหมือนเดิม

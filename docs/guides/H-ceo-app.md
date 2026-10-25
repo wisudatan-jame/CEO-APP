@@ -37,18 +37,18 @@
    ```
 4. **Settings → General → Data row limit** = `2000`
 
-### ส่วนหัวและแถบล่างของทุกหน้า CEO
-- หัวแอป: คัดลอก `recTop` `recTopLine` `imgLogo` `imgCEO` จาก `scrTickets` มาวางทุกหน้า (โลโก้ซ้าย รูปคุณสมชายสั่งงานขวา)
-- แถบล่าง 3 ปุ่ม (ทุกหน้า ยกเว้น `scrCeoDetail`): Y `Parent.Height - 66` · Height `66` · Width `Parent.Width / 3` · Fill `Color.White` · BorderColor `clrLine`
+### ส่วนหัวและแถบล่างของทุกหน้า CEO (เหมือนแอปพนักงาน คู่มือ ค ข้อ 2.4.6)
+ต้องทำคู่มือ ค ข้อ 2.4.6 ก่อน (ใช้ค่า `tabH` `bodyY` และสไตล์การ์ดชุดเดียวกัน)
+- หัวแอป: คัดลอก `recTop` `recTopLine` `imgLogo` `imgCEO` จาก `scrTickets` มาวางทุกหน้า (โลโก้ซ้าย รูปคุณสมชายสั่งงานขวา) · ชื่อหน้าอยู่ใต้เส้นแดง (Label Size `20` Bold Color `clrPrimary` Y `bodyY + 16`)
+- แถบล่าง **ทุกหน้า รวมหน้ารายละเอียด**: คัดลอก `conTabs` + `recTabLine` จากหน้าพนักงาน แล้ว**เพิ่มปุ่มที่ 3** และเปลี่ยนชื่อ/สูตร
 
-| ปุ่ม | Text | X | OnSelect |
+| ปุ่ม | Text | OnSelect | Color |
 |---|---|---|---|
-| `btnCTabHome` | `"ภาพรวม"` | `0` | `Navigate(scrCeoHome)` |
-| `btnCTabList` | `"งานทั้งหมด"` | `Parent.Width / 3` | `Set(varFilter, "all"); Navigate(scrCeoTickets)` |
-| `btnCTabNew` | `"สั่งงาน"` | `Parent.Width * 2 / 3` | `Navigate(scrCeoCreate)` |
+| `btnCTabHome` | `"ภาพรวม"` | `Navigate(scrCeoHome)` | `If(App.ActiveScreen = scrCeoHome, clrAccent, clrMuted)` |
+| `btnCTabList` | `"งานทั้งหมด"` | `Set(varFilter, "all"); Navigate(scrCeoTickets)` | `If(App.ActiveScreen in [scrCeoTickets, scrCeoDetail], clrAccent, clrMuted)` |
+| `btnCTabNew` | `"สั่งงาน"` | `Navigate(scrCeoCreate)` | `If(App.ActiveScreen = scrCeoCreate, clrAccent, clrMuted)` |
 
-  ปุ่มของหน้าที่เปิดอยู่: Color `clrAccent` + FontWeight Bold · ปุ่มอื่น Color `clrMuted`
-- คัดลอกทั้งชุด (4 ชิ้นหัวแอป + 3 ปุ่ม) ไปหน้าถัดไปด้วย Ctrl+C / Ctrl+V แล้วแก้สีปุ่มที่ active
+  ทุกปุ่ม Flexible width On · FontWeight `If(Self.Color = clrAccent, FontWeight.Bold, FontWeight.Normal)` · คัดลอกทั้งชุดไปทุกหน้า CEO ได้เลย (สูตรสีรู้เองว่าอยู่หน้าไหน)
 
 ---
 
@@ -65,7 +65,7 @@
 
 | Control | ชื่อ | ค่า |
 |---|---|---|
-| Label | `lblCHello` | Text `"สวัสดีค่ะคุณสมชาย"` · Size `22` · Bold · Color `clrPrimary` · X `20` · Y `110` |
+| Label | `lblCHello` | Text `"สวัสดีค่ะคุณสมชาย"` · Size `22` · Bold · Color `clrPrimary` · X `20` · Y `bodyY + 16` |
 | Label | `lblCHelloSub` | Text `Text(Today(), "dddd d mmmm", "th-TH") & " · งานเปิดอยู่ " & CountRows(colAll) & " งาน"` · Size `13` · Color `clrMuted` · Y `lblCHello.Y + 34` |
 | Button ×4 | การ์ด | Width `(Parent.Width - 50) / 2` · Height `92` · Radius `14` · Align `Align.Left` · VerticalAlign `VerticalAlign.Top` · PaddingLeft/Top `14` · X `20` / `30 + (Parent.Width - 50) / 2` · Y `lblCHelloSub.Y + 36` / `+ 102` |
 | | `btnCLate` | Text `"เลยกำหนด" & Char(10) & CountRows(varLate) & Char(10) & "รวม " & Sum(varLate, DateDiff(DueDate, Today())) & " วัน"` · Fill `clrAccent` · Color `Color.White` · OnSelect `Set(varFilter, "late"); Navigate(scrCeoTickets)` |
@@ -113,7 +113,7 @@ SortByColumns(
 | `btnFNoAck` | `"ยังไม่รับทราบ"` | `Set(varFilter, "noack")` |
 
    ทุกปุ่ม: Fill `If(varFilter = "<ค่าของปุ่ม>", clrPrimary, Color.White)` · Color `If(varFilter = "<ค่าของปุ่ม>", Color.White, clrPrimary)` · BorderColor `clrLine`
-4. Vertical gallery `galCAll` · TemplateSize `64` · Y ใต้ปุ่มกรอง · Height `Parent.Height - Self.Y - 70`
+4. Vertical gallery `galCAll` · TemplateSize `64` · Y ใต้ปุ่มกรอง · Height `Parent.Height - tabH - Self.Y - 10`
    - Items:
      ```powerfx
      SortByColumns(
@@ -133,23 +133,37 @@ SortByColumns(
    - Label `lblCRowStatus` (ขวา) Text `Switch(ThisItem.Status.Value, "New", "ใหม่", "Acknowledged", "รับทราบ", "InProgress", "กำลังทำ", "WaitingCEO", "รอคุณตอบ", "Done", "รอคุณตรวจ", ThisItem.Status.Value)`
 
 ## ส่วนที่ 5: `scrCeoDetail` รายละเอียดและตรวจงาน (90 นาที)
-1. **New screen** → `scrCeoDetail` (หัวแอปเหมือนหน้าอื่น ไม่มีแถบล่าง)
-2. ส่วนบน
-   - Icon Back `icoCBack` OnSelect `Navigate(scrCeoTickets)` · Label `lblCDTitle` Text `"T-" & varTicket.ID & " " & varTicket.Title` · Color `clrPrimary` · Bold
-   - Label `lblCDInfo` (AutoHeight) Text:
-     ```powerfx
-     Switch(varTicket.Status.Value, "New", "ใหม่", "Acknowledged", "รับทราบ", "InProgress", "กำลังทำ", "WaitingCEO", "รอคุณตอบ", "Done", "ทำเสร็จ รอคุณตรวจ", "Closed", "ปิดแล้ว") &
-     " · ส่ง " & Text(varTicket.DueDate, "dddd d mmm", "th-TH") & If(varTicket.IsOpen && varTicket.DueDate < Today(), " (เลย " & DateDiff(varTicket.DueDate, Today()) & " วัน)", "") & Char(10) &
-     "ผู้รับงาน: " & Coalesce(LookUp(colEmp, Lower(Email) = varTicket.AssigneeEmail).Nickname, varTicket.AssigneeEmail) & Char(10) &
-     If(IsBlank(varTicket.Details), "", "รายละเอียด: " & varTicket.Details)
-     ```
-   - Label `lblCDExtra` เหมือน `lblDExtra` ในคู่มือ ค ข้อ 2.4.4 (Visible `!IsBlank(varTicket.CEOExtra)`)
-   - Label `lblCDFiles` เหมือน `lblSentFiles` ในคู่มือ ฉ ข้อ 2.2.1 แต่อ้าง `galCDHistory.AllItems` และเพิ่มปุ่ม `btnCDFolder` "📂 เปิดไฟล์งาน" OnSelect เดียวกับ `btnPhotos`
-3. ช่องพิมพ์และปุ่ม
-   - Text input (Multiline) `txtCeo` · HintText `"พิมพ์ข้อความถึงพนักงาน (คำตอบ / สิ่งที่ต้องแก้ / ข้อความติดตาม / คำสั่งเพิ่มเติม)"`
-   - Date picker `dpCDue` · DefaultDate `varTicket.DueDate` · Format `"dd/mm/yyyy"`
-   - ปุ่มแถวบน (ครึ่งจอ สูง 48): `btnCPass` "ผ่าน ปิดงาน" (Fill `clrSuccess`) · `btnCReject` "ไม่ผ่าน ส่งกลับ" (Fill ขาว ขอบ `clrAccent`) · DisplayMode ทั้งคู่ `If(varTicket.Status.Value = "Done", DisplayMode.Edit, DisplayMode.Disabled)`
-   - ปุ่มแถวล่าง (1/4 จอ สูง 44 · Fill ขาว ขอบ `clrLine` · Color `clrPrimary`): `btnCReply` "ตอบ" · `btnCFollow` "ติดตาม" · `btnCExtra` "สั่งเพิ่ม" · `btnCDue` "เลื่อนวันส่ง" · DisplayMode `If(varTicket.IsOpen, DisplayMode.Edit, DisplayMode.Disabled)` (`btnCReply` และ `btnCExtra` ต้องมีข้อความด้วย: `If(varTicket.IsOpen && !IsBlank(Trim(txtCeo.Text)), DisplayMode.Edit, DisplayMode.Disabled)`)
+หน้าตาเหมือนหน้ารายละเอียดของพนักงานทุกอย่าง (คู่มือ ค ข้อ 2.4.6 ง) ต่างแค่เนื้อหาการ์ดและปุ่ม · ภาพอ้างอิง: แถวบนของ Artifact ออกแบบ ภาพที่ 3
+1. **New screen** → `scrCeoDetail` · ใส่หัวแอปและแถบล่าง (ส่วนที่ 2)
+2. **Vertical container** `conCDBody` ตั้งค่าเหมือน `conDBody` ของพนักงาน (Y `bodyY` · Height `Parent.Height - bodyY - tabH` · Vertical overflow Scroll) แล้วใส่ตามลำดับ (สไตล์การ์ดเหมือนคู่มือ ค)
+
+| # | ชื่อ | ชนิด | เนื้อหา | Height |
+|---|---|---|---|---|
+| 1 | `conCDTitle` | Horizontal container | Icon Back `icoCBack` (OnSelect `Navigate(scrCeoTickets)`) · Label `lblCDTitle` Text `"T-" & varTicket.ID & " " & varTicket.Title` | `72` |
+| 2 | `lblCDStatus` | Label | ป้ายสถานะ (สูตรด้านล่าง) · Bold · Color `If(varTicket.Status.Value = "Done", clrSuccess, clrPrimary)` | `40` |
+| 3 | `conCDInfo` | การ์ด | `lblCDInfo` (AutoHeight) · `lblCDExtra` (เหมือน `lblDExtra` ในคู่มือ ค ข้อ 2.4.4 · AutoHeight) | `lblCDInfo.Height + If(lblCDExtra.Visible, lblCDExtra.Height + 10, 0) + 28` |
+| 4 | `conCDFiles` | การ์ด | `lblCDFiles` (เหมือน `lblSentFiles` ในคู่มือ ฉ ข้อ 2.2.1 แต่อ้าง `galCDHistory.AllItems` · Text บรรทัดแรก `"ไฟล์งาน"` · Visible `true`) · ปุ่ม `btnCDFolder` "เปิดโฟลเดอร์" (OnSelect เดียวกับ `btnPhotos`, Height `56`) | `lblCDFiles.Height + 10 + 56 + 28` |
+| 5 | `conCDHist` | การ์ด | Label `"ความเคลื่อนไหวล่าสุด"` (Height `36`) · `galCDHistory` (Items เหมือน `galHistory` · TemplateSize `52` · Height `Min(CountRows(galCDHistory.AllItems), 4) * 52`) | `36 + 10 + galCDHistory.Height + 28` |
+| 6 | `conCDAction` | การ์ด | `txtCeo` (Height `70`) · `conCDDue` (Horizontal · Visible `varPickDue` · Height `64`: `dpCDue` + ปุ่ม `btnCDueOK` "ยืนยันวันส่ง") · `conCDBig` (Horizontal · Height `76`: `btnCPass` + `btnCReject`) · `conCDSmall` (Horizontal · Height `64`: `btnCReply` + `btnCFollow` + `btnCDue`) | `70 + If(varPickDue, 64 + 10, 0) + 76 + 64 + 2 * 10 + 28` |
+
+   `lblCDStatus` Text:
+   ```powerfx
+   Switch(varTicket.Status.Value, "New", "ใหม่", "Acknowledged", "รับทราบ", "InProgress", "กำลังทำ", "WaitingCEO", "รอคุณตอบ", "Done", "ทำเสร็จ รอคุณตรวจ", "Closed", "ปิดแล้ว") &
+   " · ส่ง " & Text(varTicket.DueDate, "dddd d mmm", "th-TH") & If(varTicket.IsOpen && varTicket.DueDate < Today(), " · เลย " & DateDiff(varTicket.DueDate, Today()) & " วัน", "")
+   ```
+   `lblCDInfo` Text:
+   ```powerfx
+   "ผู้รับงาน: " & Coalesce(LookUp(colEmp, Lower(Email) = varTicket.AssigneeEmail).Nickname, varTicket.AssigneeEmail) & Char(10) &
+   "สั่งเมื่อ: " & Text(varTicket.Created, "d mmm hh:mm", "th-TH") & " ผ่าน " & varTicket.Source.Value &
+   If(IsBlank(varTicket.Details), "", Char(10) & "รายละเอียด: " & varTicket.Details)
+   ```
+3. ช่องพิมพ์และปุ่ม (ไม่มี Label อธิบายเหนือกล่อง คำอธิบายอยู่ในกล่อง)
+   - `txtCeo` · Mode Multiline · HintText `"ข้อความถึง" & Coalesce(" คุณ" & LookUp(colEmp, Lower(Email) = varTicket.AssigneeEmail).Nickname, "พนักงาน") & " (ไม่ผ่าน / ตอบ / ติดตาม ใส่ได้) เช่น ขอเพิ่มเงื่อนไขการต่ออายุสัญญา"`
+   - ปุ่มใหญ่ (Size `16` Bold Radius `16`): `btnCPass` "ผ่าน ปิดงาน" Fill `clrSuccess` Color ขาว · `btnCReject` "ไม่ผ่าน ส่งกลับ" Fill ขาว Color/BorderColor `clrAccent` BorderThickness `3` · DisplayMode ทั้งคู่ `If(varTicket.Status.Value = "Done", DisplayMode.Edit, DisplayMode.Disabled)` · DisabledFill `Color.White` · DisabledColor `ColorFade(clrMuted, 40%)`
+   - ปุ่มเล็ก (Fill ขาว · BorderColor `clrLine` · Color `clrPrimary` · Size `14` Radius `14`): `btnCReply` "ตอบ" (DisplayMode `If(varTicket.IsOpen && !IsBlank(Trim(txtCeo.Text)), DisplayMode.Edit, DisplayMode.Disabled)`) · `btnCFollow` "ติดตาม" · `btnCDue` "เลื่อนวันส่ง" OnSelect `Set(varPickDue, !varPickDue)` (สองปุ่มหลัง DisplayMode `If(varTicket.IsOpen, DisplayMode.Edit, DisplayMode.Disabled)`)
+   - `dpCDue` · DefaultDate `varTicket.DueDate` · Format `"dd/mm/yyyy"` · `btnCDueOK` OnSelect = สูตร **btnCDue** ด้านล่าง ต่อท้ายด้วย `; Set(varPickDue, false)`
+   - **scrCeoDetail → OnVisible** `Set(varPickDue, false)`
+   - ไม่มีปุ่ม "สั่งเพิ่ม" ในหน้านี้ตามภาพ (CEO สั่งเพิ่มผ่าน LINE ด้วย "เพิ่มเติม ...") ถ้าต้องการ เพิ่มเป็นปุ่มเล็กปุ่มที่ 4 ใน `conCDSmall` แล้วใช้สูตร **btnCExtra** ด้านล่าง
 4. **App → Formulas** เพิ่ม (ค่าคงที่ของประวัติที่ CEO เขียน)
    ```powerfx
    ceoHist = {Source: {Value: "App"}, Processed: false, CEOPending: false};
@@ -204,7 +218,7 @@ Reset(txtCeo); Notify("เพิ่มรายละเอียดแล้ว
 Set(varTicket, LookUp(Tickets, ID = varTicket.ID))
 ```
 
-**btnCDue**
+**btnCDue** (ใส่ที่ `btnCDueOK`)
 ```powerfx
 If(dpCDue.SelectedDate < Today() || dpCDue.SelectedDate = varTicket.DueDate,
     Notify("เลือกวันส่งใหม่ที่ยังไม่ผ่านมา", NotificationType.Warning),
@@ -214,7 +228,7 @@ If(dpCDue.SelectedDate < Today() || dpCDue.SelectedDate = varTicket.DueDate,
 Set(varTicket, LookUp(Tickets, ID = varTicket.ID))
 ```
 
-6. ประวัติ: Vertical gallery `galCDHistory` เหมือน `galHistory` ของพนักงาน (Items `SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "Created", SortOrder.Descending)`) · ทุกปุ่มด้านบนต่อท้ายด้วย `Refresh(TicketHistory)` ถ้าอยากเห็นทันที
+6. ทุกปุ่มด้านบนต่อท้ายด้วย `; Refresh(TicketHistory)` เพื่อให้ความเคลื่อนไหวล่าสุดขึ้นทันที
 
 ## ส่วนที่ 6: `scrCeoCreate` สั่งงาน (60 นาที)
 1. **New screen** → `scrCeoCreate` · **OnVisible** `ClearCollect(colEmp, Filter(Employees, Active = true))`
@@ -222,7 +236,7 @@ Set(varTicket, LookUp(Tickets, ID = varTicket.ID))
 
 | Control | ชื่อ | ค่า |
 |---|---|---|
-| Label | `lblNHead` | `"สั่งงาน"` · Bold · Color `clrPrimary` |
+| Label | `lblNHead` | `"สั่งงาน"` · Size `20` · Bold · Color `clrPrimary` · Y `bodyY + 16` |
 | Label | `lblNNote` | `"ปกติสั่งผ่าน LINE ได้เร็วกว่า หน้านี้ใช้เมื่อบอท LINE ไม่ตอบ"` · Size `12` · Color `clrMuted` |
 | Text input | `txtNTitle` | HintText `"งานอะไร"` |
 | Text input (Multiline) | `txtNDetails` | HintText `"รายละเอียด (ไม่บังคับ)"` |
@@ -230,7 +244,7 @@ Set(varTicket, LookUp(Tickets, ID = varTicket.ID))
 | Combo box | `cmbNWho` | Items `colEmp` · DisplayFields `["Nickname", "Department"]` · SearchFields `["Nickname", "FirstName", "Title", "Aliases"]` · SelectMultiple `true` · DisplayMode `If(tglNMgr.Value, DisplayMode.Disabled, DisplayMode.Edit)` |
 | Date picker | `dpNDue` | DefaultDate `DateAdd(Today(), 1, TimeUnit.Days)` |
 | Attachments | `attNew` | คัดลอก `attFiles` จาก `scrDetail` (Items `Blank()`, MaxAttachments `5`) · DisplayMode `DisplayMode.Edit` |
-| Button | `btnNCreate` | Text `"สั่งงาน"` · Fill `clrAccent` · DisplayMode `If(varBusy \|\| IsBlank(Trim(txtNTitle.Text)) \|\| (!tglNMgr.Value && IsEmpty(cmbNWho.SelectedItems)) \|\| dpNDue.SelectedDate < Today(), DisplayMode.Disabled, DisplayMode.Edit)` |
+| Button | `btnNCreate` | Text `"สั่งงาน"` · X `20` · Y `Parent.Height - tabH - 96` · Width `Parent.Width - 40` · Height `80` · Fill `clrAccent` · Color ขาว · Size `16` · Bold · Radius `16` (แบบเดียวกับปุ่มรีเฟรชของพนักงาน) · DisplayMode `If(varBusy \|\| IsBlank(Trim(txtNTitle.Text)) \|\| (!tglNMgr.Value && IsEmpty(cmbNWho.SelectedItems)) \|\| dpNDue.SelectedDate < Today(), DisplayMode.Disabled, DisplayMode.Edit)` |
 
 3. **btnNCreate → OnSelect** (คนเดียวหรือหลายคน หลายคนผูกเป็นกลุ่มด้วย `GroupID` เหมือนบอท)
 ```powerfx
