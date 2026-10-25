@@ -1,0 +1,758 @@
+Screens:
+  scrCeoDetail:
+    Properties:
+      Fill: =clrBg
+      OnVisible: |-
+        =Set(varPickDue, false);
+        If(IsEmpty(colEmp), ClearCollect(colEmp, Filter(Employees, Active = true)));
+        Refresh(TicketHistory)
+    Children:
+      - recTopCD:
+          Control: Rectangle@2.3.0
+          Properties:
+            Fill: =clrPrimary
+            Height: =90
+            Width: =Parent.Width
+      - recTopLineCD:
+          Control: Rectangle@2.3.0
+          Properties:
+            Fill: =clrAccent
+            Height: =4
+            Width: =Parent.Width
+            Y: =90
+      - imgLogoCD:
+          Control: Image@2.2.3
+          Properties:
+            Image: |-
+              ='df-logo-white'
+            ImagePosition: =ImagePosition.Fit
+            X: =16
+            Y: =12
+            Width: =150
+            Height: =66
+      - imgCEOCD:
+          Control: Image@2.2.3
+          Properties:
+            Image: |-
+              ='ceo-avatar-sangngan'
+            ImagePosition: =ImagePosition.Fit
+            X: =Parent.Width - 80
+            Y: =4
+            Width: =64
+            Height: =83
+      - conCDBody:
+          Control: GroupContainer@1.3.0
+          Variant: AutoLayout
+          Properties:
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            LayoutGap: =12
+            DropShadow: =DropShadow.None
+            Fill: =clrBg
+            BorderThickness: =0
+            X: =0
+            Y: =94
+            Width: =Parent.Width
+            Height: =Parent.Height - 94 - 96
+            PaddingTop: =12
+            PaddingBottom: =16
+            PaddingLeft: =20
+            PaddingRight: =20
+            LayoutOverflowY: =LayoutOverflow.Scroll
+          Children:
+            - conCDTitle:
+                Control: GroupContainer@1.3.0
+                Variant: AutoLayout
+                Properties:
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutAlignItems: =LayoutAlignItems.Center
+                  LayoutGap: =14
+                  DropShadow: =DropShadow.None
+                  Fill: =Color.Transparent
+                  BorderThickness: =0
+                  Height: =64
+                  FillPortions: =0
+                  AlignInContainer: =AlignInContainer.Stretch
+                Children:
+                  - icoCBack:
+                      Control: Classic/Icon@2.5.0
+                      Properties:
+                        Icon: =Icon.ChevronLeft
+                        Color: =clrPrimary
+                        BorderColor: =clrPrimary
+                        BorderThickness: =3
+                        PaddingTop: =12
+                        PaddingBottom: =12
+                        PaddingLeft: =12
+                        PaddingRight: =12
+                        Width: =60
+                        Height: =60
+                        OnSelect: =Navigate(scrCeoTickets)
+                        FillPortions: =0
+                        AlignInContainer: =AlignInContainer.Stretch
+                        LayoutMinWidth: =60
+                  - lblCDTitle:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: ="T-" & varTicket.ID & " " & varTicket.Title
+                        Font: =Font.'Open Sans'
+                        Size: =19
+                        Color: =clrPrimary
+                        FontWeight: =FontWeight.Bold
+                        Height: =60
+                        FillPortions: =1
+                        AlignInContainer: =AlignInContainer.Stretch
+            - lblCDStatus:
+                Control: Label@2.5.1
+                Properties:
+                  Text: |-
+                    =Switch(varTicket.Status.Value, "New", "ใหม่", "Acknowledged", "รับทราบ", "InProgress", "กำลังทำ", "WaitingCEO", "รอคุณตอบ", "Done", "ทำเสร็จ รอคุณตรวจ", "Closed", "ปิดแล้ว") &
+                    " · ส่ง " & Text(varTicket.DueDate, "dddd d mmm", "th-TH") & If(varTicket.IsOpen && varTicket.DueDate < Today(), " · เลย " & DateDiff(varTicket.DueDate, Today()) & " วัน", "")
+                  Font: =Font.'Open Sans'
+                  Size: =14
+                  Color: =If(varTicket.Status.Value = "Done", clrSuccess, varTicket.IsOpen && varTicket.DueDate < Today(), clrDanger, clrPrimary)
+                  Height: =40
+                  FontWeight: =FontWeight.Bold
+                  FillPortions: =0
+                  AlignInContainer: =AlignInContainer.Stretch
+            - conCDInfo:
+                Control: GroupContainer@1.3.0
+                Variant: AutoLayout
+                Properties:
+                  LayoutDirection: =LayoutDirection.Vertical
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  LayoutGap: =10
+                  DropShadow: =DropShadow.None
+                  Fill: =Color.White
+                  BorderThickness: =2
+                  BorderColor: =clrLine
+                  RadiusTopLeft: =20
+                  RadiusTopRight: =20
+                  RadiusBottomLeft: =20
+                  RadiusBottomRight: =20
+                  PaddingTop: =14
+                  PaddingBottom: =14
+                  PaddingLeft: =18
+                  PaddingRight: =18
+                  FillPortions: =0
+                  AlignInContainer: =AlignInContainer.Stretch
+                  Height: =lblCDInfo.Height + If(lblCDExtra.Visible, lblCDExtra.Height + 10, 0) + 28
+                Children:
+                  - lblCDInfo:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: |-
+                          ="ผู้รับงาน: " & Coalesce(LookUp(colEmp, Lower(Email) = varTicket.AssigneeEmail).Nickname, varTicket.AssigneeEmail) & Char(10) &
+                          "สั่งเมื่อ: " & Text(varTicket.Created, "d mmm hh:mm", "th-TH") & " ผ่าน " & varTicket.Source.Value &
+                          If(IsBlank(varTicket.Details), "", Char(10) & "รายละเอียด: " & varTicket.Details)
+                        Font: =Font.'Open Sans'
+                        Size: =14
+                        Color: =clrText
+                        AutoHeight: =true
+                        FillPortions: =0
+                        AlignInContainer: =AlignInContainer.Stretch
+                  - lblCDExtra:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: ="สั่งเพิ่ม" & Char(10) & varTicket.CEOExtra
+                        Font: =Font.'Open Sans'
+                        Size: =14
+                        Color: =clrText
+                        AutoHeight: =true
+                        Visible: =!IsBlank(varTicket.CEOExtra)
+                        Fill: =ColorFade(clrAccent, 92%)
+                        BorderColor: =ColorFade(clrAccent, 50%)
+                        BorderThickness: =2
+                        PaddingTop: =10
+                        PaddingBottom: =10
+                        PaddingLeft: =12
+                        PaddingRight: =12
+                        FillPortions: =0
+                        AlignInContainer: =AlignInContainer.Stretch
+            - conCDFiles:
+                Control: GroupContainer@1.3.0
+                Variant: AutoLayout
+                Properties:
+                  LayoutDirection: =LayoutDirection.Vertical
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  LayoutGap: =10
+                  DropShadow: =DropShadow.None
+                  Fill: =Color.White
+                  BorderThickness: =2
+                  BorderColor: =clrLine
+                  RadiusTopLeft: =20
+                  RadiusTopRight: =20
+                  RadiusBottomLeft: =20
+                  RadiusBottomRight: =20
+                  PaddingTop: =14
+                  PaddingBottom: =14
+                  PaddingLeft: =18
+                  PaddingRight: =18
+                  FillPortions: =0
+                  AlignInContainer: =AlignInContainer.Stretch
+                  Height: =lblCDFiles.Height + 10 + 60 + 28
+                Children:
+                  - lblCDFiles:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: |-
+                          =With({rows: Filter(galCDHistory.AllItems, StartsWith(Comment, "📎"))},
+                              "ไฟล์งาน" & Char(10) &
+                              If(IsEmpty(rows),
+                                  If(varTicket.HasFiles, "มีไฟล์ในโฟลเดอร์งาน (รูปที่สั่งผ่าน LINE)", "ยังไม่มีไฟล์"),
+                                  Concat(rows, "• " & If(StartsWith(Comment, "📎 แนบไฟล์"), Mid(Comment, Find(": ", Comment) + 18), Trim(Mid(Comment, 3))) & "  (" & Text(Created, "d mmm hh:mm", "th-TH") & ")", Char(10))))
+                        Font: =Font.'Open Sans'
+                        Size: =13
+                        Color: =clrText
+                        AutoHeight: =true
+                        FillPortions: =0
+                        AlignInContainer: =AlignInContainer.Stretch
+                  - btnCDFolder:
+                      Control: Classic/Button@2.2.0
+                      Properties:
+                        Text: ="เปิดโฟลเดอร์"
+                        OnSelect: =Launch("https://digitalfocusth.sharepoint.com/sites/CEO-Tickets/TicketFiles/Forms/AllItems.aspx?id=" & EncodeUrl("/sites/CEO-Tickets/TicketFiles/T-" & varTicket.ID))
+                        Font: =Font.'Open Sans'
+                        Size: =14
+                        FontWeight: =FontWeight.Semibold
+                        Fill: =Color.White
+                        Color: =clrPrimary
+                        BorderColor: =clrLine
+                        BorderThickness: =2
+                        RadiusTopLeft: =14
+                        RadiusTopRight: =14
+                        RadiusBottomLeft: =14
+                        RadiusBottomRight: =14
+                        HoverFill: =ColorFade(Self.Fill, -10%)
+                        HoverColor: =Self.Color
+                        HoverBorderColor: =Self.BorderColor
+                        PressedFill: =ColorFade(Self.Fill, -20%)
+                        PressedColor: =Self.Color
+                        PressedBorderColor: =Self.BorderColor
+                        Height: =60
+                        DisplayMode: =If(varTicket.HasFiles, DisplayMode.Edit, DisplayMode.Disabled)
+                        DisabledFill: =Color.White
+                        DisabledColor: =ColorFade(clrPrimary, 50%)
+                        DisabledBorderColor: =clrLine
+                        FillPortions: =0
+                        AlignInContainer: =AlignInContainer.Stretch
+            - conCDHist:
+                Control: GroupContainer@1.3.0
+                Variant: AutoLayout
+                Properties:
+                  LayoutDirection: =LayoutDirection.Vertical
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  LayoutGap: =10
+                  DropShadow: =DropShadow.None
+                  Fill: =Color.White
+                  BorderThickness: =2
+                  BorderColor: =clrLine
+                  RadiusTopLeft: =20
+                  RadiusTopRight: =20
+                  RadiusBottomLeft: =20
+                  RadiusBottomRight: =20
+                  PaddingTop: =14
+                  PaddingBottom: =14
+                  PaddingLeft: =18
+                  PaddingRight: =18
+                  FillPortions: =0
+                  AlignInContainer: =AlignInContainer.Stretch
+                  Height: =34 + 10 + 200 + 28
+                Children:
+                  - lblCDHistHead:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: ="ความเคลื่อนไหวล่าสุด"
+                        Font: =Font.'Open Sans'
+                        Size: =15
+                        Color: =clrText
+                        Height: =34
+                        FontWeight: =FontWeight.Bold
+                        FillPortions: =0
+                        AlignInContainer: =AlignInContainer.Stretch
+                  - galCDHistory:
+                      Control: Gallery@2.15.0
+                      Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
+                      Properties:
+                        Items: =SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)
+                        TemplateSize: =50
+                        Fill: =Color.Transparent
+                        Height: =200
+                        FillPortions: =0
+                        AlignInContainer: =AlignInContainer.Stretch
+                      Children:
+                        - lblCDHist:
+                            Control: Label@2.5.1
+                            Properties:
+                              Text: |-
+                                =Text(ThisItem.Created, "d mmm hh:mm", "th-TH") & " · " & Switch(ThisItem.Action.Value, "create", "CEO สั่งงาน", "ack", "รับทราบ", "start", "เริ่มทำ", "wait", "ถาม CEO", "reply", "CEO ตอบ", "done", "ทำเสร็จ", "reopen", "CEO ส่งกลับ", "close", "CEO ปิดงาน", "cancel", "ยกเลิกงาน", "comment", "ความเห็น", "due_change", "เลื่อนวันส่ง", "reassign", "โอนงาน", ThisItem.Action.Value) & If(IsBlank(ThisItem.Comment), "", ": " & ThisItem.Comment)
+                              Font: =Font.'Open Sans'
+                              Size: =12
+                              Color: =clrMuted
+                              X: =0
+                              Y: =0
+                              Width: =Parent.TemplateWidth
+                              Height: =Parent.TemplateHeight - 1
+                              OnSelect: =Select(Parent)
+                        - recCDHistLine:
+                            Control: Rectangle@2.3.0
+                            Properties:
+                              X: =0
+                              Y: =Parent.TemplateHeight - 1
+                              Width: =Parent.TemplateWidth
+                              Height: =1
+                              Fill: =clrLine
+                              OnSelect: =Select(Parent)
+            - conCDAction:
+                Control: GroupContainer@1.3.0
+                Variant: AutoLayout
+                Properties:
+                  LayoutDirection: =LayoutDirection.Vertical
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  LayoutGap: =10
+                  DropShadow: =DropShadow.None
+                  Fill: =Color.White
+                  BorderThickness: =2
+                  BorderColor: =clrLine
+                  RadiusTopLeft: =20
+                  RadiusTopRight: =20
+                  RadiusBottomLeft: =20
+                  RadiusBottomRight: =20
+                  PaddingTop: =14
+                  PaddingBottom: =14
+                  PaddingLeft: =18
+                  PaddingRight: =18
+                  FillPortions: =0
+                  AlignInContainer: =AlignInContainer.Stretch
+                  Height: =70 + If(varPickDue, 56 + 10, 0) + 64 + 56 + 2 * 10 + 28
+                Children:
+                  - txtCeo:
+                      Control: Classic/TextInput@2.3.2
+                      Properties:
+                        Default: =""
+                        Mode: =TextMode.MultiLine
+                        Height: =70
+                        Font: =Font.'Open Sans'
+                        Size: =14
+                        HintText: ="ข้อความถึง" & Coalesce(LookUp(colEmp, Lower(Email) = varTicket.AssigneeEmail).Nickname, varTicket.AssigneeEmail) & " (ไม่ผ่าน / ตอบ / ติดตาม ใส่ได้) เช่น ขอเพิ่มเงื่อนไขการต่ออายุสัญญา"
+                        BorderColor: =clrLine
+                        BorderThickness: =2
+                        Fill: =Color.White
+                        HoverFill: =Color.White
+                        RadiusTopLeft: =10
+                        RadiusTopRight: =10
+                        RadiusBottomLeft: =10
+                        RadiusBottomRight: =10
+                        FillPortions: =0
+                        AlignInContainer: =AlignInContainer.Stretch
+                  - conCDDue:
+                      Control: GroupContainer@1.3.0
+                      Variant: AutoLayout
+                      Properties:
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutAlignItems: =LayoutAlignItems.Stretch
+                        LayoutGap: =12
+                        DropShadow: =DropShadow.None
+                        Fill: =Color.Transparent
+                        BorderThickness: =0
+                        Height: =56
+                        Visible: =varPickDue
+                        FillPortions: =0
+                        AlignInContainer: =AlignInContainer.Stretch
+                      Children:
+                        - btnCDue1:
+                            Control: Classic/Button@2.2.0
+                            Properties:
+                              Text: ="พรุ่งนี้"
+                              OnSelect: |-
+                                =With({d: DateAdd(Today(), 1, TimeUnit.Days)},
+                                    If(d < Today() || d = varTicket.DueDate,
+                                        Notify("เลือกวันส่งใหม่ที่ยังไม่ผ่านมา", NotificationType.Warning),
+                                        Patch(Tickets, LookUp(Tickets, ID = varTicket.ID), {DueDate: d, OverdueNotified: false});
+                                        Patch(TicketHistory, Defaults(TicketHistory), {Source: {Value: "App"}, Processed: false, CEOPending: false}, {Title: "T-" & varTicket.ID, TicketID: varTicket.ID, Action: {Value: "comment"}, FromStatus: varTicket.Status.Value, ToStatus: varTicket.Status.Value, Comment: "📅 CEO เลื่อนวันส่งจาก " & Text(varTicket.DueDate, "ddd d mmm", "th-TH") & " เป็น " & Text(d, "ddd d mmm", "th-TH"), ActorEmail: Lower(User().Email)});
+                                        Notify("เลื่อนวันส่งแล้ว", NotificationType.Success)));
+                                Set(varPickDue, false);
+                                Set(varTicket, LookUp(Tickets, ID = varTicket.ID));
+                                Refresh(TicketHistory)
+                              Font: =Font.'Open Sans'
+                              Size: =14
+                              FontWeight: =FontWeight.Semibold
+                              Fill: =Color.White
+                              Color: =clrPrimary
+                              BorderColor: =clrLine
+                              BorderThickness: =2
+                              RadiusTopLeft: =14
+                              RadiusTopRight: =14
+                              RadiusBottomLeft: =14
+                              RadiusBottomRight: =14
+                              HoverFill: =ColorFade(Self.Fill, -10%)
+                              HoverColor: =Self.Color
+                              HoverBorderColor: =Self.BorderColor
+                              PressedFill: =ColorFade(Self.Fill, -20%)
+                              PressedColor: =Self.Color
+                              PressedBorderColor: =Self.BorderColor
+                              Height: =56
+                              DisabledFill: =Color.White
+                              DisabledColor: =ColorFade(clrPrimary, 50%)
+                              DisabledBorderColor: =clrLine
+                              FillPortions: =1
+                              AlignInContainer: =AlignInContainer.Stretch
+                        - btnCDue2:
+                            Control: Classic/Button@2.2.0
+                            Properties:
+                              Text: ="ศุกร์นี้"
+                              OnSelect: |-
+                                =With({d: DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days)},
+                                    If(d < Today() || d = varTicket.DueDate,
+                                        Notify("เลือกวันส่งใหม่ที่ยังไม่ผ่านมา", NotificationType.Warning),
+                                        Patch(Tickets, LookUp(Tickets, ID = varTicket.ID), {DueDate: d, OverdueNotified: false});
+                                        Patch(TicketHistory, Defaults(TicketHistory), {Source: {Value: "App"}, Processed: false, CEOPending: false}, {Title: "T-" & varTicket.ID, TicketID: varTicket.ID, Action: {Value: "comment"}, FromStatus: varTicket.Status.Value, ToStatus: varTicket.Status.Value, Comment: "📅 CEO เลื่อนวันส่งจาก " & Text(varTicket.DueDate, "ddd d mmm", "th-TH") & " เป็น " & Text(d, "ddd d mmm", "th-TH"), ActorEmail: Lower(User().Email)});
+                                        Notify("เลื่อนวันส่งแล้ว", NotificationType.Success)));
+                                Set(varPickDue, false);
+                                Set(varTicket, LookUp(Tickets, ID = varTicket.ID));
+                                Refresh(TicketHistory)
+                              Font: =Font.'Open Sans'
+                              Size: =14
+                              FontWeight: =FontWeight.Semibold
+                              Fill: =Color.White
+                              Color: =clrPrimary
+                              BorderColor: =clrLine
+                              BorderThickness: =2
+                              RadiusTopLeft: =14
+                              RadiusTopRight: =14
+                              RadiusBottomLeft: =14
+                              RadiusBottomRight: =14
+                              HoverFill: =ColorFade(Self.Fill, -10%)
+                              HoverColor: =Self.Color
+                              HoverBorderColor: =Self.BorderColor
+                              PressedFill: =ColorFade(Self.Fill, -20%)
+                              PressedColor: =Self.Color
+                              PressedBorderColor: =Self.BorderColor
+                              Height: =56
+                              DisabledFill: =Color.White
+                              DisabledColor: =ColorFade(clrPrimary, 50%)
+                              DisabledBorderColor: =clrLine
+                              FillPortions: =1
+                              AlignInContainer: =AlignInContainer.Stretch
+                        - btnCDue3:
+                            Control: Classic/Button@2.2.0
+                            Properties:
+                              Text: ="+7 วัน"
+                              OnSelect: |-
+                                =With({d: DateAdd(varTicket.DueDate, 7, TimeUnit.Days)},
+                                    If(d < Today() || d = varTicket.DueDate,
+                                        Notify("เลือกวันส่งใหม่ที่ยังไม่ผ่านมา", NotificationType.Warning),
+                                        Patch(Tickets, LookUp(Tickets, ID = varTicket.ID), {DueDate: d, OverdueNotified: false});
+                                        Patch(TicketHistory, Defaults(TicketHistory), {Source: {Value: "App"}, Processed: false, CEOPending: false}, {Title: "T-" & varTicket.ID, TicketID: varTicket.ID, Action: {Value: "comment"}, FromStatus: varTicket.Status.Value, ToStatus: varTicket.Status.Value, Comment: "📅 CEO เลื่อนวันส่งจาก " & Text(varTicket.DueDate, "ddd d mmm", "th-TH") & " เป็น " & Text(d, "ddd d mmm", "th-TH"), ActorEmail: Lower(User().Email)});
+                                        Notify("เลื่อนวันส่งแล้ว", NotificationType.Success)));
+                                Set(varPickDue, false);
+                                Set(varTicket, LookUp(Tickets, ID = varTicket.ID));
+                                Refresh(TicketHistory)
+                              Font: =Font.'Open Sans'
+                              Size: =14
+                              FontWeight: =FontWeight.Semibold
+                              Fill: =Color.White
+                              Color: =clrPrimary
+                              BorderColor: =clrLine
+                              BorderThickness: =2
+                              RadiusTopLeft: =14
+                              RadiusTopRight: =14
+                              RadiusBottomLeft: =14
+                              RadiusBottomRight: =14
+                              HoverFill: =ColorFade(Self.Fill, -10%)
+                              HoverColor: =Self.Color
+                              HoverBorderColor: =Self.BorderColor
+                              PressedFill: =ColorFade(Self.Fill, -20%)
+                              PressedColor: =Self.Color
+                              PressedBorderColor: =Self.BorderColor
+                              Height: =56
+                              DisabledFill: =Color.White
+                              DisabledColor: =ColorFade(clrPrimary, 50%)
+                              DisabledBorderColor: =clrLine
+                              FillPortions: =1
+                              AlignInContainer: =AlignInContainer.Stretch
+                  - conCDBig:
+                      Control: GroupContainer@1.3.0
+                      Variant: AutoLayout
+                      Properties:
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutAlignItems: =LayoutAlignItems.Stretch
+                        LayoutGap: =12
+                        DropShadow: =DropShadow.None
+                        Fill: =Color.Transparent
+                        BorderThickness: =0
+                        Height: =64
+                        FillPortions: =0
+                        AlignInContainer: =AlignInContainer.Stretch
+                      Children:
+                        - btnCPass:
+                            Control: Classic/Button@2.2.0
+                            Properties:
+                              Text: ="ผ่าน ปิดงาน"
+                              OnSelect: |-
+                                =Set(varNow, LookUp(Tickets, ID = varTicket.ID));
+                                If(varNow.Status.Value <> "Done",
+                                    Notify("สถานะเปลี่ยนเป็น " & varNow.Status.Value & " ไปแล้ว", NotificationType.Warning),
+                                    Patch(Tickets, varNow, {Status: {Value: "Closed"}, IsOpen: false, ClosedAt: Now()});
+                                    Patch(TicketHistory, Defaults(TicketHistory), {Source: {Value: "App"}, Processed: false, CEOPending: false}, {Title: "T-" & varTicket.ID, TicketID: varTicket.ID, Action: {Value: "close"}, FromStatus: "Done", ToStatus: "Closed", Comment: Trim(txtCeo.Text), ActorEmail: Lower(User().Email)});
+                                    Reset(txtCeo); Notify("ผ่าน ปิดงานแล้ว", NotificationType.Success));
+                                Set(varTicket, LookUp(Tickets, ID = varTicket.ID));
+                                Refresh(TicketHistory)
+                              Font: =Font.'Open Sans'
+                              Size: =16
+                              FontWeight: =FontWeight.Bold
+                              Fill: =clrSuccess
+                              Color: =Color.White
+                              BorderColor: =clrSuccess
+                              BorderThickness: =0
+                              RadiusTopLeft: =16
+                              RadiusTopRight: =16
+                              RadiusBottomLeft: =16
+                              RadiusBottomRight: =16
+                              HoverFill: =ColorFade(Self.Fill, -10%)
+                              HoverColor: =Self.Color
+                              HoverBorderColor: =Self.BorderColor
+                              PressedFill: =ColorFade(Self.Fill, -20%)
+                              PressedColor: =Self.Color
+                              PressedBorderColor: =Self.BorderColor
+                              Height: =64
+                              DisplayMode: =If(varTicket.Status.Value = "Done", DisplayMode.Edit, DisplayMode.Disabled)
+                              DisabledFill: =Color.White
+                              DisabledColor: =ColorFade(clrMuted, 40%)
+                              DisabledBorderColor: =clrLine
+                              FillPortions: =1
+                              AlignInContainer: =AlignInContainer.Stretch
+                        - btnCReject:
+                            Control: Classic/Button@2.2.0
+                            Properties:
+                              Text: ="ไม่ผ่าน ส่งกลับ"
+                              OnSelect: |-
+                                =Set(varNow, LookUp(Tickets, ID = varTicket.ID));
+                                If(varNow.Status.Value <> "Done",
+                                    Notify("สถานะเปลี่ยนเป็น " & varNow.Status.Value & " ไปแล้ว", NotificationType.Warning),
+                                    Patch(Tickets, varNow, {Status: {Value: "InProgress"}});
+                                    Patch(TicketHistory, Defaults(TicketHistory), {Source: {Value: "App"}, Processed: false, CEOPending: false}, {Title: "T-" & varTicket.ID, TicketID: varTicket.ID, Action: {Value: "reopen"}, FromStatus: "Done", ToStatus: "InProgress", Comment: Trim(txtCeo.Text), ActorEmail: Lower(User().Email)});
+                                    Reset(txtCeo); Notify("ส่งกลับให้ทำต่อแล้ว", NotificationType.Success));
+                                Set(varTicket, LookUp(Tickets, ID = varTicket.ID));
+                                Refresh(TicketHistory)
+                              Font: =Font.'Open Sans'
+                              Size: =16
+                              FontWeight: =FontWeight.Bold
+                              Fill: =Color.White
+                              Color: =clrAccent
+                              BorderColor: =clrAccent
+                              BorderThickness: =3
+                              RadiusTopLeft: =16
+                              RadiusTopRight: =16
+                              RadiusBottomLeft: =16
+                              RadiusBottomRight: =16
+                              HoverFill: =ColorFade(Self.Fill, -10%)
+                              HoverColor: =Self.Color
+                              HoverBorderColor: =Self.BorderColor
+                              PressedFill: =ColorFade(Self.Fill, -20%)
+                              PressedColor: =Self.Color
+                              PressedBorderColor: =Self.BorderColor
+                              Height: =64
+                              DisplayMode: =If(varTicket.Status.Value = "Done", DisplayMode.Edit, DisplayMode.Disabled)
+                              DisabledFill: =Color.White
+                              DisabledColor: =ColorFade(clrMuted, 40%)
+                              DisabledBorderColor: =clrLine
+                              FillPortions: =1
+                              AlignInContainer: =AlignInContainer.Stretch
+                  - conCDSmall:
+                      Control: GroupContainer@1.3.0
+                      Variant: AutoLayout
+                      Properties:
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutAlignItems: =LayoutAlignItems.Stretch
+                        LayoutGap: =12
+                        DropShadow: =DropShadow.None
+                        Fill: =Color.Transparent
+                        BorderThickness: =0
+                        Height: =56
+                        FillPortions: =0
+                        AlignInContainer: =AlignInContainer.Stretch
+                      Children:
+                        - btnCReply:
+                            Control: Classic/Button@2.2.0
+                            Properties:
+                              Text: ="ตอบ"
+                              OnSelect: |-
+                                =Set(varNow, LookUp(Tickets, ID = varTicket.ID));
+                                Set(varAnswer, varNow.Status.Value = "WaitingCEO");
+                                If(varAnswer, Patch(Tickets, varNow, {Status: {Value: "InProgress"}}));
+                                Patch(TicketHistory, Defaults(TicketHistory), {Source: {Value: "App"}, Processed: false, CEOPending: false}, {Title: "T-" & varTicket.ID, TicketID: varTicket.ID, Action: {Value: If(varAnswer, "reply", "comment")}, FromStatus: varNow.Status.Value, ToStatus: If(varAnswer, "InProgress", varNow.Status.Value), Comment: Trim(txtCeo.Text), ActorEmail: Lower(User().Email)});
+                                Reset(txtCeo); Notify("ส่งถึงพนักงานแล้ว", NotificationType.Success);
+                                Set(varTicket, LookUp(Tickets, ID = varTicket.ID));
+                                Refresh(TicketHistory)
+                              Font: =Font.'Open Sans'
+                              Size: =14
+                              FontWeight: =FontWeight.Semibold
+                              Fill: =Color.White
+                              Color: =clrPrimary
+                              BorderColor: =clrLine
+                              BorderThickness: =2
+                              RadiusTopLeft: =14
+                              RadiusTopRight: =14
+                              RadiusBottomLeft: =14
+                              RadiusBottomRight: =14
+                              HoverFill: =ColorFade(Self.Fill, -10%)
+                              HoverColor: =Self.Color
+                              HoverBorderColor: =Self.BorderColor
+                              PressedFill: =ColorFade(Self.Fill, -20%)
+                              PressedColor: =Self.Color
+                              PressedBorderColor: =Self.BorderColor
+                              DisplayMode: =If(varTicket.IsOpen && !IsBlank(Trim(txtCeo.Text)), DisplayMode.Edit, DisplayMode.Disabled)
+                              Height: =56
+                              DisabledFill: =Color.White
+                              DisabledColor: =ColorFade(clrPrimary, 50%)
+                              DisabledBorderColor: =clrLine
+                              FillPortions: =1
+                              AlignInContainer: =AlignInContainer.Stretch
+                        - btnCFollow:
+                            Control: Classic/Button@2.2.0
+                            Properties:
+                              Text: ="ติดตาม"
+                              OnSelect: |-
+                                =Patch(TicketHistory, Defaults(TicketHistory), {Source: {Value: "App"}, Processed: false, CEOPending: false}, {Title: "T-" & varTicket.ID, TicketID: varTicket.ID, Action: {Value: "comment"}, FromStatus: varTicket.Status.Value, ToStatus: varTicket.Status.Value, Comment: "📣 CEO ติดตามงาน: " & Coalesce(Trim(txtCeo.Text), "ขออัปเดตความคืบหน้าภายในวันนี้"), ActorEmail: Lower(User().Email)});
+                                Reset(txtCeo); Notify("ส่งข้อความติดตามแล้ว", NotificationType.Success);
+                                Refresh(TicketHistory)
+                              Font: =Font.'Open Sans'
+                              Size: =14
+                              FontWeight: =FontWeight.Semibold
+                              Fill: =Color.White
+                              Color: =clrPrimary
+                              BorderColor: =clrLine
+                              BorderThickness: =2
+                              RadiusTopLeft: =14
+                              RadiusTopRight: =14
+                              RadiusBottomLeft: =14
+                              RadiusBottomRight: =14
+                              HoverFill: =ColorFade(Self.Fill, -10%)
+                              HoverColor: =Self.Color
+                              HoverBorderColor: =Self.BorderColor
+                              PressedFill: =ColorFade(Self.Fill, -20%)
+                              PressedColor: =Self.Color
+                              PressedBorderColor: =Self.BorderColor
+                              DisplayMode: =If(varTicket.IsOpen, DisplayMode.Edit, DisplayMode.Disabled)
+                              Height: =56
+                              DisabledFill: =Color.White
+                              DisabledColor: =ColorFade(clrPrimary, 50%)
+                              DisabledBorderColor: =clrLine
+                              FillPortions: =1
+                              AlignInContainer: =AlignInContainer.Stretch
+                        - btnCDue:
+                            Control: Classic/Button@2.2.0
+                            Properties:
+                              Text: =If(varPickDue, "ปิดเลือกวัน", "เลื่อนวันส่ง")
+                              OnSelect: =Set(varPickDue, !varPickDue)
+                              Font: =Font.'Open Sans'
+                              Size: =14
+                              FontWeight: =FontWeight.Semibold
+                              Fill: =Color.White
+                              Color: =clrPrimary
+                              BorderColor: =clrLine
+                              BorderThickness: =2
+                              RadiusTopLeft: =14
+                              RadiusTopRight: =14
+                              RadiusBottomLeft: =14
+                              RadiusBottomRight: =14
+                              HoverFill: =ColorFade(Self.Fill, -10%)
+                              HoverColor: =Self.Color
+                              HoverBorderColor: =Self.BorderColor
+                              PressedFill: =ColorFade(Self.Fill, -20%)
+                              PressedColor: =Self.Color
+                              PressedBorderColor: =Self.BorderColor
+                              DisplayMode: =If(varTicket.IsOpen, DisplayMode.Edit, DisplayMode.Disabled)
+                              Height: =56
+                              DisabledFill: =Color.White
+                              DisabledColor: =ColorFade(clrPrimary, 50%)
+                              DisabledBorderColor: =clrLine
+                              FillPortions: =1
+                              AlignInContainer: =AlignInContainer.Stretch
+      - recTabLineCD:
+          Control: Rectangle@2.3.0
+          Properties:
+            Fill: =clrLine
+            X: =0
+            Y: =Parent.Height - 96
+            Width: =Parent.Width
+            Height: =2
+      - btnTabHomeCD:
+          Control: Classic/Button@2.2.0
+          Properties:
+            Text: ="ภาพรวม"
+            OnSelect: =Navigate(scrCeoHome)
+            Font: =Font.'Open Sans'
+            Size: =14
+            FontWeight: =FontWeight.Normal
+            Fill: =Color.White
+            Color: =clrMuted
+            BorderColor: =clrAccent
+            BorderThickness: =0
+            RadiusTopLeft: =0
+            RadiusTopRight: =0
+            RadiusBottomLeft: =0
+            RadiusBottomRight: =0
+            HoverFill: =clrBg
+            HoverColor: =Self.Color
+            HoverBorderColor: =Self.BorderColor
+            PressedFill: =clrLine
+            PressedColor: =Self.Color
+            PressedBorderColor: =Self.BorderColor
+            X: =0
+            Y: =Parent.Height - 96 + 2
+            Width: =Parent.Width / 3
+            Height: =94
+      - btnTabListCD:
+          Control: Classic/Button@2.2.0
+          Properties:
+            Text: ="งานทั้งหมด"
+            OnSelect: =Set(varFilter, "all"); Navigate(scrCeoTickets)
+            Font: =Font.'Open Sans'
+            Size: =14
+            FontWeight: =FontWeight.Bold
+            Fill: =Color.White
+            Color: =clrAccent
+            BorderColor: =clrAccent
+            BorderThickness: =0
+            RadiusTopLeft: =0
+            RadiusTopRight: =0
+            RadiusBottomLeft: =0
+            RadiusBottomRight: =0
+            HoverFill: =clrBg
+            HoverColor: =Self.Color
+            HoverBorderColor: =Self.BorderColor
+            PressedFill: =clrLine
+            PressedColor: =Self.Color
+            PressedBorderColor: =Self.BorderColor
+            X: =Parent.Width * 1 / 3
+            Y: =Parent.Height - 96 + 2
+            Width: =Parent.Width / 3
+            Height: =94
+      - btnTabNewCD:
+          Control: Classic/Button@2.2.0
+          Properties:
+            Text: ="สั่งงาน"
+            OnSelect: =Navigate(scrCeoCreate)
+            Font: =Font.'Open Sans'
+            Size: =14
+            FontWeight: =FontWeight.Normal
+            Fill: =Color.White
+            Color: =clrMuted
+            BorderColor: =clrAccent
+            BorderThickness: =0
+            RadiusTopLeft: =0
+            RadiusTopRight: =0
+            RadiusBottomLeft: =0
+            RadiusBottomRight: =0
+            HoverFill: =clrBg
+            HoverColor: =Self.Color
+            HoverBorderColor: =Self.BorderColor
+            PressedFill: =clrLine
+            PressedColor: =Self.Color
+            PressedBorderColor: =Self.BorderColor
+            X: =Parent.Width * 2 / 3
+            Y: =Parent.Height - 96 + 2
+            Width: =Parent.Width / 3
+            Height: =94
