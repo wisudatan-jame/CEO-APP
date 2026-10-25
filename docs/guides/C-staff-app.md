@@ -60,11 +60,15 @@ if(equals(variables('CallerEmail'), toLower(first(body('Get_ceo')?['value'])?['V
   "New|ack|A": "Acknowledged",
   "New|start|A": "InProgress",
   "Acknowledged|start|A": "InProgress",
+  "WaitingCEO|start|A": "InProgress",
   "New|wait|A": "WaitingCEO",
   "Acknowledged|wait|A": "WaitingCEO",
   "InProgress|wait|A": "WaitingCEO",
   "WaitingCEO|reply|C": "InProgress",
+  "New|done|A": "Done",
+  "Acknowledged|done|A": "Done",
   "InProgress|done|A": "Done",
+  "WaitingCEO|done|A": "Done",
   "Done|close|C": "Closed",
   "Done|reopen|C": "InProgress",
   "New|cancel|C": "Closed",
@@ -104,7 +108,7 @@ or(not(equals(outputs('Current'), outputs('In_expected'))), empty(outputs('NewSt
 - ช่องบังคับใช้ค่าเดิม (Expression): Title `body('Get_ticket')?['Title']` · AssigneeEmail `body('Get_ticket')?['AssigneeEmail']` · DueDate `body('Get_ticket')?['DueDate']` · Priority Value `body('Get_ticket')?['Priority']?['Value']` · Source Value `body('Get_ticket')?['Source']?['Value']`
 - **Status Value:** `outputs('NewStatus')`
 - **IsOpen:** `not(equals(outputs('NewStatus'), 'Closed'))`
-- **AckedAt:** `if(and(equals(outputs('Current'), 'New'), contains(createArray('ack', 'start', 'wait'), outputs('In_action'))), utcNow(), body('Get_ticket')?['AckedAt'])`
+- **AckedAt:** `if(and(equals(outputs('Current'), 'New'), contains(createArray('ack', 'start', 'wait', 'done'), outputs('In_action'))), utcNow(), body('Get_ticket')?['AckedAt'])`
 - **DoneAt:** `if(equals(outputs('NewStatus'), 'Done'), utcNow(), body('Get_ticket')?['DoneAt'])`
 - **ClosedAt:** `if(equals(outputs('NewStatus'), 'Closed'), utcNow(), body('Get_ticket')?['ClosedAt'])`
 
@@ -211,22 +215,30 @@ Set(varTicket, LookUp(Tickets, ID = varTicket.ID))
 
 `btnWait` ควรบังคับให้พิมพ์คำถาม: ตั้ง DisplayMode เป็น `If(varBusy || IsBlank(Trim(txtComment.Text)), DisplayMode.Disabled, DisplayMode.Edit)`
 
-### 2.4.0 ปุ่มสถานะแสดงตลอด (ทำแล้วขึ้นทึบ ไม่หายไป)
-ปุ่มสถานะ 4 ปุ่มแสดงทุกครั้ง (**Visible** = `true`) และไม่ต้องเลื่อนตำแหน่งตามสถานะ
-- **ทำแล้ว** ปุ่มทึบสีเขียว มีเครื่องหมาย ✓ กดไม่ได้
-- **ทำได้ตอนนี้** สีปกติ กดได้
-- **ยังไม่ถึงขั้นนี้** สีจาง กดไม่ได้
+### 2.4.0 ปุ่มสถานะ: แดงทั้งหมด กดแล้วทึบ ไม่บังคับลำดับ
+ทุกปุ่มแสดงตลอด (**Visible** = `true`) สไตล์เดียวกันทั้ง 5 ปุ่ม
+- **กดได้:** ขอบแดง พื้นขาว ตัวอักษรแดง
+- **กดแล้ว:** พื้นแดงทึบ ตัวอักษรขาว มี ✓ กดซ้ำไม่ได้
+- **กดไม่ได้ตอนนี้** (เช่น ยังไม่พิมพ์ข้อความ หรืองานปิดแล้ว): ขอบและตัวอักษรแดงจาง
 
-| ปุ่ม | Text | DisplayMode | DisabledFill |
+ไม่บังคับลำดับ กด "ทำเสร็จแล้ว" ได้เลยโดยไม่ต้องรับทราบก่อน ขั้นที่ข้ามไปจะขึ้นทึบเอง (ถือว่าผ่านแล้ว) · "ส่งความเห็น" กดได้ไม่จำกัดจนกว่างานปิด · "ถาม CEO" กดได้อีกหลัง CEO ตอบ (งานกลับเป็น "กำลังทำ")
+
+**ทุกปุ่ม (เลือกพร้อมกันแล้วตั้งครั้งเดียว):** Visible `true` · Fill `Color.White` · Color `clrAccent` · BorderColor `clrAccent` · BorderThickness `2` · HoverFill `ColorFade(clrAccent, 90%)` · PressedFill `ColorFade(clrAccent, 80%)`
+
+| ปุ่ม | Text | DisplayMode | สถานะ "กดแล้ว" (ใช้ในสูตรสี) |
 |---|---|---|---|
-| `btnAck` | `If(varTicket.Status.Value = "New", "รับทราบ", "✓ รับทราบแล้ว")` | `If(varBusy \|\| varTicket.Status.Value <> "New", DisplayMode.Disabled, DisplayMode.Edit)` | `If(varTicket.Status.Value <> "New", clrSuccess, ColorFade(Self.Fill, 60%))` |
-| `btnStart` | `If(varTicket.Status.Value in ["InProgress", "Done", "Closed"], "✓ เริ่มทำแล้ว", "เริ่มทำ")` | `If(varBusy \|\| !(varTicket.Status.Value in ["New", "Acknowledged"]), DisplayMode.Disabled, DisplayMode.Edit)` | `If(varTicket.Status.Value in ["InProgress", "Done", "Closed"], clrSuccess, ColorFade(Self.Fill, 60%))` |
-| `btnWait` | `If(varTicket.Status.Value = "WaitingCEO", "⏳ รอ CEO ตอบ", "ถาม CEO")` | `If(varBusy \|\| IsBlank(Trim(txtComment.Text)) \|\| !(varTicket.Status.Value in ["New", "Acknowledged", "InProgress"]), DisplayMode.Disabled, DisplayMode.Edit)` | `If(varTicket.Status.Value = "WaitingCEO", clrPrimary, ColorFade(Self.Fill, 60%))` |
-| `btnDone` | `If(varTicket.Status.Value in ["Done", "Closed"], "✓ ทำเสร็จแล้ว", "ทำเสร็จแล้ว")` | `If(varBusy \|\| varTicket.Status.Value <> "InProgress", DisplayMode.Disabled, DisplayMode.Edit)` | `If(varTicket.Status.Value in ["Done", "Closed"], clrSuccess, ColorFade(Self.Fill, 60%))` |
-| `btnComment` | `"ส่งความเห็น"` | `If(varBusy \|\| IsBlank(Trim(txtComment.Text)), DisplayMode.Disabled, DisplayMode.Edit)` | `ColorFade(Self.Fill, 60%)` |
+| `btnAck` | `If(varTicket.Status.Value = "New", "รับทราบ", "✓ รับทราบแล้ว")` | `If(varBusy \|\| varTicket.Status.Value <> "New", DisplayMode.Disabled, DisplayMode.Edit)` | `varTicket.Status.Value <> "New"` |
+| `btnStart` | `If(varTicket.Status.Value in ["InProgress", "Done", "Closed"], "✓ เริ่มทำแล้ว", "เริ่มทำ")` | `If(varBusy \|\| !(varTicket.Status.Value in ["New", "Acknowledged", "WaitingCEO"]), DisplayMode.Disabled, DisplayMode.Edit)` | `varTicket.Status.Value in ["InProgress", "Done", "Closed"]` |
+| `btnDone` | `If(varTicket.Status.Value in ["Done", "Closed"], "✓ ทำเสร็จแล้ว", "ทำเสร็จแล้ว")` | `If(varBusy \|\| varTicket.Status.Value in ["Done", "Closed"], DisplayMode.Disabled, DisplayMode.Edit)` | `varTicket.Status.Value in ["Done", "Closed"]` |
+| `btnWait` | `If(varTicket.Status.Value = "WaitingCEO", "⏳ รอ CEO ตอบ", "ถาม CEO")` | `If(varBusy \|\| IsBlank(Trim(txtComment.Text)) \|\| !(varTicket.Status.Value in ["New", "Acknowledged", "InProgress"]), DisplayMode.Disabled, DisplayMode.Edit)` | `varTicket.Status.Value = "WaitingCEO"` |
+| `btnComment` | `"ส่งความเห็น"` | `If(varBusy \|\| IsBlank(Trim(txtComment.Text)) \|\| varTicket.Status.Value = "Closed", DisplayMode.Disabled, DisplayMode.Edit)` | `false` (กดได้หลายครั้ง ไม่ทึบ) |
 
-ทุกปุ่ม: **Visible** `true` · **DisabledBorderColor** `Self.DisabledFill` · **DisabledColor**: `btnAck` `btnStart` `btnDone` = `Color.White` · `btnWait` = `If(varTicket.Status.Value = "WaitingCEO", Color.White, ColorFade(clrIndigo, 50%))` · `btnComment` = `ColorFade(clrIndigo, 50%)`
-`galHistory` Y กลับเป็น `btnComment.Y + 70` (ไม่ต้องคำนวณช่องว่างแล้ว)
+**สูตรสีเมื่อกดไม่ได้** ใส่ทุกปุ่ม โดยแทน `<กดแล้ว>` ด้วยค่าคอลัมน์ขวาสุดของปุ่มนั้น
+- DisabledFill: `If(<กดแล้ว>, clrAccent, Color.White)`
+- DisabledColor: `If(<กดแล้ว>, Color.White, ColorFade(clrAccent, 50%))`
+- DisabledBorderColor: `If(<กดแล้ว>, clrAccent, ColorFade(clrAccent, 50%))`
+
+`galHistory` Y = `btnComment.Y + 70` · ต้องแก้ Flow `UpdateTicket` ให้รับลำดับอิสระด้วย (Transitions ข้อ e และ AckedAt ข้อ h ด้านบน)
 
 **ถาม CEO ต่างจากส่งความเห็นอย่างไร**
 | | ถาม CEO | ส่งความเห็น |

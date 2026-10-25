@@ -42,14 +42,16 @@ Site: `CEO-Tickets` เป็น Communication site (ไม่ผูก Microsof
 | จาก | ไป | ผู้ทำได้ | Action |
 |---|---|---|---|
 | `New` | `Acknowledged` | ผู้รับผิดชอบ | `ack` |
-| `New`, `Acknowledged` | `InProgress` | ผู้รับผิดชอบ | `start` (ถ้ามาจาก `New` ให้ตั้ง `AckedAt` ด้วย) |
+| `New`, `Acknowledged`, `WaitingCEO` | `InProgress` | ผู้รับผิดชอบ | `start` (ถ้ามาจาก `New` ให้ตั้ง `AckedAt` ด้วย) |
 | `New`, `Acknowledged`, `InProgress` | `WaitingCEO` | ผู้รับผิดชอบ | `wait` |
 | `WaitingCEO` | `InProgress` | CEO | `reply` |
-| `InProgress` | `Done` | ผู้รับผิดชอบ | `done` |
+| `New`, `Acknowledged`, `InProgress`, `WaitingCEO` | `Done` | ผู้รับผิดชอบ | `done` (ถ้ามาจาก `New` ให้ตั้ง `AckedAt` ด้วย) |
 | `Done` | `Closed` | CEO | `close` |
 | `Done` | `InProgress` | CEO | `reopen` |
 | ทุกสถานะที่ยังไม่ `Closed` | `Closed` | CEO | `cancel` |
 | ทุกสถานะที่ยังไม่ `Closed` | (ไม่เปลี่ยน) | CEO หรือผู้รับผิดชอบ | `comment` |
+
+พนักงาน**ไม่ต้องกดตามลำดับ** (ตัดสินใจ 25 ต.ค. 2026) เช่น กด "ทำเสร็จแล้ว" ได้เลยโดยไม่ต้องรับทราบหรือเริ่มทำก่อน แต่ย้อนกลับไม่ได้ (ทำเสร็จแล้วกดเริ่มทำไม่ได้ จนกว่า CEO ส่งกลับ) · ส่งความเห็นได้ไม่จำกัดจนกว่างานปิด · ถาม CEO ได้อีกหลัง CEO ตอบ
 
 การเปลี่ยนสถานะที่ไม่อยู่ในตาราง **ต้องถูก Flow ปฏิเสธ** (ดู [03-flows.md](03-flows.md))
 
