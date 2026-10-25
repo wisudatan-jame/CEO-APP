@@ -5,6 +5,7 @@ Screens:
       OnVisible: |-
         =ClearCollect(colAll, Filter(Tickets, IsOpen = true));
         ClearCollect(colEmp, Filter(Employees, Active = true));
+        ClearCollect(colGroupTickets, Filter(Tickets, GroupID > 0));
         Set(varClosed30, Filter(Tickets, IsOpen = false, ClosedAt >= DateAdd(Today(), -30, TimeUnit.Days)));
         Set(varCLate, Filter(colAll, Status.Value <> "Done", DueDate < Today()))
     Children:
@@ -342,7 +343,7 @@ Screens:
             X: =24
             Y: =500
             Width: =Parent.Width - 48
-            Height: =Min(12 + 34 + 6 + Max(CountRows(galCPeople.AllItems), 1) * 76 + 8 + 4, Parent.Height - 96 - 12 - If(conCGroups.Visible, 150 + 12, 0) - Self.Y)
+            Height: =Min(12 + 34 + 6 + Max(CountRows(galCPeople.AllItems), 1) * 76 + 8 + 4, Parent.Height - 96 - 12 - conCGroups.Height - 12 - Self.Y)
           Children:
             - conCPeopleHead:
                 Control: GroupContainer@1.3.0
@@ -534,18 +535,18 @@ Screens:
             X: =24
             Y: =conCPeople.Y + conCPeople.Height + 12
             Width: =Parent.Width - 48
-            Height: =150
-            Visible: =!IsEmpty(galCGroups.AllItems)
+            Height: =12 + 8 + 4 + Max(Min(CountRows(galCGroups.AllItems), 2), 1) * 84
           Children:
-            - lblCGroupsHead:
+            - lblCGroupsEmpty:
                 Control: Label@2.5.1
                 Properties:
-                  Text: ="งานที่สั่งหลายคน"
+                  Text: |-
+                    ="งานกลุ่ม: ยังไม่มี" & Char(10) & "สั่งหลายคนพร้อมกันได้ที่ปุ่มสั่งงาน หรือพิมพ์ใน LINE ว่า สั่งหัวหน้าทุกคน"
                   Font: =Font.'Open Sans'
-                  Size: =15
-                  Color: =clrText
-                  Height: =30
-                  FontWeight: =FontWeight.Bold
+                  Size: =12
+                  Color: =clrMuted
+                  Height: =84
+                  Visible: =IsEmpty(galCGroups.AllItems)
                   FillPortions: =0
                   AlignInContainer: =AlignInContainer.Stretch
             - galCGroups:
@@ -553,11 +554,16 @@ Screens:
                 Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
                 Properties:
                   Items: |-
-                    =AddColumns(GroupBy(Filter(colAll, !IsBlank(GroupID)), GroupID, Rows),
-                        GTitle, First(Rows).Title,
-                        GOpen, CountRows(Rows),
-                        GDone, CountRows(Filter(Rows, Status.Value = "Done")))
-                  TemplateSize: =70
+                    =Filter(
+                        AddColumns(GroupBy(colGroupTickets, GroupID, Rows),
+                            GTitle, First(Rows).Title,
+                            GCount, CountRows(Rows),
+                            GOpen, CountRows(Filter(Rows, IsOpen = true)),
+                            GDone, CountRows(Filter(Rows, Status.Value in ["Done", "Closed"])),
+                            GLate, CountRows(Filter(Rows, IsOpen = true, Status.Value <> "Done", DueDate < Today()))),
+                        GOpen > 0)
+                  TemplateSize: =84
+                  ShowScrollbar: =false
                   OnSelect: =Set(varFilter, "group"); Set(varGroup, ThisItem.GroupID); Navigate(scrCeoTickets)
                   Fill: =Color.Transparent
                   BorderThickness: =0
@@ -566,17 +572,56 @@ Screens:
                   LayoutMinHeight: =0
                   LayoutMinWidth: =0
                 Children:
+                  - icoCGroup:
+                      Control: Classic/Icon@2.5.0
+                      Properties:
+                        Icon: =Icon.People
+                        Color: =clrPrimary
+                        OnSelect: =Select(Parent)
+                        X: =0
+                        Y: =(84 - 36) / 2
+                        Width: =36
+                        Height: =36
                   - lblCGroup:
                       Control: Label@2.5.1
                       Properties:
-                        Text: ="กลุ่ม T-" & ThisItem.GroupID & " · " & ThisItem.GTitle & Char(10) & "ยังเปิด " & ThisItem.GOpen & " คน · เสร็จรอตรวจ " & ThisItem.GDone
+                        Text: |-
+                          ="งานกลุ่ม: " & ThisItem.GTitle
+                        Font: =Font.'Open Sans'
+                        Size: =14
+                        Color: =clrText
+                        X: =52
+                        Y: =8
+                        Width: =Parent.TemplateWidth - 52 - 60
+                        Height: =36
+                        FontWeight: =FontWeight.Semibold
+                        Wrap: =false
+                        OnSelect: =Select(Parent)
+                  - lblCGroupSub:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: =ThisItem.GCount & " คน · ทำเสร็จ " & ThisItem.GDone & "/" & ThisItem.GCount & If(ThisItem.GLate > 0, " · ช้า " & ThisItem.GLate, "")
+                        Font: =Font.'Open Sans'
+                        Size: =12
+                        Color: =clrMuted
+                        X: =52
+                        Y: =42
+                        Width: =Parent.TemplateWidth - 52 - 60
+                        Height: =30
+                        OnSelect: =Select(Parent)
+                  - lblCGroupGo:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: ="ดู"
                         Font: =Font.'Open Sans'
                         Size: =13
-                        Color: =clrText
-                        X: =0
+                        Color: =clrPrimary
+                        X: =Parent.TemplateWidth - 56
                         Y: =0
-                        Width: =Parent.TemplateWidth
-                        Height: =Parent.TemplateHeight - 1
+                        Width: =56
+                        Height: =Parent.TemplateHeight
+                        Align: =Align.Right
+                        FontWeight: =FontWeight.Semibold
                         OnSelect: =Select(Parent)
                   - recCGLine:
                       Control: Rectangle@2.3.0
@@ -586,6 +631,7 @@ Screens:
                         Width: =Parent.TemplateWidth
                         Height: =1
                         Fill: =clrLine
+                        Visible: =CountRows(galCGroups.AllItems) > 1
                         OnSelect: =Select(Parent)
       - recTabLineCH:
           Control: Rectangle@2.3.0

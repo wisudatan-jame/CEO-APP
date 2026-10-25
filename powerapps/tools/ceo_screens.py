@@ -17,6 +17,7 @@ def chip(text, cond, onselect, **p):
 def scr_ceo_home():
     on_visible = '''ClearCollect(colAll, Filter(Tickets, IsOpen = true));
 ClearCollect(colEmp, Filter(Employees, Active = true));
+ClearCollect(colGroupTickets, Filter(Tickets, GroupID > 0));
 Set(varClosed30, Filter(Tickets, IsOpen = false, ClosedAt >= DateAdd(Today(), -30, TimeUnit.Days)));
 Set(varCLate, Filter(colAll, Status.Value <> "Done", DueDate < Today()))'''
     people = '''SortByColumns(
@@ -27,17 +28,22 @@ Set(varCLate, Filter(colAll, Status.Value <> "Done", DueDate < Today()))'''
             With({d: Filter(varClosed30, AssigneeEmail = who, !IsBlank(DoneAt))},
                 If(CountRows(d) > 0, Average(d, DateDiff(Created, DoneAt, TimeUnit.Hours)) / 24, 0)))),
     "LateCount", SortOrder.Descending, "OpenCount", SortOrder.Descending)'''
-    groups = '''AddColumns(GroupBy(Filter(colAll, !IsBlank(GroupID)), GroupID, Rows),
-    GTitle, First(Rows).Title,
-    GOpen, CountRows(Rows),
-    GDone, CountRows(Filter(Rows, Status.Value = "Done")))'''
+    groups = '''Filter(
+    AddColumns(GroupBy(colGroupTickets, GroupID, Rows),
+        GTitle, First(Rows).Title,
+        GCount, CountRows(Rows),
+        GOpen, CountRows(Filter(Rows, IsOpen = true)),
+        GDone, CountRows(Filter(Rows, Status.Value in ["Done", "Closed"])),
+        GLate, CountRows(Filter(Rows, IsOpen = true, Status.Value <> "Done", DueDate < Today()))),
+    GOpen > 0)'''
     emp = 'LookUp(colEmp, Lower(Email) = ThisItem.AssigneeEmail)'
     pname = NAME.format(e='ThisItem.AssigneeEmail')
     initial = f'With({{n: {NICK.format(e="ThisItem.AssigneeEmail")}}}, If(Left(n, 1) in ["เ", "แ", "โ", "ใ", "ไ"], Mid(n, 2, 1), Left(n, 1)))'
     sel = 'Select(Parent)'
     num = lambda **p: label(Y=0, Height='Parent.TemplateHeight - 1', Align='Align.Right', OnSelect=sel, **p)
     goto = lambda f: f'Set(varFilter, "{f}"); Navigate(scrCeoTickets)'
-    groups_h = 150
+    group_row = 84
+    groups_h = f'12 + 8 + 4 + Max(Min(CountRows(galCGroups.AllItems), 2), 1) * {group_row}'
     children = header('CH') + [
         ('lblCHello', label('"สวัสดีค่ะคุณสมชาย"', X=24, Y=108, Width='Parent.Width - 48', Height=46, Size=22, FontWeight='FontWeight.Bold', Color='clrPrimary')),
         ('lblCHelloSub', label('"วัน" & Text(Today(), "dddd d mmmm", "th-TH") & " · งานเปิดอยู่ " & CountRows(colAll) & " งาน"',
@@ -69,15 +75,24 @@ Set(varCLate, Filter(colAll, Status.Value <> "Done", DueDate < Today()))'''
                 ('recCPLine', rect(X=0, Y='Parent.TemplateHeight - 1', Width='Parent.TemplateWidth', Height=1, Fill='clrLine', OnSelect=sel)),
             ], TemplateSize=76, OnSelect='Set(varFilter, "person"); Set(varPerson, ThisItem.AssigneeEmail); Navigate(scrCeoTickets)'))),
         ], 24, 500, 'Parent.Width - 48',
-           f'Min(12 + 34 + 6 + Max(CountRows(galCPeople.AllItems), 1) * 76 + 8 + 4, {CONTENT_END} - If(conCGroups.Visible, {groups_h} + 12, 0) - Self.Y)')),
+           f'Min(12 + 34 + 6 + Max(CountRows(galCPeople.AllItems), 1) * 76 + 8 + 4, {CONTENT_END} - conCGroups.Height - 12 - Self.Y)')),
         ('conCGroups', panel([
-            ('lblCGroupsHead', in_box(label('"งานที่สั่งหลายคน"', Height=30, Size=15, FontWeight='FontWeight.Bold'))),
+            ('lblCGroupsEmpty', in_box(label('"งานกลุ่ม: ยังไม่มี" & Char(10) & "สั่งหลายคนพร้อมกันได้ที่ปุ่มสั่งงาน หรือพิมพ์ใน LINE ว่า สั่งหัวหน้าทุกคน"',
+                                             Height=group_row, Size=12, Color='clrMuted', Visible='IsEmpty(galCGroups.AllItems)'))),
             ('galCGroups', list_in(gallery(groups, [
-                ('lblCGroup', label('"กลุ่ม T-" & ThisItem.GroupID & " · " & ThisItem.GTitle & Char(10) & "ยังเปิด " & ThisItem.GOpen & " คน · เสร็จรอตรวจ " & ThisItem.GDone',
-                                    X=0, Y=0, Width='Parent.TemplateWidth', Height='Parent.TemplateHeight - 1', Size=13, OnSelect=sel)),
-                ('recCGLine', rect(X=0, Y='Parent.TemplateHeight - 1', Width='Parent.TemplateWidth', Height=1, Fill='clrLine', OnSelect=sel)),
-            ], TemplateSize=70, OnSelect='Set(varFilter, "group"); Set(varGroup, ThisItem.GroupID); Navigate(scrCeoTickets)'))),
-        ], 24, 'conCPeople.Y + conCPeople.Height + 12', 'Parent.Width - 48', groups_h, Visible='!IsEmpty(galCGroups.AllItems)')),
+                ('icoCGroup', {'type': 'Classic/Icon@2.5.0', 'props': {'Icon': 'Icon.People', 'Color': 'clrPrimary', 'OnSelect': sel,
+                                                                      'X': 0, 'Y': f'({group_row} - 36) / 2', 'Width': 36, 'Height': 36}}),
+                ('lblCGroup', label('"งานกลุ่ม: " & ThisItem.GTitle', X=52, Y=8, Width='Parent.TemplateWidth - 52 - 60', Height=36, Size=14,
+                                    FontWeight='FontWeight.Semibold', Wrap='false', OnSelect=sel)),
+                ('lblCGroupSub', label('ThisItem.GCount & " คน · ทำเสร็จ " & ThisItem.GDone & "/" & ThisItem.GCount & If(ThisItem.GLate > 0, " · ช้า " & ThisItem.GLate, "")',
+                                       X=52, Y=42, Width='Parent.TemplateWidth - 52 - 60', Height=30, Size=12, Color='clrMuted', OnSelect=sel)),
+                ('lblCGroupGo', label('"ดู"', X='Parent.TemplateWidth - 56', Y=0, Width=56, Height='Parent.TemplateHeight', Size=13, Align='Align.Right',
+                                      FontWeight='FontWeight.Semibold', Color='clrPrimary', OnSelect=sel)),
+                ('recCGLine', rect(X=0, Y='Parent.TemplateHeight - 1', Width='Parent.TemplateWidth', Height=1, Fill='clrLine',
+                                   Visible='CountRows(galCGroups.AllItems) > 1', OnSelect=sel)),
+            ], TemplateSize=group_row, ShowScrollbar='false',
+               OnSelect='Set(varFilter, "group"); Set(varGroup, ThisItem.GroupID); Navigate(scrCeoTickets)'))),
+        ], 24, 'conCPeople.Y + conCPeople.Height + 12', 'Parent.Width - 48', groups_h, PaddingTop=12, PaddingBottom=8)),
     ] + tabs('CH', CEO_TABS, 'Home')
     return screen('scrCeoHome', {'Fill': 'clrBg', 'OnVisible': on_visible}, children)
 
