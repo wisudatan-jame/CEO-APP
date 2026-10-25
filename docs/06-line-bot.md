@@ -58,7 +58,7 @@ CEO พูดผ่านไมค์บนแป้นพิมพ์ → LINE 
 1. **ตรวจลายเซ็น Webhook:** คำนวณ HMAC-SHA256 ของ Body ด้วย Channel secret แล้วเทียบกับ Header `x-line-signature` ไม่ตรง → ไม่ทำอะไรต่อ (n8n ตอบ LINE ว่าได้รับแล้วทันทีตั้งแต่ก่อนตรวจ)
 2. **ตรวจผู้ส่ง:** `source.userId` ต้องตรงกับ `CEO_LINE_USER_ID` ใน Config ไม่ตรง → ไม่ตอบ และบันทึก Log (ใครก็แอด OA ได้ถ้าได้ลิงก์ จึงห้ามข้ามข้อนี้)
 3. **ตั้งค่า OA:** ปิดการค้นหา ปิดข้อความตอบอัตโนมัติและ Greeting message ของ LINE OA Manager เพื่อไม่ให้ตอบชนกับบอท
-4. **เก็บความลับ:** Channel secret, Channel access token, Client secret และ `SP_WEBHOOK_CLIENT_STATE` เก็บใน n8n Variables (หรือ environment variable) เท่านั้น ห้ามใส่ในโค้ดของ Workflow หรือ Commit ลง Git
+4. **เก็บความลับ:** Channel secret, Channel access token, Client secret และ `SP_WEBHOOK_CLIENT_STATE` เก็บในโหนด `Settings` ของ Workflow บน n8n Cloud Starter (Pro ขึ้นไปใช้ n8n Variables, โน้ตบุ๊กใช้ environment variable) ห้ามใส่ในโค้ดของ Workflow หรือ Commit ลง Git และห้าม Export/แชร์ Workflow บน Cloud เพราะโหนด Settings มีค่าลับ ([คู่มือ ช](guides/G-n8n-cloud.md))
 6. **SharePoint webhook:** n8n ประมวลผลเฉพาะการเรียกที่ `clientState` ตรงกับ `SP_WEBHOOK_CLIENT_STATE` และไม่เชื่อข้อมูลใน Body (อ่านข้อมูลจริงจาก SharePoint เองเสมอ)
 5. **ข้อความถึงพนักงาน:** ใช้ช่องทางแจ้งเตือนเดิม (ไม่ส่งรายละเอียดงานผ่าน LINE ถึงพนักงาน)
 

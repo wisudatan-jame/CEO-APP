@@ -19,7 +19,10 @@
 4. Flow `OnLineEvent` ใน Power Automate ([../docs/03-flows.md](../docs/03-flows.md)) มิฉะนั้นงานจาก LINE จะไม่ถูกตั้งสิทธิ์และพนักงานจะไม่ได้แจ้งเตือน
 
 ## ค่าตั้ง (Secrets)
-Workflow อ่านค่าเหล่านี้จาก **n8n Variables** (`$vars`) ก่อน ถ้าไม่มีจะอ่านจาก environment variable (`$env`)
+Workflow อ่านค่าเหล่านี้ตามลำดับ เจอที่ไหนก่อนใช้ที่นั่น
+1. **n8n Variables** (`$vars`) — n8n Cloud Pro ขึ้นไป
+2. **โหนด `Settings`** ใน Workflow — n8n Cloud Starter (ไม่มี Variables) ✅ ใช้งานจริง
+3. environment variable (`$env`) — โน้ตบุ๊ก ([`local/`](local/))
 
 | ชื่อ | ค่า |
 |---|---|
@@ -32,9 +35,12 @@ Workflow อ่านค่าเหล่านี้จาก **n8n Variables*
 | `SP_SITE_PATH` | `/sites/CEO-Tickets` |
 | `SP_WEBHOOK_CLIENT_STATE` | ข้อความสุ่มยาว 32 ตัวอักษรขึ้นไปที่คุณตั้งเอง ใช้ยืนยันว่าการเรียกมาจาก SharePoint จริง (ใช้ค่าเดียวกันตอนรัน `setup/create-webhook.js`) |
 
-- **บนโน้ตบุ๊ก (Docker):** ใส่ในไฟล์ `.env` ของ n8n แล้วตั้ง `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` เพื่อให้ Code node อ่าน `$env` ได้ ห้าม Commit ไฟล์ `.env`
-- **n8n Cloud:** ใช้เมนู **Variables** ⚠️ ตรวจว่าแพ็กเกจที่ซื้อมีฟีเจอร์ Variables ถ้าไม่มี ต้องหาวิธีอื่นก่อนย้ายขึ้น Cloud (ห้ามพิมพ์ค่าลับลงในโค้ดของ Workflow เพราะจะติดไปกับไฟล์ Export)
-- ค่าของ Variables มองเห็นได้โดยทุกคนที่มีสิทธิ์ใน n8n instance นั้น ให้จำกัดผู้ใช้ n8n ไว้ที่ผู้พัฒนาและคุณ Suchada
+- **n8n Cloud Starter (ใช้งานจริง):** กรอกในโหนด `Settings` ตาม[คู่มือ ช](../docs/guides/G-n8n-cloud.md) ⚠️ ห้าม Export/แชร์ Workflow เพราะค่าลับติดไปด้วย และอัปเดตบอทด้วย `ceo-line-bot-update.json` (ไม่มีโหนด Settings) จะได้ไม่ต้องกรอกค่าใหม่
+- **บนโน้ตบุ๊ก:** ใส่ในไฟล์ `.env` (สคริปต์ใน `local/` ตั้ง `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` ให้ Code node อ่าน `$env` ได้) ห้าม Commit ไฟล์ `.env` และปล่อยโหนด Settings ว่างไว้
+- ใครเปิด Workflow หรือ Variables ใน n8n ได้ จะเห็นค่าลับ ให้จำกัดผู้ใช้ n8n ไว้ที่ผู้พัฒนาและคุณ Suchada
+
+## ใช้งานจริงบน n8n Cloud
+ทำตาม[คู่มือ ช: ย้ายบอทขึ้น n8n Cloud](../docs/guides/G-n8n-cloud.md) หลังย้ายแล้วไม่ต้องเปิดโน้ตบุ๊ก และ URL ของ Webhook ไม่เปลี่ยนอีก
 
 ## ติดตั้งบนโน้ตบุ๊ก Windows (ช่วงพัฒนาและทดลอง)
 ใช้ npm (เบากว่า Docker) เพราะใช้งานจริงจะย้ายไป n8n Cloud · ใช้เวลาประมาณ 30 นาที
@@ -107,7 +113,7 @@ Workflow อ่านค่าเหล่านี้จาก **n8n Variables*
 ## แก้ไขโค้ด
 แก้ที่ `src/` แล้วรัน
 ```bash
-node n8n/build.js                 # สร้าง ceo-line-bot.json ใหม่
+node n8n/build.js                 # สร้าง ceo-line-bot.json (ไฟล์เต็ม) และ ceo-line-bot-update.json (ไม่มีโหนด Settings)
 node --test n8n/test/*.test.js    # ทดสอบ
 ```
 อย่าแก้โค้ดใน n8n โดยตรง เพราะจะไม่ตรงกับ Repo ถ้าจำเป็นต้องแก้ด่วน ให้คัดลอกกลับมาที่ `src/` ทันที
@@ -118,7 +124,9 @@ node --test n8n/test/*.test.js    # ทดสอบ
 | `src/glue.js` | อ่านค่าลับและสร้าง Context ใน Code node |
 | `src/entry-*.js` | จุดเริ่มของแต่ละ Code node |
 | `../setup/create-webhook.js` | สคริปต์สร้าง/ต่ออายุ SharePoint webhook (รันใน Console ของเบราว์เซอร์) |
-| `build.js` | ประกอบไฟล์ Workflow |
+| `build.js` | ประกอบไฟล์ Workflow ทั้ง 2 ไฟล์ |
+| `ceo-line-bot.json` | Workflow เต็ม (โหนด Settings ว่าง) ใช้ Import ครั้งแรก |
+| `ceo-line-bot-update.json` | Workflow ไม่มีโหนด Settings ใช้อัปเดตบน Cloud ([คู่มือ ช ข้อ 7](../docs/guides/G-n8n-cloud.md)) |
 | `test/bot.test.js` | ทดสอบด้วย Mock |
 
 ## ข้อจำกัดที่รู้อยู่
