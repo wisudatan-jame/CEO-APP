@@ -10,12 +10,12 @@ def kpi(text, onselect, fill, color, border, x, y):
                   RadiusTopLeft=20, RadiusTopRight=20, RadiusBottomLeft=20, RadiusBottomRight=20)
 
 def scr_home():
-    on_visible = '''ClearCollect(colMine, Filter(Tickets, AssigneeEmail = varMe));
-Set(varOpen, Filter(colMine, IsOpen = true));
+    on_visible = '''Set(varMine, Filter(Tickets, AssigneeEmail = varMe));
+Set(varOpen, Filter(varMine, IsOpen = true));
 Set(varLate, Filter(varOpen, Status.Value <> "Done", DueDate < Today()));
-Set(varDone30, Filter(colMine, !IsBlank(DoneAt), DoneAt >= DateAdd(Today(), -30, TimeUnit.Days)))'''
+Set(varDone30, Filter(varMine, !IsBlank(DoneAt), DoneAt >= DateAdd(Today(), -30, TimeUnit.Days)))'''
     stats = '''"ผลงาน 30 วันที่ผ่านมา" & Char(10) &
-"ได้รับ " & CountRows(Filter(colMine, Created >= DateAdd(Today(), -30, TimeUnit.Days))) & " งาน · " &
+"ได้รับ " & CountRows(Filter(varMine, Created >= DateAdd(Today(), -30, TimeUnit.Days))) & " งาน · " &
 "เสร็จทันกำหนด " & CountIf(varDone30, DoneAt < DateAdd(DueDate, 1, TimeUnit.Days)) & "/" & CountRows(varDone30) &
 If(CountRows(varDone30) > 0, " · เฉลี่ย " & Round(Average(varDone30, DateDiff(Created, DoneAt, TimeUnit.Hours)) / 24, 1) & " วัน/งาน", "")'''
     todo_text = '''"T-" & ThisItem.ID & " " & ThisItem.Title & Char(10) &
