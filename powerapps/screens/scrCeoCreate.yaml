@@ -359,8 +359,9 @@ Screens:
               ClearCollect(colMade, varFirst);
               If(CountRows(varWho) > 1,
                   Patch(Tickets, varFirst, {GroupID: varFirst.ID});
-                  Collect(colMade, ForAll(LastN(varWho, CountRows(varWho) - 1) As p,
-                      Patch(Tickets, Defaults(Tickets), varBase, {AssigneeEmail: Lower(p.Email), GroupID: varFirst.ID}))));
+                  Collect(Tickets, ForAll(LastN(varWho, CountRows(varWho) - 1) As p,
+                      Patch(varBase, {AssigneeEmail: Lower(p.Email), GroupID: varFirst.ID})));
+                  ClearCollect(colMade, Filter(Tickets, GroupID = varFirst.ID)));
               Collect(TicketHistory, ForAll(colMade As t,
                   {Title: "T-" & t.ID, TicketID: t.ID, Action: {Value: "create"}, ToStatus: "New", ActorEmail: Lower(User().Email),
                     Source: {Value: "App"}, Processed: false, CEOPending: false}));
