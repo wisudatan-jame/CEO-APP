@@ -26,6 +26,7 @@ Site: `CEO-Tickets` เป็น Communication site (ไม่ผูก Microsof
 | `Source` | Choice: `App`, `LINE` | ใช่ | ช่องทางที่สร้าง Ticket |
 | `PermsSet` | Yes/No | ใช่ | Flow ตั้งเป็น `true` หลังตั้งสิทธิ์และแจ้งเตือนเสร็จ ใช้กันทำซ้ำ |
 | `HasFiles` | Yes/No | ใช่ | มีรูปแนบในโฟลเดอร์ `TicketFiles/T-<ID>` |
+| `GroupID` | Number (ไม่มีทศนิยม, Index) | ไม่ | งานที่ CEO สั่งหลายคนพร้อมกัน แต่ละคนได้ใบของตัวเอง และทุกใบเก็บเลขใบแรกของกลุ่มไว้ที่นี่ (ใบเดี่ยวว่าง) |
 
 ตั้ง **Require that items are checked out** = ปิด และเปิด **Item-level version history** (Versioning) เพื่อกู้ข้อมูลที่ถูกแก้ผิด
 อย่าใช้ Advanced settings → Item-level permissions แบบ **Only their own** เพราะกติกานั้นอิงจาก "ผู้สร้างรายการ" ซึ่งในระบบนี้คือ Flow/CEO ไม่ใช่ผู้รับผิดชอบ ให้คงค่าเริ่มต้นไว้ แล้วใช้สิทธิ์เฉพาะรายการที่ Flow ตั้งแทน
@@ -83,6 +84,7 @@ Site: `CEO-Tickets` เป็น Communication site (ไม่ผูก Microsof
 | `Email` | Single line text | อีเมล M365 |
 | `Department` | Single line text | แสดงในปุ่ม เช่น `เอ (Sales)` เพื่อแยกชื่อเล่นซ้ำ |
 | `Active` | Yes/No | `false` เมื่อลาออก (บอทจะไม่ให้เลือก) |
+| `IsManager` | Yes/No | `true` = หัวหน้า/ผู้จัดการ CEO สั่ง "หัวหน้าทุกคน" หรือ "หัวหน้าฝ่าย..." ได้ HR ติ๊กเอง |
 
 ## Document library: `TicketFiles`
 รูปที่ CEO ส่งใน LINE เก็บที่โฟลเดอร์ `T-<ID>/photo-1.jpg` ... Flow `OnLineEvent` ให้สิทธิ์โฟลเดอร์กับผู้รับผิดชอบแบบเดียวกับ Ticket

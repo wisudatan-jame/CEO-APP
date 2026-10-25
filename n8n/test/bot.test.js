@@ -29,10 +29,10 @@ function fakeWorld(opts = {}) {
       { Title: 'QUICK_ASSIGNEES', Value: 'pm@df.co.th,mkt@df.co.th' },
     ],
     Employees: [
-      { Title: 'อนันต์ ใจดี', FirstName: 'อนันต์', LastName: 'ใจดี', Nickname: 'เอ', Aliases: 'พี่เอ,เอ Sales', Email: 'A@df.co.th', Department: 'Sales', Active: true },
+      { Title: 'อนันต์ ใจดี', FirstName: 'อนันต์', LastName: 'ใจดี', Nickname: 'เอ', Aliases: 'พี่เอ,เอ Sales', Email: 'A@df.co.th', Department: 'Sales', Active: true, IsManager: true },
       { Title: 'เอกชัย มั่นคง', FirstName: 'เอกชัย', LastName: 'มั่นคง', Nickname: 'เอก', Email: 'ek@df.co.th', Department: 'Presales', Active: true },
-      { Title: 'ปิยะ พีเอ็ม', FirstName: 'ปิยะ', Nickname: 'ปิ', Email: 'pm@df.co.th', Department: 'PM', Active: true },
-      { Title: 'มาลี การตลาด', FirstName: 'มาลี', Nickname: 'มะลิ', Email: 'mkt@df.co.th', Department: 'Marketing', Active: true },
+      { Title: 'ปิยะ พีเอ็ม', FirstName: 'ปิยะ', Nickname: 'ปิ', Email: 'pm@df.co.th', Department: 'PM', Active: true, IsManager: true },
+      { Title: 'มาลี การตลาด', FirstName: 'มาลี', Nickname: 'มะลิ', Email: 'mkt@df.co.th', Department: 'Marketing', Active: true, IsManager: true },
       { Title: 'อดีต พนักงาน', FirstName: 'อดีต', Nickname: 'เอ', Email: 'left@df.co.th', Department: 'Sales', Active: false },
     ],
     Holidays: (opts.holidays || []).map((d) => ({ Title: 'หยุด', Date: d })),
@@ -899,4 +899,69 @@ test('"T-201 ถึงไหน" shows the latest update; due date can be moved 
   await send(w, textEv('T-204'));
   assert.equal(lastReply(w).quickReply, undefined);
   assert.match(lastReply(w).text, /🔒 ปิดแล้ว/);
+});
+
+// ---------- one order to all managers ----------
+test('order to all managers: one ticket each, linked as a group, photos for everyone', async () => {
+  const w = fakeWorld();
+  await send(w, textEv('เตรียมแผนงบปี 2027'));
+  const grp = quick(lastReply(w)).find((a) => a.label === '👥 หัวหน้าทุกคน');
+  await send(w, ev('message', { message: { type: 'image', id: 'g1' } }));
+  await send(w, postbackEv(actionData(grp)));
+  let msg = lastReply(w);
+  assert.match(msg.text, /^👥 หัวหน้าทุกคน 3 คน\nเอ \(Sales\), ปิ \(PM\), มะลิ \(Marketing\)\nส่งเมื่อไร\?/);
+  await send(w, textEv('ศุกร์นี้'));
+  const tickets = w.items.Tickets;
+  assert.equal(tickets.length, 3);
+  const gid = Number(tickets[0].id);
+  assert.deepEqual(tickets.map((t) => [t.fields.AssigneeEmail, t.fields.GroupID, t.fields.Title, t.fields.DueDate]), [
+    ['a@df.co.th', gid, 'เตรียมแผนงบปี 2027', '2026-10-23T00:00:00Z'],
+    ['pm@df.co.th', gid, 'เตรียมแผนงบปี 2027', '2026-10-23T00:00:00Z'],
+    ['mkt@df.co.th', gid, 'เตรียมแผนงบปี 2027', '2026-10-23T00:00:00Z'],
+  ]);
+  assert.deepEqual(w.calls.uploads.map((u) => u.path), tickets.map((t) => `T-${t.id}/photo-1.jpg`));
+  assert.deepEqual(w.items.TicketHistory.map((h) => [h.fields.TicketID, h.fields.Action]), tickets.map((t) => [Number(t.id), 'create']));
+  msg = lastReply(w);
+  assert.match(msg.text, new RegExp(`^✅ สั่งหัวหน้าทุกคน 3 คนแล้ว\nT-${gid} คุณเอ\nT-${gid + 1} คุณปิ\nT-${gid + 2} คุณมะลิ\n📅 ส่ง ศุกร์ 23 ต\\.ค\\.\n📎 แนบรูป 1 รูปให้ทุกคน`));
+
+  // progress of the whole group, by number or by title
+  tickets[1].fields.Status = 'Done';
+  await send(w, textEv(`กลุ่ม T-${gid} ถึงไหน`));
+  msg = lastReply(w);
+  assert.match(msg.text, new RegExp(`^👥 เตรียมแผนงบปี 2027\nกลุ่ม T-${gid} · 3 คน · ส่ง ศุกร์ 23 ต\\.ค\\.\nทำเสร็จ 1/3`));
+  await send(w, textEv('เตรียมแผนงบถึงไหน'));
+  assert.match(lastReply(w).text, /^👥 เตรียมแผนงบปี 2027/);
+  // late after the due date; follow up only those not finished
+  w.now.value = new Date('2026-10-26T03:00:00Z');
+  await send(w, textEv(`กลุ่ม ${gid} ถึงไหน`));
+  msg = lastReply(w);
+  assert.match(msg.text, /ทำเสร็จ 1\/3 · ช้า 2/);
+  await send(w, postbackEv(actionData(quick(msg)[0])));
+  assert.match(lastReply(w).text, new RegExp(`^📣 ติดตาม 2 งาน: T-${gid}, T-${gid + 2} \\(2 คน\\)`));
+  await send(w, postbackEv(actionData(quick(lastReply(w))[1])));
+  assert.match(lastReply(w).text, new RegExp(`^✅ ส่งข้อความติดตามถึง 2 คนแล้ว \\(T-${gid}, T-${gid + 2}\\)`));
+
+  // an addition to the group goes to every open ticket of it
+  await send(w, textEv('เพิ่มเติม ขอตัวเลขปี 2026 ด้วย'));
+  msg = lastReply(w);
+  assert.equal(quick(msg)[0].label, `ล่าสุด กลุ่ม T-${gid}`);
+  await send(w, postbackEv(actionData(quick(msg)[0])));
+  assert.match(lastReply(w).text, new RegExp(`กลุ่ม T-${gid} สั่งงาน 3 คน \\(เพิ่มให้ทุกคน\\)`));
+  await send(w, textEv('ใช่'));
+  assert.deepEqual(tickets.map((t) => t.fields.CEOExtra), Array(3).fill('[26/10 10:00] ขอตัวเลขปี 2026 ด้วย'));
+  assert.match(lastReply(w).text, new RegExp(`^✅ เพิ่มรายละเอียดให้ งานกลุ่ม T-${gid} \\(3 คน\\) เรียบร้อย\nทุกคนจะได้รับแจ้งเตือน`));
+});
+
+test('"สั่งหัวหน้าทุกคน" first, or a department, also work', async () => {
+  const w = fakeWorld();
+  await send(w, textEv('สั่งหัวหน้าทุกคน'));
+  assert.match(lastReply(w).text, /^📝 สั่งงานใหม่ ให้หัวหน้าทุกคน 3 คน ใช่ไหม\?/);
+  await send(w, textEv('ส่งรายงานประจำเดือน'));
+  assert.match(lastReply(w).text, /^📝 "ส่งรายงานประจำเดือน"\n👥 หัวหน้าทุกคน 3 คน/);
+  await send(w, textEv('พรุ่งนี้'));
+  assert.equal(w.items.Tickets.length, 3);
+  // a department with one active person is a normal single order
+  await send(w, textEv('ทำใบเสนอราคา'));
+  await send(w, textEv('ฝ่ายขายทุกคน'));
+  assert.match(lastReply(w).text, /👤 คุณเอ\nส่งเมื่อไร\?/);
 });

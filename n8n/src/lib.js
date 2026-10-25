@@ -298,6 +298,7 @@ async function getEmployees(ctx) {
       aliases: String(it.fields.Aliases || '').split(',').map((s) => s.trim()).filter(Boolean),
       dept: it.fields.Department || '',
       active: it.fields.Active !== false,
+      manager: it.fields.IsManager === true,
     }))
     .filter((e) => e.email));
 }
@@ -319,6 +320,7 @@ async function getTickets(ctx) {
     isOpen: it.fields.IsOpen === true,
     closedAt: it.fields.ClosedAt || null,
     doneAt: it.fields.DoneAt || null,
+    groupId: Number(it.fields.GroupID) || null,
   }));
 }
 
@@ -458,6 +460,7 @@ function helpText() {
     'พิมพ์ "สรุป" เพื่อดูภาพรวม · "ยกเลิก" เพื่อยกเลิกงานที่กำลังสร้าง',
     'พิมพ์ "เพิ่มเติม" ตามด้วยรายละเอียด เพื่อเพิ่มให้งานที่สั่งไปแล้ว',
     'ถาม "งานคุณแตนถึงไหน" หรือ "T-19 ถึงไหน" เพื่อดูความคืบหน้า ติดตาม หรือเลื่อนวันส่ง',
+    'สั่งหลายคน: ที่ "สั่งใคร?" แตะ 👥 หัวหน้าทุกคน หรือพูด "หัวหน้าฝ่ายขาย" "ฝ่ายบัญชีทุกคน"',
     'ส่งรูปหลังสร้างงาน บอทจะถามว่าแนบกับงานไหน',
     'พิมพ์ "โอนงาน" เพื่อโอนงานของคนที่ลาออกให้คนอื่น',
   ].join('\n');
@@ -578,13 +581,17 @@ async function onMessage(ctx, ev, cfg) {
       if (chars(t).length > 255) dr.details.push(t);
       dr.lastTextAt = nowMs;
       const note = `📝 "${truncate(dr.title, 120)}"\n`;
-      if (dr.assignee) {
+      if (dr.assignee || dr.group) {
         dr.stage = 'when';
         const emp = (await getEmployees(ctx)).find((e) => e.email === dr.assignee);
         return askWhen(ctx, ev, dr, emp, note);
       }
       dr.stage = 'who';
       return askWho(ctx, ev, dr, dr.due ? `📅 ส่ง${thaiDate(dr.due)}\n\n` : '');
+    }
+    if (dr && (dr.stage === 'who' || dr.stage === 'search')) {
+      const group = parseGroup(await getEmployees(ctx), t);
+      if (group) return afterGroup(ctx, ev, dr, group);
     }
     if (dr && dr.stage === 'search') return onSearch(ctx, ev, dr, t);
     if (dr && dr.stage === 'who') {
@@ -700,6 +707,7 @@ async function askWho(ctx, ev, dr, notice) {
   const people = await quickPeople(ctx, await getConfig(ctx));
   const items = people.map((e) => qrPostback(personLabel(e), { a: 'who', d: dr.id, e: e.email }, `สั่ง${personName(e)}`));
   items.push(qrPostback('🔍 คนอื่น', { a: 'search', d: dr.id }, 'คนอื่น'));
+  if ((await getEmployees(ctx)).some((e) => e.active && e.manager)) items.push(qrPostback('👥 หัวหน้าทุกคน', { a: 'grp', d: dr.id, g: 'mgr' }, 'สั่งหัวหน้าทุกคน'));
   items.push(qrPostback('➕ เพิ่มให้งานเดิม', { a: 'addold', d: dr.id }, 'เพิ่มให้งานเดิม'));
   items.push(qrPostback('❌ ยกเลิก', { a: 'cancel', d: dr.id }, 'ยกเลิก'));
   await lineReply(ctx, ev, textMsg(`${notice || ''}📝 "${truncate(dr.title, 120)}"\nสั่งใคร?\n(ถ้าเป็นรายละเอียดของงานที่สั่งไปแล้ว แตะ ➕ เพิ่มให้งานเดิม)`, items));
@@ -827,7 +835,8 @@ async function askWhen(ctx, ev, dr, emp, notice) {
   if (friday !== today && friday !== tomorrow) items.push(qrPostback('ศุกร์นี้', { a: 'when', d: dr.id, v: friday }, 'ส่งศุกร์นี้'));
   items.push(qrDatePicker('📅 เลือกวัน', { a: 'date', d: dr.id }, tomorrow, today));
   items.push(qrPostback('❌ ยกเลิก', { a: 'cancel', d: dr.id }, 'ยกเลิก'));
-  await lineReply(ctx, ev, textMsg(`${notice || ''}👤 ${personName(emp, dr.assignee)}\nส่งเมื่อไร?`, items));
+  const who = dr.group ? groupLine(dr.group) : `👤 ${personName(emp, dr.assignee)}`;
+  await lineReply(ctx, ev, textMsg(`${notice || ''}${who}\nส่งเมื่อไร?`, items));
   return { draft: dr.id, stage: 'when' };
 }
 
@@ -866,6 +875,16 @@ async function onPostback(ctx, ev, cfg) {
     return emp ? personReport(ctx, ev, emp) : { skipped: 'unknown-person' };
   }
   if (p.a === 'tk') return ticketReport(ctx, ev, Number(p.t));
+  if (p.a === 'grpview') {
+    const r = await groupReport(ctx, ev, Number(p.g));
+    if (r) return r;
+    await lineReply(ctx, ev, textMsg(`ไม่พบกลุ่ม T-${p.g}`));
+    return { group: 'not-found' };
+  }
+  if (p.a === 'fugrp') {
+    const pend = (await getTickets(ctx)).filter((x) => x.groupId === Number(p.g) && x.isOpen && x.status !== 'Done').map((x) => x.id);
+    return startFollow(ctx, ev, pend);
+  }
   if (p.a === 'fu') return startFollow(ctx, ev, [Number(p.t)]);
   if (p.a === 'fuall') return startFollowLate(ctx, ev, lower(p.e));
   if (p.a === 'due') return startDueChange(ctx, ev, Number(p.t));
@@ -891,6 +910,14 @@ async function onPostback(ctx, ev, cfg) {
     delete drafts(ctx)[userId];
     await lineReply(ctx, ev, textMsg(`ยกเลิกแล้ว: ${draftName(dr)}`));
     return { cancelled: dr.id };
+  }
+  if (p.a === 'grp') {
+    const group = parseGroup(await getEmployees(ctx), 'หัวหน้าทุกคน');
+    if (!group) {
+      await lineReply(ctx, ev, textMsg('ยังไม่มีหัวหน้าในรายชื่อ (HR ติ๊ก IsManager ใน List Employees)'));
+      return { group: 'none' };
+    }
+    return afterGroup(ctx, ev, dr, group);
   }
   if (p.a === 'addold') {
     delete drafts(ctx)[userId];
@@ -925,6 +952,7 @@ async function onPostback(ctx, ev, cfg) {
 }
 
 async function createTicketFromDraft(ctx, ev, cfg, dr, date) {
+  if (dr.group) return createGroupTickets(ctx, ev, cfg, dr, date);
   const userId = ev.source.userId;
   const emp = (await getEmployees(ctx)).find((e) => e.email === dr.assignee);
   const fields = {
@@ -1230,6 +1258,172 @@ async function replyList(ctx, ev, kind, page) {
   return { list: kind, count: rows.length };
 }
 
+// ---------- One order to a group: all managers, managers or everyone of a department ----------
+// Each person gets their own ticket (same title, due date and photos) linked by GroupID = the first
+// ticket's ID, so permissions, the staff app and per-person tracking stay as they are.
+const MANAGER_WORDS = /(หัวหน้า|ผู้จัดการ|manager|แมเนเจอร์|ผจก)/i;
+const ALL_WORDS = /(ทุกคน|ทั้งหมด|ทุกท่าน)/;
+
+function parseGroup(employees, text) {
+  const q = lower(text).replace(/\s+/g, '').replace(ASSIGN_PREFIX, '');
+  if (chars(q).length > 40) return null;
+  const isMgr = MANAGER_WORDS.test(q);
+  const isAll = ALL_WORDS.test(q);
+  if (!isMgr && !isAll) return null;
+  const rest = q.replace(MANAGER_WORDS, '').replace(ALL_WORDS, '').replace(/^(ทุก)/, '').replace(/^(ใน|ของ)/, '')
+    .replace(/^(ฝ่าย|แผนก|ทีม)/, '').replace(/(ทุก)$/, '');
+  const active = employees.filter((e) => e.active);
+  let people;
+  let label;
+  if (!rest) {
+    people = isMgr ? active.filter((e) => e.manager) : active;
+    label = isMgr ? 'หัวหน้าทุกคน' : 'ทุกคน';
+  } else {
+    people = active.filter((e) => deptMatches(rest, e.dept) && (!isMgr || e.manager));
+    // "ขาย" also loosely matches "Presales": keep only the exact department when there is one.
+    const exact = people.filter((e) => {
+      const d = lower(e.dept).replace(/\s+/g, '');
+      return d === rest || DEPT_WORDS.some((w) => w.includes(d) && w.includes(rest));
+    });
+    if (exact.length) people = exact;
+    if (!people.length) return null;
+    const dept = people[0].dept;
+    label = `${isMgr ? 'หัวหน้า' : 'ทุกคนใน'}ฝ่าย${/^[A-Za-z]/.test(dept) ? ' ' : ''}${dept}`;
+  }
+  if (!people.length) return null;
+  return { label, emails: people.map((e) => e.email) };
+}
+
+function groupLine(group) {
+  return `👥 ${group.label} ${group.emails.length} คน${group.names ? `\n${group.names}` : ''}`;
+}
+
+async function afterGroup(ctx, ev, dr, group) {
+  const employees = await getEmployees(ctx);
+  if (group.emails.length === 1) return afterWho(ctx, ev, dr, employees.find((e) => e.email === group.emails[0]));
+  const names = group.emails.map((email) => {
+    const e = employees.find((x) => x.email === email);
+    return e ? personLabel(e) : email;
+  });
+  dr.group = Object.assign({}, group, { names: truncate(names.join(', '), 600) });
+  dr.assignee = null;
+  if (dr.due) return createTicketFromDraft(ctx, ev, await getConfig(ctx), dr, dr.due);
+  dr.stage = 'when';
+  return askWhen(ctx, ev, dr, null);
+}
+
+async function createGroupTickets(ctx, ev, cfg, dr, date) {
+  const userId = ev.source.userId;
+  const employees = await getEmployees(ctx);
+  const base = {
+    Title: dr.title, DueDate: `${date}T00:00:00Z`, Priority: 'Normal', Status: 'New', IsOpen: true,
+    OverdueNotified: false, NoAckNotified: false, Source: 'LINE', PermsSet: false, HasFiles: dr.images.length > 0,
+  };
+  if (dr.details.length) base.Details = dr.details.join('\n\n');
+  const made = [];
+  let groupId = null;
+  let groupField = true;
+  let createError = null;
+  for (const email of dr.group.emails) {
+    try {
+      const f = Object.assign({}, base, { AssigneeEmail: email });
+      if (groupId && groupField) f.GroupID = groupId;
+      const id = await createItem(ctx, 'Tickets', f);
+      if (!groupId) {
+        groupId = id;
+        // From here on tickets exist: never let a later failure hide their numbers from the CEO.
+        delete drafts(ctx)[userId];
+        ctx.store.lastCreated = { draftId: dr.id, ticketId: id, groupId: id, at: ctx.now().getTime() };
+        try {
+          await updateFields(ctx, 'Tickets', id, { GroupID: id });
+        } catch (e) {
+          groupField = false; // GroupID column not added yet: tickets are still created, just not linked
+        }
+      }
+      made.push({ id, email });
+    } catch (e) {
+      createError = e;
+      break;
+    }
+  }
+  if (!made.length) throw createError || new Error('no ticket created');
+
+  const buffers = [];
+  let failedImages = 0;
+  for (const imageId of dr.images) {
+    try {
+      buffers.push(await lineContent(ctx, imageId));
+    } catch (e) {
+      failedImages++;
+    }
+  }
+  let historyError = null;
+  for (const m of made) {
+    let uploaded = 0;
+    for (let i = 0; i < buffers.length; i++) {
+      try {
+        await uploadFile(ctx, `T-${m.id}`, `photo-${i + 1}.jpg`, buffers[i], 'image/jpeg');
+        uploaded++;
+      } catch (e) {
+        // counted below as a ticket without all photos
+      }
+    }
+    m.uploaded = uploaded;
+    try {
+      const h = { Title: `T-${m.id}`, TicketID: m.id, Action: 'create', ToStatus: 'New', ActorEmail: lower(cfg.CEO_EMAIL), Source: 'LINE', Processed: false };
+      if (uploaded) h.Comment = `แนบรูป ${uploaded} รูป`;
+      await createItem(ctx, 'TicketHistory', h);
+    } catch (e) {
+      historyError = historyError || e;
+    }
+  }
+
+  const nameOf = (email) => personName(employees.find((e) => e.email === email), email);
+  const lines = [`✅ สั่ง${dr.group.label} ${made.length} คนแล้ว`];
+  for (const m of made) lines.push(`T-${m.id} ${nameOf(m.email)}`);
+  lines.push(`📅 ส่ง ${thaiDate(date)}`);
+  if (buffers.length) lines.push(`📎 แนบรูป ${buffers.length} รูปให้ทุกคน`);
+  if (failedImages) lines.push(`⚠️ แนบรูปไม่สำเร็จ ${failedImages} รูป (รูปเก่าเกินไปหรือระบบขัดข้อง)`);
+  if (made.some((m) => m.uploaded < buffers.length)) lines.push('⚠️ บางคนได้รูปไม่ครบ');
+  if (createError) {
+    const missing = dr.group.emails.slice(made.length).map(nameOf);
+    lines.push(`⚠️ สร้างงานไม่สำเร็จ ${missing.length} คน: ${missing.join(', ')} กรุณาสั่งใหม่เฉพาะคนนี้`);
+  }
+  if (!groupField) lines.push('⚠️ ยังผูกเป็นกลุ่มไม่ได้ (ผู้ดูแลต้องเพิ่มคอลัมน์ GroupID) ติดตามรายคนได้ตามปกติ');
+  lines.push(historyError ? '⚠️ ระบบแจ้งเตือนพนักงานขัดข้อง ผู้ดูแลจะได้รับแจ้ง กรุณาบอกพนักงานโดยตรงไปก่อน' : 'พนักงานจะได้รับแจ้งเตือนภายในไม่กี่นาที');
+  if (groupField) lines.push(`ดูความคืบหน้า: พิมพ์ "กลุ่ม T-${groupId} ถึงไหน"`);
+  await lineReply(ctx, ev, textMsg(lines.join('\n')));
+  if (historyError) throw new Error(`group T-${groupId} created but a history event failed: ${historyError.message}`);
+  if (createError) throw new Error(`group T-${groupId}: only ${made.length} of ${dr.group.emails.length} tickets created: ${createError.message}`);
+  return { created: groupId, group: made.map((m) => m.id), images: buffers.length };
+}
+
+async function groupReport(ctx, ev, groupId) {
+  const members = (await getTickets(ctx)).filter((t) => t.groupId === groupId).sort((a, b) => a.id - b.id);
+  if (!members.length) return null;
+  const employees = await getEmployees(ctx);
+  const today = bkkYmd(ctx.now());
+  const isLate = (t) => t.isOpen && t.status !== 'Done' && t.due && t.due < today;
+  const finished = members.filter((t) => t.status === 'Done' || t.status === 'Closed').length;
+  const late = members.filter(isLate);
+  const first = members[0];
+  const lines = [
+    `👥 ${truncate(first.title, 80)}`,
+    `กลุ่ม T-${groupId} · ${members.length} คน · ส่ง ${first.due ? thaiDate(first.due) : '-'}`,
+    `ทำเสร็จ ${finished}/${members.length}${late.length ? ` · ช้า ${late.length}` : ''}`,
+  ];
+  for (const t of members) {
+    const emp = employees.find((e) => e.email === t.assignee);
+    lines.push(`${isLate(t) ? '🔴' : STATUS_ICON[t.status] || '•'} T-${t.id} ${personName(emp, t.assignee)} · ${STATUS_TH[t.status] || t.status}${isLate(t) ? ` · เลย ${daysBetween(t.due, today)} วัน` : ''}`);
+  }
+  const pending = members.filter((t) => t.isOpen && t.status !== 'Done');
+  const items = [];
+  if (pending.length) items.push(qrPostback('📣 ติดตามคนที่ยังไม่เสร็จ', { a: 'fugrp', g: groupId }, `ติดตามกลุ่ม T-${groupId}`));
+  for (const t of members.slice(0, 12)) items.push(qrPostback(`🔍 T-${t.id}`, { a: 'tk', t: t.id }, `T-${t.id} ถึงไหน`));
+  await lineReply(ctx, ev, textMsg(lines.join('\n'), items));
+  return { groupReport: groupId, finished, total: members.length };
+}
+
 // ---------- CEO asks about a person or a ticket; follow up; move the due date ----------
 // "งานคุณแตนถึงไหน", "แตนช้ากี่งาน", "สรุปแตน" -> the person's open work and 30-day stats.
 // "T-19 ถึงไหน" -> one ticket with its latest update. No AI: fixed patterns over SharePoint data.
@@ -1285,16 +1479,51 @@ function ticketRef(text) {
 async function answerQuestion(ctx, ev, t) {
   if (chars(t).length > 80) return null;
   const flat = t.replace(/\s+/g, '');
+  const g = flat.match(/^(?:งาน)?กลุ่ม(?:t-?)?(\d{1,6})/i);
+  if (g) {
+    const any = await tryGetTicket(ctx, Number(g[1]));
+    const gid = any && (Number(any.fields.GroupID) || null);
+    if (gid) return groupReport(ctx, ev, gid);
+    if (any) return ticketReport(ctx, ev, Number(g[1]));
+  }
   const ref = ticketRef(t);
   if (ref && (QUERY_WORDS.test(t) || /^(t-?|ticket|ทิกเก็ต|ทิคเก็ต)\d+$/i.test(flat))) return ticketReport(ctx, ev, ref);
   if (!QUERY_WORDS.test(t) && !/^(ขอ|ดู|เช็ค|เช็ก)?(สรุป|สถิติ|งานของ|งานทั้งหมดของ)/.test(flat)) return null;
   const people = findPersonInQuestion(await getEmployees(ctx), t);
   if (people.length === 1) return personReport(ctx, ev, people[0]);
+  if (!people.length) return titleQuestion(ctx, ev, t);
   if (people.length > 1) {
     await lineReply(ctx, ev, textMsg(`พบ ${people.length} คน หมายถึงใคร?`, people.slice(0, 12).map((e) => qrPostback(personLabel(e), { a: 'person', e: e.email }, personName(e)))));
     return { question: 'which-person', count: people.length };
   }
   return null;
+}
+
+// "เตรียมแผนงบถึงไหน": find the task by words of its title.
+async function titleQuestion(ctx, ev, t) {
+  const m = t.trim().match(/^(?:งาน)?\s*(.+?)\s*(ถึงไหน(?:แล้ว)?|คืบหน้า(?:ยังไง|แค่ไหน)?|เป็นยังไง(?:บ้าง)?)\s*(?:ครับ|คะ|ค่ะ)?$/);
+  if (!m || chars(m[1]).length < 3) return null;
+  const key = lower(m[1]).replace(/\s+/g, '');
+  const since = addDays(bkkYmd(ctx.now()), -STATS_DAYS);
+  const hits = (await getTickets(ctx)).filter((x) => (x.isOpen || (x.created && bkkYmd(new Date(x.created)) >= since))
+    && lower(x.title).replace(/\s+/g, '').includes(key));
+  const entries = [];
+  const seen = new Set();
+  for (const x of hits.sort((a, b) => b.id - a.id)) {
+    const k = x.groupId ? `g${x.groupId}` : `t${x.id}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    entries.push(x);
+  }
+  if (!entries.length) return null;
+  if (entries.length === 1) return entries[0].groupId ? groupReport(ctx, ev, entries[0].groupId) : ticketReport(ctx, ev, entries[0].id);
+  const shown = entries.slice(0, 10);
+  const lines = shown.map((x) => (x.groupId ? `👥 กลุ่ม T-${x.groupId}: ${truncate(x.title, 50)}` : `T-${x.id}: ${truncate(x.title, 50)}`));
+  const items = shown.map((x) => (x.groupId
+    ? qrPostback(`👥 กลุ่ม T-${x.groupId}`, { a: 'grpview', g: x.groupId }, `กลุ่ม T-${x.groupId} ถึงไหน`)
+    : qrPostback(`🔍 T-${x.id}`, { a: 'tk', t: x.id }, `T-${x.id} ถึงไหน`)));
+  await lineReply(ctx, ev, textMsg(`พบ ${entries.length} งานที่ชื่อมี "${truncate(m[1], 30)}"\n${lines.join('\n')}`, items));
+  return { titleSearch: entries.length };
 }
 
 function finishedOn(t) {
@@ -1389,6 +1618,12 @@ async function ticketReport(ctx, ev, id) {
   ];
   if (f.Details) lines.push(`📝 ${truncate(f.Details, 300)}`);
   if (f.CEOExtra) lines.push(`➕ ${truncate(f.CEOExtra, 300)}`);
+  const gid = Number(f.GroupID) || null;
+  if (gid) {
+    const members = (await getTickets(ctx)).filter((x) => x.groupId === gid);
+    const fin = members.filter((x) => x.status === 'Done' || x.status === 'Closed').length;
+    lines.push(`👥 งานกลุ่ม T-${gid}: ทำเสร็จ ${fin}/${members.length}`);
+  }
   const last = (await ticketHistory(ctx, id)).sort((a, b) => String(b.created).localeCompare(String(a.created)))[0];
   if (last) {
     const a = last.fields.Action;
@@ -1403,6 +1638,7 @@ async function ticketReport(ctx, ev, id) {
       items.push(qrPostback('✅ ผ่าน ปิดงาน', { a: 'close', t: id, s: 'Done' }, `ผ่าน ปิด T-${id}`));
       items.push(qrPostback('❌ ไม่ผ่าน ส่งกลับ', { a: 'reopen', t: id, s: 'Done' }, `ไม่ผ่าน ส่งกลับ T-${id}`));
     }
+    if (gid) items.push(qrPostback('👥 ดูทั้งกลุ่ม', { a: 'grpview', g: gid }, `กลุ่ม T-${gid} ถึงไหน`));
     if (emp) items.push(qrPostback(`👤 งานทั้งหมดของ${personName(emp).replace(/^คุณ/, '')}`, { a: 'person', e: emp.email }, `งาน${personName(emp)}ถึงไหน`));
   }
   await lineReply(ctx, ev, textMsg(lines.join('\n'), items));
@@ -1436,17 +1672,20 @@ async function startFollow(ctx, ev, ticketIds, emp) {
     await lineReply(ctx, ev, textMsg(ticketIds.length === 1 ? `T-${ticketIds[0]} ปิดไปแล้วหรือไม่พบ` : 'ไม่มีงานที่ช้าแล้ว'));
     return { follow: 'nothing' };
   }
-  const who = emp || (await getEmployees(ctx)).find((e) => e.email === lower(open[0].fields.AssigneeEmail));
+  const employees = await getEmployees(ctx);
+  const who = emp || employees.find((e) => e.email === lower(open[0].fields.AssigneeEmail));
+  const people = new Set(open.map((it) => lower(it.fields.AssigneeEmail)));
   const f = { id: newId(), ticketIds: open.map((it) => it.id), at: ctx.now().getTime() };
   ctx.store.followUp = f;
   delete ctx.store.replyTo;
   delete ctx.store.dueChange;
   const what = open.length === 1
     ? `T-${open[0].id} ${truncate(open[0].fields.Title, 60)}`
-    : `${open.length} งานที่ช้า: ${open.map((it) => `T-${it.id}`).join(', ')}`;
+    : `${open.length} งาน${people.size > 1 ? '' : 'ที่ช้า'}: ${open.map((it) => `T-${it.id}`).join(', ')}`;
+  const whoText = people.size > 1 ? `${people.size} คน` : personName(who, open[0].fields.AssigneeEmail);
   const items = FOLLOW_PRESETS.map((m, i) => qrPostback(m, { a: 'fusend', x: f.id, m: i }, m));
   items.push(qrPostback('ยกเลิก', { a: 'fucancel', x: f.id }, 'ยกเลิก'));
-  await lineReply(ctx, ev, textMsg(`📣 ติดตาม ${what} (${personName(who, open[0].fields.AssigneeEmail)})\nเลือกข้อความ หรือพิมพ์/พูดเองได้เลย`, items));
+  await lineReply(ctx, ev, textMsg(`📣 ติดตาม ${what} (${whoText})\nเลือกข้อความ หรือพิมพ์/พูดเองได้เลย`, items));
   return { follow: f.ticketIds };
 }
 
@@ -1464,6 +1703,7 @@ async function startFollowLate(ctx, ev, email) {
 async function sendFollow(ctx, ev, cfg, f, message) {
   delete ctx.store.followUp; // a second tap finds nothing to send
   const sent = [];
+  const people = new Set();
   let who = null;
   for (const id of f.ticketIds) {
     const it = await tryGetTicket(ctx, id);
@@ -1473,6 +1713,7 @@ async function sendFollow(ctx, ev, cfg, f, message) {
       Comment: `📣 CEO ติดตามงาน: ${message}`, ActorEmail: lower(cfg.CEO_EMAIL), Source: 'LINE', Processed: false, CEOPending: false,
     });
     sent.push(id);
+    people.add(lower(it.fields.AssigneeEmail));
     who = who || it.fields.AssigneeEmail;
   }
   if (!sent.length) {
@@ -1480,7 +1721,7 @@ async function sendFollow(ctx, ev, cfg, f, message) {
     return { follow: 'closed' };
   }
   const emp = (await getEmployees(ctx)).find((e) => e.email === lower(who));
-  await lineReply(ctx, ev, textMsg(`✅ ส่งข้อความติดตามถึง${personName(emp, who)}แล้ว (${sent.map((id) => `T-${id}`).join(', ')})\n"${truncate(message, 200)}"\nเมื่อพนักงานตอบ คุณจะได้ข้อความใน LINE`));
+  await lineReply(ctx, ev, textMsg(`✅ ส่งข้อความติดตามถึง${people.size > 1 ? ` ${people.size} คน` : personName(emp, who)}แล้ว (${sent.map((id) => `T-${id}`).join(', ')})\n"${truncate(message, 200)}"\nเมื่อพนักงานตอบ คุณจะได้ข้อความใน LINE`));
   return { followed: sent };
 }
 
@@ -1594,8 +1835,9 @@ async function startFromHint(ctx, ev, t) {
   if (chars(t).length > 30) return null;
   const nowMs = ctx.now().getTime();
   const due = parseDueText(t, bkkYmd(ctx.now()));
-  const r = due ? null : findAssignee(await getEmployees(ctx), t);
-  if (!due && !(r.people.length && r.exact)) return null;
+  const group = due ? null : parseGroup(await getEmployees(ctx), t);
+  const r = due || group ? null : findAssignee(await getEmployees(ctx), t);
+  if (!due && !group && !(r.people.length && r.exact)) return null;
   const emp = r && r.people.length === 1 ? r.people[0] : null;
   const userId = ev.source.userId;
   const old = drafts(ctx)[userId];
@@ -1604,7 +1846,8 @@ async function startFromHint(ctx, ev, t) {
     title: '',
     details: [],
     images: old ? old.images : takePendingImages(ctx, userId, nowMs),
-    assignee: emp ? emp.email : (old && old.assignee) || null,
+    assignee: emp ? emp.email : group ? null : (old && old.assignee) || null,
+    group: group || (emp ? null : (old && old.group) || null),
     due: due || (old && old.due) || null,
     stage: 'what',
     createdAt: nowMs,
@@ -1615,6 +1858,7 @@ async function startFromHint(ctx, ev, t) {
   delete ctx.store.addTo;
   const parts = [];
   if (dr.assignee) parts.push(`ให้${personName(emp || (await getEmployees(ctx)).find((e) => e.email === dr.assignee), dr.assignee)}`);
+  if (dr.group) parts.push(`ให้${dr.group.label} ${dr.group.emails.length} คน`);
   if (dr.due) parts.push(`ส่ง${thaiDate(dr.due)}`);
   const photos = dr.images.length ? `\n📎 แนบรูปที่ส่งไว้ ${dr.images.length} รูป` : '';
   await lineReply(ctx, ev, textMsg(`📝 สั่งงานใหม่${parts.length ? ' ' + parts.join(' ') : ''} ใช่ไหม?\nพิมพ์หรือพูดชื่องานได้เลย${photos}`, [
@@ -1626,6 +1870,7 @@ async function startFromHint(ctx, ev, t) {
 // The person is known: ask the due date, or create the task when the CEO already said it.
 async function afterWho(ctx, ev, dr, emp) {
   dr.assignee = emp.email;
+  dr.group = null;
   if (dr.due) return createTicketFromDraft(ctx, ev, await getConfig(ctx), dr, dr.due);
   dr.stage = 'when';
   return askWhen(ctx, ev, dr, emp);
@@ -1636,8 +1881,17 @@ function ticketNumber(t) {
   return m ? Number(m[1]) : null;
 }
 
+// Newest open tickets, one entry per group (labelled with the group's first ticket).
 async function recentOpenTickets(ctx) {
-  return (await getTickets(ctx)).filter((t) => t.isOpen).sort((a, b) => b.id - a.id).slice(0, RECENT_FOR_ADD);
+  const out = [];
+  const seen = new Set();
+  for (const t of (await getTickets(ctx)).filter((x) => x.isOpen).sort((a, b) => b.id - a.id)) {
+    if (t.groupId && seen.has(t.groupId)) continue;
+    if (t.groupId) seen.add(t.groupId);
+    out.push(t);
+    if (out.length >= RECENT_FOR_ADD) break;
+  }
+  return out;
 }
 
 async function startAdd(ctx, ev, fields) {
@@ -1659,10 +1913,13 @@ async function askAddPick(ctx, ev, add, notice) {
   const employees = await getEmployees(ctx);
   const nameOf = (email) => personName(employees.find((e) => e.email === email), email);
   const question = add.fromPhoto && !add.text ? '📎 แนบรูปกับงานไหน?' : '➕ เพิ่มรายละเอียดให้งานไหน?';
-  const lines = tickets.map((t) => `• T-${t.id} ${nameOf(t.assignee)}: ${truncate(t.title, 40)}`);
+  const lines = tickets.map((t) => (t.groupId ? `• กลุ่ม T-${t.groupId}: ${truncate(t.title, 40)}` : `• T-${t.id} ${nameOf(t.assignee)}: ${truncate(t.title, 40)}`));
   const body = lines.length ? `${lines.join('\n')}\n\nแตะเลขงาน หรือพิมพ์/พูดเลขงาน เช่น ${tickets[0].id}` : 'ไม่มีงานที่เปิดอยู่';
   const what = addWhat(add);
-  const items = tickets.map((t, i) => qrPostback(i === 0 ? `ล่าสุด T-${t.id}` : `T-${t.id} ${nameOf(t.assignee).replace(/^คุณ/, '')}`, { a: 'addpick', x: add.id, t: t.id }, `T-${t.id}`));
+  const items = tickets.map((t, i) => {
+    const ref = t.groupId ? `กลุ่ม T-${t.groupId}` : `T-${t.id}`;
+    return qrPostback(i === 0 ? `ล่าสุด ${ref}` : (t.groupId ? `👥 ${ref}` : `${ref} ${nameOf(t.assignee).replace(/^คุณ/, '')}`), { a: 'addpick', x: add.id, t: t.id }, ref);
+  });
   items.push(qrPostback('🆕 เป็นงานใหม่', { a: 'addnew', x: add.id }, 'เป็นงานใหม่'));
   items.push(qrPostback('❌ ยกเลิก', { a: 'addcancel', x: add.id }, 'ยกเลิก'));
   await lineReply(ctx, ev, textMsg(`${notice || ''}${question}\n${body}${what ? `\n\n${what}` : ''}`, items));
@@ -1678,7 +1935,10 @@ async function askAddConfirm(ctx, ev, add, ticket) {
   const question = add.text || !add.fromPhoto ? '➕ เพิ่มรายละเอียดให้งานนี้ใช่หรือไม่?' : `📎 แนบรูป ${add.images.length} รูปกับงานก่อนหน้าใช่หรือไม่?`;
   const what = addWhat(add);
   const hint = add.fromPhoto ? '\n\nถ้าเป็นรูปของงานใหม่ พิมพ์หรือพูดชื่องานได้เลย' : '';
-  const text = `${question}\n\nT-${add.ticketId} สั่งงาน${personName(emp, it.fields.AssigneeEmail)}\n📝 เรื่อง "${truncate(it.fields.Title, 120)}"${what && add.text ? `\n\n${what}` : ''}${hint}`;
+  const gid = Number(it.fields.GroupID) || null;
+  const members = gid ? (await getTickets(ctx)).filter((t) => t.groupId === gid && t.isOpen).length : 0;
+  const whom = gid ? `กลุ่ม T-${gid} สั่งงาน ${members} คน (เพิ่มให้ทุกคน)` : `T-${add.ticketId} สั่งงาน${personName(emp, it.fields.AssigneeEmail)}`;
+  const text = `${question}\n\n${whom}\n📝 เรื่อง "${truncate(it.fields.Title, 120)}"${what && add.text ? `\n\n${what}` : ''}${hint}`;
   await lineReply(ctx, ev, textMsg(text, [
     qrPostback(`✅ ใช่ T-${add.ticketId}`, { a: 'addyes', x: add.id }, 'ใช่'),
     qrPostback('❌ ไม่ใช่ เลือกใหม่', { a: 'addno', x: add.id }, 'ไม่ใช่'),
@@ -1779,50 +2039,67 @@ async function saveAdd(ctx, ev, cfg, add) {
     await lineReply(ctx, ev, textMsg(`T-${id} ปิดไปแล้ว ไม่ได้เพิ่ม`));
     return { add: 'closed' };
   }
+  // A group order gets the addition on every open ticket of the group.
+  const gid = Number(it.fields.GroupID) || null;
+  const targetIds = gid ? (await getTickets(ctx)).filter((t) => t.groupId === gid && t.isOpen).map((t) => t.id) : [id];
   const stamp = bkkStamp(ctx.now());
-  let uploaded = 0;
+  const buffers = [];
   let failed = 0;
-  for (let i = 0; i < add.images.length; i++) {
+  for (const imageId of add.images) {
     try {
-      const buf = await lineContent(ctx, add.images[i]);
-      await uploadFile(ctx, `T-${id}`, `photo-${stamp.file}-${i + 1}.jpg`, buf, 'image/jpeg');
-      uploaded++;
+      buffers.push(await lineContent(ctx, imageId));
     } catch (e) {
       failed++;
     }
   }
-  const fields = {};
-  if (uploaded && it.fields.HasFiles !== true) fields.HasFiles = true;
-  if (add.text) {
-    const line = `[${stamp.note}] ${add.text}`;
-    fields.CEOExtra = it.fields.CEOExtra ? `${it.fields.CEOExtra}\n\n${line}` : line;
-  }
+  let uploaded = 0;
   let extraSaved = true;
-  if (Object.keys(fields).length) {
-    try {
-      await updateFields(ctx, 'Tickets', id, fields);
-    } catch (e) {
-      // CEOExtra column not added yet: keep going, the history comment still reaches the assignee.
-      extraSaved = false;
-      if (fields.HasFiles) await updateFields(ctx, 'Tickets', id, { HasFiles: true });
+  for (const tid of targetIds) {
+    const ti = tid === id ? it : await getItem(ctx, 'Tickets', tid);
+    let up = 0;
+    for (let i = 0; i < buffers.length; i++) {
+      try {
+        await uploadFile(ctx, `T-${tid}`, `photo-${stamp.file}-${i + 1}.jpg`, buffers[i], 'image/jpeg');
+        up++;
+      } catch (e) {
+        // reported below through the uploaded count
+      }
     }
-  }
-  const comment = [add.text ? `➕ คำสั่งเพิ่มเติม: ${add.text}` : '', uploaded ? `📎 CEO แนบรูปเพิ่ม ${uploaded} รูป` : ''].filter(Boolean).join('\n');
-  if (comment) {
-    await createItem(ctx, 'TicketHistory', {
-      Title: `T-${id}`, TicketID: id, Action: 'comment', FromStatus: it.fields.Status, ToStatus: it.fields.Status,
-      Comment: comment, ActorEmail: lower(cfg.CEO_EMAIL), Source: 'LINE', Processed: false, CEOPending: false,
-    });
+    uploaded = Math.max(uploaded, up);
+    const fields = {};
+    if (up && ti.fields.HasFiles !== true) fields.HasFiles = true;
+    if (add.text) {
+      const line = `[${stamp.note}] ${add.text}`;
+      fields.CEOExtra = ti.fields.CEOExtra ? `${ti.fields.CEOExtra}\n\n${line}` : line;
+    }
+    if (Object.keys(fields).length) {
+      try {
+        await updateFields(ctx, 'Tickets', tid, fields);
+      } catch (e) {
+        // CEOExtra column not added yet: keep going, the history comment still reaches the assignee.
+        extraSaved = false;
+        if (fields.HasFiles) await updateFields(ctx, 'Tickets', tid, { HasFiles: true });
+      }
+    }
+    const comment = [add.text ? `➕ คำสั่งเพิ่มเติม: ${add.text}` : '', up ? `📎 CEO แนบรูปเพิ่ม ${up} รูป` : ''].filter(Boolean).join('\n');
+    if (comment) {
+      await createItem(ctx, 'TicketHistory', {
+        Title: `T-${tid}`, TicketID: tid, Action: 'comment', FromStatus: ti.fields.Status, ToStatus: ti.fields.Status,
+        Comment: comment, ActorEmail: lower(cfg.CEO_EMAIL), Source: 'LINE', Processed: false, CEOPending: false,
+      });
+    }
   }
   const emp = (await getEmployees(ctx)).find((e) => e.email === lower(it.fields.AssigneeEmail));
   const done = [];
   if (add.text) done.push('เพิ่มรายละเอียด');
   if (uploaded) done.push(`แนบรูป ${uploaded} รูป`);
-  const lines = [done.length ? `✅ ${done.join(' และ ')}ให้ T-${id} เรียบร้อย\n${personName(emp, it.fields.AssigneeEmail)}จะได้รับแจ้งเตือน` : `❌ แนบรูปกับ T-${id} ไม่สำเร็จ`];
+  const target = gid ? `งานกลุ่ม T-${gid} (${targetIds.length} คน)` : `T-${id}`;
+  const notified = gid ? 'ทุกคนจะได้รับแจ้งเตือน' : `${personName(emp, it.fields.AssigneeEmail)}จะได้รับแจ้งเตือน`;
+  const lines = [done.length ? `✅ ${done.join(' และ ')}ให้ ${target} เรียบร้อย\n${notified}` : `❌ แนบรูปกับ ${target} ไม่สำเร็จ`];
   if (failed) lines.push(`⚠️ แนบรูปไม่สำเร็จ ${failed} รูป (รูปใน LINE อาจหมดอายุ) ส่งใหม่อีกครั้ง`);
   if (!extraSaved && add.text) lines.push('⚠️ ยังบันทึกช่อง "คำสั่งเพิ่มเติมจาก CEO" ไม่ได้ (แจ้งผู้ดูแลระบบ) แต่ส่งถึงพนักงานแล้ว');
   await lineReply(ctx, ev, textMsg(lines.join('\n')));
-  return { added: id, text: !!add.text, uploaded, failed, extraSaved };
+  return { added: id, targets: targetIds, text: !!add.text, uploaded, failed, extraSaved };
 }
 
 // ---------- CEO replies to staff from LINE ----------

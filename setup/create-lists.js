@@ -20,6 +20,7 @@ const CEO_TICKETS_SCHEMA = [
       choice('Source', ['App', 'LINE'], 'App', true),
       bool('PermsSet', false),
       bool('HasFiles', false),
+      '<Field Type="Number" Name="GroupID" DisplayName="GroupID" Decimals="0" Indexed="TRUE" />',
     ],
   },
   {
@@ -44,6 +45,7 @@ const CEO_TICKETS_SCHEMA = [
       '<Field Type="Text" Name="Email" DisplayName="Email" Required="TRUE" Indexed="TRUE" />',
       '<Field Type="Text" Name="Department" DisplayName="Department" />',
       bool('Active', true),
+      bool('IsManager', false),
     ],
   },
   {
