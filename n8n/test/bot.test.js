@@ -583,6 +583,17 @@ test('staff question and done are pushed to the CEO once, with action buttons', 
   assert.equal((await lib.notifyCeoOfStaffUpdates(w.ctx)).sent, 0);
 });
 
+test('files uploaded from the app reach the CEO with a link to the ticket folder', async () => {
+  const w = summaryWorld();
+  w.items.Tickets.find((t) => t.id === '4').fields.HasFiles = true;
+  staffHistory(w, 4, 'comment', '📎 แนบไฟล์: 20261025-1630-รายงาน.xlsx');
+  staffHistory(w, 3, 'comment', 'ความเห็นธรรมดา');
+  await lib.notifyCeoOfStaffUpdates(w.ctx);
+  const [f, c] = w.calls.pushes.map((p) => p.messages[0].text);
+  assert.match(f, /💬 📎 แนบไฟล์: 20261025-1630-รายงาน\.xlsx\n📂 เปิดไฟล์งาน: https:\/\/digitalfocusth\.sharepoint\.com\/sites\/CEO-Tickets\/TicketFiles\/Forms\/AllItems\.aspx\?id=%2Fsites%2FCEO-Tickets%2FTicketFiles%2FT-4$/);
+  assert.doesNotMatch(c, /📂/);
+});
+
 test('falls back to a full scan when the filter query is rejected', async () => {
   const w = summaryWorld({ filterFails: true });
   staffHistory(w, 3, 'comment', 'อัปเดตครับ');

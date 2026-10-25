@@ -1201,11 +1201,18 @@ async function pendingStaffUpdates(ctx) {
   }
 }
 
-function staffUpdateMessage(h, ticket, emp) {
+function ticketFilesUrl(ctx, id) {
+  const site = ctx.setting('SP_SITE_PATH');
+  return `https://${ctx.setting('SP_HOSTNAME')}${site}/TicketFiles/Forms/AllItems.aspx?id=${encodeURIComponent(`${site}/TicketFiles/T-${id}`)}`;
+}
+
+function staffUpdateMessage(h, ticket, emp, filesUrl) {
   const who = personName(emp, ticket.fields.AssigneeEmail);
   const id = h.fields.TicketID;
   const title = truncate(ticket.fields.Title, 80);
-  const note = h.fields.Comment ? `\n💬 ${truncate(h.fields.Comment, 1000)}` : '';
+  // Files uploaded from the app arrive as a comment starting with 📎; finished work usually has them too.
+  const showFiles = filesUrl && ticket.fields.HasFiles === true && (h.fields.Action === 'done' || /^📎/.test(h.fields.Comment || ''));
+  const note = (h.fields.Comment ? `\n💬 ${truncate(h.fields.Comment, 1000)}` : '') + (showFiles ? `\n📂 เปิดไฟล์งาน: ${filesUrl}` : '');
   const replyBtn = qrPostback('💬 ตอบ', { a: 'replyto', t: id }, `ตอบ T-${id}`);
   if (h.fields.Action === 'wait') {
     return textMsg(`⏳ ${who} รอคำตอบจากคุณ\nT-${id} ${title}${note}`, [replyBtn]);
@@ -1229,7 +1236,7 @@ async function notifyCeoOfStaffUpdates(ctx) {
   for (const h of pending) {
     const ticket = await getItem(ctx, 'Tickets', h.fields.TicketID);
     const emp = employees.find((e) => e.email === lower(ticket.fields.AssigneeEmail));
-    await linePush(ctx, cfg.CEO_LINE_USER_ID, [staffUpdateMessage(h, ticket, emp)]);
+    await linePush(ctx, cfg.CEO_LINE_USER_ID, [staffUpdateMessage(h, ticket, emp, ticketFilesUrl(ctx, h.fields.TicketID))]);
     await updateFields(ctx, 'TicketHistory', h.id, { CEOPending: false });
     sent++;
   }
