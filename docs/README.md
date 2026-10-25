@@ -23,6 +23,7 @@
 | [guides/E-site-lockdown.md](guides/E-site-lockdown.md) | คู่มือ จ: ล็อกสิทธิ์ Site ให้แชร์และเพิ่มคนได้เฉพาะผู้ดูแล |
 | [guides/F-attach-files.md](guides/F-attach-files.md) | คู่มือ ฉ: พนักงานแนบไฟล์งานในแอป (Flow `AttachTicketFile`) |
 | [guides/G-n8n-cloud.md](guides/G-n8n-cloud.md) | คู่มือ ช: ย้ายบอท LINE ขึ้น n8n Cloud Starter |
+| [guides/H-ceo-app.md](guides/H-ceo-app.md) | คู่มือ ซ: หน้าของ CEO ในแอป (ภาพรวม งานทั้งหมด ตรวจงาน สั่งงาน) |
 
 ## ข้อตัดสินใจที่ตกลงกันแล้ว
 1. **ผู้ใช้หลัก:** CEO (คุณสมชาย ประจักษ์สูตร์) สั่งงานและติดตามงาน พนักงานราว 80 คนรับงานและอัปเดต
