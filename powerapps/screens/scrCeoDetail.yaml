@@ -237,7 +237,7 @@ Screens:
                             Control: Label@2.5.1
                             Properties:
                               Text: |-
-                                =Coalesce(LookUp(colEmp, Lower(Email) = varTicket.AssigneeEmail).Nickname, First(Split(varTicket.AssigneeEmail, "@")).Value) & With({d: LookUp(colEmp, Lower(Email) = varTicket.AssigneeEmail).Department}, If(IsBlank(d), "", " (" & d & ")"))
+                                =With({n: LookUp(colEmp, Lower(Email) = varTicket.AssigneeEmail).Nickname}, If(IsBlank(n), First(Split(varTicket.AssigneeEmail, "@")).Value, "คุณ" & n)) & With({d: LookUp(colEmp, Lower(Email) = varTicket.AssigneeEmail).Department}, If(IsBlank(d), "", " (" & d & ")"))
                               Font: =Font.'Open Sans'
                               Size: =13
                               Color: =clrText
@@ -598,7 +598,8 @@ Screens:
                         Height: =70
                         Font: =Font.'Open Sans'
                         Size: =14
-                        HintText: ="ข้อความถึงคุณ" & Coalesce(LookUp(colEmp, Lower(Email) = varTicket.AssigneeEmail).Nickname, First(Split(varTicket.AssigneeEmail, "@")).Value) & " (ไม่ผ่าน / ตอบ / ติดตาม ใส่ได้) เช่น ขอเพิ่มเงื่อนไขการต่ออายุสัญญา"
+                        HintText: |-
+                          ="ข้อความถึง" & With({n: LookUp(colEmp, Lower(Email) = varTicket.AssigneeEmail).Nickname}, If(IsBlank(n), First(Split(varTicket.AssigneeEmail, "@")).Value, "คุณ" & n)) & " (ไม่ผ่าน / ตอบ / ติดตาม ใส่ได้) เช่น ขอเพิ่มเงื่อนไขการต่ออายุสัญญา"
                         BorderColor: =clrLine
                         BorderThickness: =2
                         Fill: =Color.White

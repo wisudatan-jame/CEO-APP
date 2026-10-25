@@ -3,7 +3,9 @@ Screens:
     Properties:
       Fill: =clrBg
       OnVisible: |-
-        =ClearCollect(colAll, Filter(Tickets, IsOpen = true));
+        =If(IsBlank(varFilter), Set(varFilter, "all"));
+        Set(varCSearch, false);
+        ClearCollect(colAll, Filter(Tickets, IsOpen = true));
         ClearCollect(colEmp, Filter(Employees, Active = true))
     Children:
       - recTopCT:
@@ -47,10 +49,68 @@ Screens:
             Size: =20
             Color: =clrPrimary
             X: =24
-            Y: =104
-            Width: =Parent.Width - 48
-            Height: =52
+            Y: =108
+            Width: =Parent.Width - 48 - 76
+            Height: =56
             FontWeight: =FontWeight.Bold
+            Visible: =!varCSearch
+      - txtCSearch:
+          Control: Classic/TextInput@2.3.2
+          Properties:
+            Default: =""
+            HintText: ="ค้นหาชื่องาน หรือชื่อคน"
+            X: =24
+            Y: =108
+            Width: =Parent.Width - 48 - 76
+            Height: =56
+            Font: =Font.'Open Sans'
+            Size: =14
+            BorderColor: =clrLine
+            BorderThickness: =2
+            Fill: =Color.White
+            HoverFill: =Color.White
+            RadiusTopLeft: =28
+            RadiusTopRight: =28
+            RadiusBottomLeft: =28
+            RadiusBottomRight: =28
+            PaddingLeft: =20
+            Visible: =varCSearch
+      - btnCSearch:
+          Control: Classic/Button@2.2.0
+          Properties:
+            Text: =""
+            OnSelect: =Set(varCSearch, !varCSearch); Reset(txtCSearch)
+            Font: =Font.'Open Sans'
+            Size: =15
+            FontWeight: =FontWeight.Semibold
+            Fill: =If(varCSearch, clrPrimary, Color.White)
+            Color: =Color.White
+            BorderColor: =clrLine
+            BorderThickness: =2
+            RadiusTopLeft: =32
+            RadiusTopRight: =32
+            RadiusBottomLeft: =32
+            RadiusBottomRight: =32
+            HoverFill: =ColorFade(Self.Fill, -10%)
+            HoverColor: =Self.Color
+            HoverBorderColor: =Self.BorderColor
+            PressedFill: =ColorFade(Self.Fill, -20%)
+            PressedColor: =Self.Color
+            PressedBorderColor: =Self.BorderColor
+            X: =Parent.Width - 24 - 64
+            Y: =104
+            Width: =64
+            Height: =64
+      - icoCSearch:
+          Control: Classic/Icon@2.5.0
+          Properties:
+            Icon: =If(varCSearch, Icon.Cancel, Icon.Search)
+            Color: =If(varCSearch, Color.White, clrPrimary)
+            OnSelect: =Set(varCSearch, !varCSearch); Reset(txtCSearch)
+            X: =Parent.Width - 24 - 64 + 16
+            Y: =120
+            Width: =32
+            Height: =32
       - btnFAll:
           Control: Classic/Button@2.2.0
           Properties:
@@ -74,9 +134,9 @@ Screens:
             PressedColor: =Self.Color
             PressedBorderColor: =Self.BorderColor
             Height: =52
-            X: =24 + 0 * ((Parent.Width - 48 - 24) / 3 + 12)
-            Y: =160
-            Width: =(Parent.Width - 48 - 24) / 3
+            X: =24
+            Y: =176
+            Width: =Len(Self.Text) * 12 + 56
       - btnFLate:
           Control: Classic/Button@2.2.0
           Properties:
@@ -100,9 +160,9 @@ Screens:
             PressedColor: =Self.Color
             PressedBorderColor: =Self.BorderColor
             Height: =52
-            X: =24 + 1 * ((Parent.Width - 48 - 24) / 3 + 12)
-            Y: =160
-            Width: =(Parent.Width - 48 - 24) / 3
+            X: =btnFAll.X + btnFAll.Width + 12
+            Y: =176
+            Width: =Len(Self.Text) * 12 + 56
       - btnFWait:
           Control: Classic/Button@2.2.0
           Properties:
@@ -126,9 +186,9 @@ Screens:
             PressedColor: =Self.Color
             PressedBorderColor: =Self.BorderColor
             Height: =52
-            X: =24 + 2 * ((Parent.Width - 48 - 24) / 3 + 12)
-            Y: =160
-            Width: =(Parent.Width - 48 - 24) / 3
+            X: =btnFLate.X + btnFLate.Width + 12
+            Y: =176
+            Width: =Len(Self.Text) * 12 + 56
       - btnFDone:
           Control: Classic/Button@2.2.0
           Properties:
@@ -152,9 +212,9 @@ Screens:
             PressedColor: =Self.Color
             PressedBorderColor: =Self.BorderColor
             Height: =52
-            X: =24 + 0 * ((Parent.Width - 48 - 24) / 3 + 12)
-            Y: =222
-            Width: =(Parent.Width - 48 - 24) / 3
+            X: =24
+            Y: =238
+            Width: =Len(Self.Text) * 12 + 56
       - btnFNoack:
           Control: Classic/Button@2.2.0
           Properties:
@@ -178,18 +238,19 @@ Screens:
             PressedColor: =Self.Color
             PressedBorderColor: =Self.BorderColor
             Height: =52
-            X: =24 + 1 * ((Parent.Width - 48 - 24) / 3 + 12)
-            Y: =222
-            Width: =(Parent.Width - 48 - 24) / 3
+            X: =btnFDone.X + btnFDone.Width + 12
+            Y: =238
+            Width: =Len(Self.Text) * 12 + 56
       - lblCFilterNote:
           Control: Label@2.5.1
           Properties:
-            Text: =If(varFilter = "person", "เฉพาะงานของ" & Coalesce(LookUp(colEmp, Lower(Email) = varPerson).Nickname, First(Split(varPerson, "@")).Value), varFilter = "group", "เฉพาะงานกลุ่ม T-" & varGroup, "")
+            Text: |-
+              =If(varFilter = "person", "เฉพาะงานของ" & With({n: LookUp(colEmp, Lower(Email) = varPerson).Nickname}, If(IsBlank(n), First(Split(varPerson, "@")).Value, "คุณ" & n)), varFilter = "group", "เฉพาะงานกลุ่ม T-" & varGroup, "")
             Font: =Font.'Open Sans'
             Size: =13
             Color: =clrPrimary
             X: =24
-            Y: =284
+            Y: =298
             Width: =Parent.Width - 48
             Height: =40
             FontWeight: =FontWeight.Semibold
@@ -209,7 +270,7 @@ Screens:
             Fill: =Color.Transparent
             BorderThickness: =0
             X: =24
-            Y: =If(lblCFilterNote.Visible, 330, 290)
+            Y: =If(lblCFilterNote.Visible, 346, 306)
             Width: =Parent.Width - 48
             Height: =Parent.Height - 96 - 12 - Self.Y
           Children:
@@ -230,16 +291,20 @@ Screens:
                 Properties:
                   Items: |-
                     =SortByColumns(
-                        Switch(varFilter,
-                            "late", Filter(colAll, Status.Value <> "Done", DueDate < Today()),
-                            "wait", Filter(colAll, Status.Value = "WaitingCEO"),
-                            "done", Filter(colAll, Status.Value = "Done"),
-                            "noack", Filter(colAll, Status.Value = "New"),
-                            "person", Filter(colAll, AssigneeEmail = varPerson),
-                            "group", Filter(colAll, GroupID = varGroup),
-                            colAll),
+                        Filter(
+                            Switch(varFilter,
+                                "late", Filter(colAll, Status.Value <> "Done", DueDate < Today()),
+                                "wait", Filter(colAll, Status.Value = "WaitingCEO"),
+                                "done", Filter(colAll, Status.Value = "Done"),
+                                "noack", Filter(colAll, Status.Value = "New"),
+                                "person", Filter(colAll, AssigneeEmail = varPerson),
+                                "group", Filter(colAll, GroupID = varGroup),
+                                colAll),
+                            !varCSearch || IsBlank(Trim(txtCSearch.Text)) || Trim(txtCSearch.Text) in Title || Trim(txtCSearch.Text) in AssigneeEmail ||
+                                Trim(txtCSearch.Text) in LookUp(colEmp, Lower(Email) = AssigneeEmail).Nickname),
                         "DueDate", SortOrder.Ascending)
                   TemplateSize: =104
+                  ShowScrollbar: =false
                   OnSelect: =Set(varTicket, ThisItem); Navigate(scrCeoDetail)
                   Fill: =Color.Transparent
                   BorderThickness: =0
@@ -281,7 +346,7 @@ Screens:
                         Y: =18
                         Width: =8
                         Height: =Parent.TemplateHeight - 12 - 36
-                        Fill: =Switch(true, ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today(), clrAccent, ThisItem.Status.Value = "WaitingCEO", clrPrimary, ThisItem.Status.Value = "Done", clrSuccess, clrLine)
+                        Fill: =Switch(true, ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today(), clrAccent, ThisItem.Status.Value = "WaitingCEO", clrPrimary, ThisItem.Status.Value = "Done", clrSuccess, ThisItem.Status.Value = "New", ColorValue("#8A94A6"), ColorValue("#C9CEDA"))
                         OnSelect: =Select(Parent)
                   - lblCRow:
                       Control: Label@2.5.1
@@ -292,7 +357,7 @@ Screens:
                         Color: =clrText
                         X: =36
                         Y: =10
-                        Width: =Parent.TemplateWidth - 36 - 190
+                        Width: =Parent.TemplateWidth - 36 - 16 - btnCRowPill.Width - 8
                         Height: =38
                         FontWeight: =FontWeight.Semibold
                         Wrap: =false
@@ -300,13 +365,14 @@ Screens:
                   - lblCRowSub:
                       Control: Label@2.5.1
                       Properties:
-                        Text: =Coalesce(LookUp(colEmp, Lower(Email) = ThisItem.AssigneeEmail).Nickname, First(Split(ThisItem.AssigneeEmail, "@")).Value) & " · " & If(ThisItem.DueDate < Today(), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & Text(ThisItem.DueDate, "ddd d mmm", "th-TH"))
+                        Text: |-
+                          =With({n: LookUp(colEmp, Lower(Email) = ThisItem.AssigneeEmail).Nickname}, If(IsBlank(n), First(Split(ThisItem.AssigneeEmail, "@")).Value, "คุณ" & n)) & " · " & If(ThisItem.DueDate < Today(), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & Text(ThisItem.DueDate, "ddd d mmm", "th-TH"))
                         Font: =Font.'Open Sans'
                         Size: =12
                         Color: =clrMuted
                         X: =36
                         Y: =48
-                        Width: =Parent.TemplateWidth - 36 - 190
+                        Width: =Parent.TemplateWidth - 36 - 16 - btnCRowPill.Width - 8
                         Height: =32
                         Wrap: =false
                         OnSelect: =Select(Parent)
@@ -334,9 +400,9 @@ Screens:
                         PressedBorderColor: =Self.BorderColor
                         PaddingLeft: =8
                         PaddingRight: =8
-                        X: =Parent.TemplateWidth - 186
+                        X: =Parent.TemplateWidth - 16 - Self.Width
                         Y: =(Parent.TemplateHeight - 12 - 40) / 2
-                        Width: =170
+                        Width: =Len(Self.Text) * 11 + 36
                         Height: =40
       - recTabLineCT:
           Control: Rectangle@2.3.0

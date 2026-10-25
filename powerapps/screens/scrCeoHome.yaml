@@ -439,7 +439,8 @@ Screens:
                   - lblCPName:
                       Control: Label@2.5.1
                       Properties:
-                        Text: =Coalesce(LookUp(colEmp, Lower(Email) = ThisItem.AssigneeEmail).Nickname, First(Split(ThisItem.AssigneeEmail, "@")).Value)
+                        Text: |-
+                          =With({n: LookUp(colEmp, Lower(Email) = ThisItem.AssigneeEmail).Nickname}, If(IsBlank(n), First(Split(ThisItem.AssigneeEmail, "@")).Value, "คุณ" & n))
                         Font: =Font.'Open Sans'
                         Size: =14
                         Color: =clrText

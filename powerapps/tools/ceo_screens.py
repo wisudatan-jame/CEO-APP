@@ -4,7 +4,8 @@ from staff_screens import history_card, status_row, CARD_W, X2, CONTENT_END
 CEO_TABS = [('Home', '"ภาพรวม"', 'Navigate(scrCeoHome)'), ('List', '"งานทั้งหมด"', 'Set(varFilter, "all"); Navigate(scrCeoTickets)'),
             ('New', '"สั่งงาน"', 'Navigate(scrCeoCreate)')]
 HIST = '{Source: {Value: "App"}, Processed: false, CEOPending: false}'
-NAME = 'Coalesce(LookUp(colEmp, Lower(Email) = {e}).Nickname, First(Split({e}, "@")).Value)'  # nickname, else the part before @
+NICK = 'Coalesce(LookUp(colEmp, Lower(Email) = {e}).Nickname, First(Split({e}, "@")).Value)'  # nickname, else the part before @
+NAME = 'With({{n: LookUp(colEmp, Lower(Email) = {e}).Nickname}}, If(IsBlank(n), First(Split({e}, "@")).Value, "คุณ" & n))'
 CHIP_W = '(Parent.Width - 48 - {g}) / {n}'
 CEO_STATUS = 'Switch({s}, "New", "ยังไม่รับทราบ", "Acknowledged", "รับทราบแล้ว", "InProgress", "กำลังทำ", "WaitingCEO", "รอคุณตอบ", "Done", "รอคุณตรวจ", "Closed", "ปิดแล้ว", {s})'
 
@@ -32,7 +33,7 @@ Set(varCLate, Filter(colAll, Status.Value <> "Done", DueDate < Today()))'''
     GDone, CountRows(Filter(Rows, Status.Value = "Done")))'''
     emp = 'LookUp(colEmp, Lower(Email) = ThisItem.AssigneeEmail)'
     pname = NAME.format(e='ThisItem.AssigneeEmail')
-    initial = f'With({{n: {pname}}}, If(Left(n, 1) in ["เ", "แ", "โ", "ใ", "ไ"], Mid(n, 2, 1), Left(n, 1)))'
+    initial = f'With({{n: {NICK.format(e="ThisItem.AssigneeEmail")}}}, If(Left(n, 1) in ["เ", "แ", "โ", "ใ", "ไ"], Mid(n, 2, 1), Left(n, 1)))'
     sel = 'Select(Parent)'
     num = lambda **p: label(Y=0, Height='Parent.TemplateHeight - 1', Align='Align.Right', OnSelect=sel, **p)
     goto = lambda f: f'Set(varFilter, "{f}"); Navigate(scrCeoTickets)'
@@ -81,46 +82,69 @@ Set(varCLate, Filter(colAll, Status.Value <> "Done", DueDate < Today()))'''
     return screen('scrCeoHome', {'Fill': 'clrBg', 'OnVisible': on_visible}, children)
 
 def scr_ceo_tickets():
-    items = '''SortByColumns(
-    Switch(varFilter,
-        "late", Filter(colAll, Status.Value <> "Done", DueDate < Today()),
-        "wait", Filter(colAll, Status.Value = "WaitingCEO"),
-        "done", Filter(colAll, Status.Value = "Done"),
-        "noack", Filter(colAll, Status.Value = "New"),
-        "person", Filter(colAll, AssigneeEmail = varPerson),
-        "group", Filter(colAll, GroupID = varGroup),
-        colAll),
-    "DueDate", SortOrder.Ascending)'''
+    items = """SortByColumns(
+    Filter(
+        Switch(varFilter,
+            "late", Filter(colAll, Status.Value <> "Done", DueDate < Today()),
+            "wait", Filter(colAll, Status.Value = "WaitingCEO"),
+            "done", Filter(colAll, Status.Value = "Done"),
+            "noack", Filter(colAll, Status.Value = "New"),
+            "person", Filter(colAll, AssigneeEmail = varPerson),
+            "group", Filter(colAll, GroupID = varGroup),
+            colAll),
+        !varCSearch || IsBlank(Trim(txtCSearch.Text)) || Trim(txtCSearch.Text) in Title || Trim(txtCSearch.Text) in AssigneeEmail ||
+            Trim(txtCSearch.Text) in LookUp(colEmp, Lower(Email) = AssigneeEmail).Nickname),
+    "DueDate", SortOrder.Ascending)"""
     row_sub = (NAME.format(e='ThisItem.AssigneeEmail') + ' & " · " & If(ThisItem.DueDate < Today(), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & Text(ThisItem.DueDate, "ddd d mmm", "th-TH"))')
     late = 'ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today()'
     status = f'If({late}, "เลยกำหนด", ' + CEO_STATUS.format(s='ThisItem.Status.Value') + ')'
-    bar = ('Switch(true, ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today(), clrAccent, ThisItem.Status.Value = "WaitingCEO", clrPrimary, '
-           'ThisItem.Status.Value = "Done", clrSuccess, clrLine)')
-    w3 = CHIP_W.format(g=24, n=3)
-    chips = [('all', '"ทั้งหมด"', 0, 0), ('late', '"เลยกำหนด"', 1, 0), ('wait', '"รอคุณตอบ"', 2, 0), ('done', '"รอคุณตรวจ"', 0, 1), ('noack', '"ยังไม่รับทราบ"', 1, 1)]
-    chip_ctrls = [(f'btnF{k.capitalize()}', chip(t, f'varFilter = "{k}"', f'Set(varFilter, "{k}")', X=f'24 + {c} * ({w3} + 12)', Y=160 + r * 62, Width=w3))
-                  for k, t, c, r in chips]
+    bar = (f'Switch(true, {late}, clrAccent, ThisItem.Status.Value = "WaitingCEO", clrPrimary, '
+           'ThisItem.Status.Value = "Done", clrSuccess, ThisItem.Status.Value = "New", ColorValue("#8A94A6"), ColorValue("#C9CEDA"))')
+    # chips sized to their text and packed left, three on the first row (as in the mockup)
+    chips = [('all', 'ทั้งหมด'), ('late', 'เลยกำหนด'), ('wait', 'รอคุณตอบ'), ('done', 'รอคุณตรวจ'), ('noack', 'ยังไม่รับทราบ')]
+    chip_ctrls = []
+    for i, (k, t) in enumerate(chips):
+        prev = f'btnF{chips[i - 1][0].capitalize()}'
+        x = 24 if i in (0, 3) else f'{prev}.X + {prev}.Width + 12'
+        chip_ctrls.append((f'btnF{k.capitalize()}', chip(f'"{t}"', f'varFilter = "{k}"', f'Set(varFilter, "{k}")',
+                                                         X=x, Y=176 if i < 3 else 238, Width=f'Len(Self.Text) * 12 + 56')))
     note = 'If(varFilter = "person", "เฉพาะงานของ" & ' + NAME.format(e='varPerson') + ', varFilter = "group", "เฉพาะงานกลุ่ม T-" & varGroup, "")'
     children = header('CT') + [
-        ('lblCListHead', label('"งานทั้งหมด"', X=24, Y=104, Width='Parent.Width - 48', Height=52, Size=20, FontWeight='FontWeight.Bold', Color='clrPrimary')),
+        ('lblCListHead', label('"งานทั้งหมด"', X=24, Y=108, Width='Parent.Width - 48 - 76', Height=56, Size=20, FontWeight='FontWeight.Bold',
+                               Color='clrPrimary', Visible='!varCSearch')),
+        ('txtCSearch', {'type': 'Classic/TextInput@2.3.2', 'props': {
+            'Default': '""', 'HintText': '"ค้นหาชื่องาน หรือชื่อคน"', 'X': 24, 'Y': 108, 'Width': 'Parent.Width - 48 - 76', 'Height': 56,
+            'Font': FONT, 'Size': 14, 'BorderColor': 'clrLine', 'BorderThickness': 2, 'Fill': 'Color.White', 'HoverFill': 'Color.White',
+            'RadiusTopLeft': 28, 'RadiusTopRight': 28, 'RadiusBottomLeft': 28, 'RadiusBottomRight': 28, 'PaddingLeft': 20,
+            'Visible': 'varCSearch'}}),
+        ('btnCSearch', button('""', 'Set(varCSearch, !varCSearch); Reset(txtCSearch)', X='Parent.Width - 24 - 64', Y=104, Width=64, Height=64,
+                              Fill='If(varCSearch, clrPrimary, Color.White)', BorderColor='clrLine', BorderThickness=2,
+                              RadiusTopLeft=32, RadiusTopRight=32, RadiusBottomLeft=32, RadiusBottomRight=32)),
+        ('icoCSearch', {'type': 'Classic/Icon@2.5.0', 'props': {
+            'Icon': 'If(varCSearch, Icon.Cancel, Icon.Search)', 'Color': 'If(varCSearch, Color.White, clrPrimary)',
+            'OnSelect': 'Set(varCSearch, !varCSearch); Reset(txtCSearch)',
+            'X': 'Parent.Width - 24 - 64 + 16', 'Y': 120, 'Width': 32, 'Height': 32}}),
     ] + chip_ctrls + [
-        ('lblCFilterNote', label(note, X=24, Y=284, Width='Parent.Width - 48', Height=40, Size=13, Color='clrPrimary', FontWeight='FontWeight.Semibold',
+        ('lblCFilterNote', label(note, X=24, Y=298, Width='Parent.Width - 48', Height=40, Size=13, Color='clrPrimary', FontWeight='FontWeight.Semibold',
                                  Visible='varFilter in ["person", "group"]')),
         ('conCAll', area([
             ('lblCListEmpty', in_box(label('"ไม่มีงานในหมวดนี้"', Height=50, Color='clrMuted', Visible='IsEmpty(galCAll.AllItems)'))),
             ('galCAll', list_in(gallery(items, [
                 row_bg('btnCRowBg'),
                 ('recCBar', rect(X=16, Y=18, Width=8, Height='Parent.TemplateHeight - 12 - 36', Fill=bar, OnSelect='Select(Parent)')),
-                ('lblCRow', label('"T-" & ThisItem.ID & " " & ThisItem.Title', X=36, Y=10, Width='Parent.TemplateWidth - 36 - 190', Height=38, Size=14,
-                                  FontWeight='FontWeight.Semibold', Wrap='false', OnSelect='Select(Parent)')),
-                ('lblCRowSub', label(row_sub, X=36, Y=48, Width='Parent.TemplateWidth - 36 - 190', Height=32, Size=12, Color='clrMuted',
-                                     Wrap='false', OnSelect='Select(Parent)')),
-                ('btnCRowPill', pill(status, 'ThisItem.Status.Value', late, X='Parent.TemplateWidth - 186', Y='(Parent.TemplateHeight - 12 - 40) / 2',
-                                     Width=170, Height=40)),
-            ], TemplateSize=104, OnSelect='Set(varTicket, ThisItem); Navigate(scrCeoDetail)'))),
-        ], 24, 'If(lblCFilterNote.Visible, 330, 290)', 'Parent.Width - 48', f'{CONTENT_END} - Self.Y')),
+                ('lblCRow', label('"T-" & ThisItem.ID & " " & ThisItem.Title', X=36, Y=10, Width='Parent.TemplateWidth - 36 - 16 - btnCRowPill.Width - 8',
+                                  Height=38, Size=14, FontWeight='FontWeight.Semibold', Wrap='false', OnSelect='Select(Parent)')),
+                ('lblCRowSub', label(row_sub, X=36, Y=48, Width='Parent.TemplateWidth - 36 - 16 - btnCRowPill.Width - 8', Height=32, Size=12,
+                                     Color='clrMuted', Wrap='false', OnSelect='Select(Parent)')),
+                ('btnCRowPill', pill(status, 'ThisItem.Status.Value', late, X='Parent.TemplateWidth - 16 - Self.Width', Y='(Parent.TemplateHeight - 12 - 40) / 2',
+                                     Width='Len(Self.Text) * 11 + 36', Height=40)),
+            ], TemplateSize=104, ShowScrollbar='false', OnSelect='Set(varTicket, ThisItem); Navigate(scrCeoDetail)'))),
+        ], 24, 'If(lblCFilterNote.Visible, 346, 306)', 'Parent.Width - 48', f'{CONTENT_END} - Self.Y')),
     ] + tabs('CT', CEO_TABS, 'List')
-    on_visible = 'ClearCollect(colAll, Filter(Tickets, IsOpen = true));\nClearCollect(colEmp, Filter(Employees, Active = true))'
+    on_visible = """If(IsBlank(varFilter), Set(varFilter, "all"));
+Set(varCSearch, false);
+ClearCollect(colAll, Filter(Tickets, IsOpen = true));
+ClearCollect(colEmp, Filter(Employees, Active = true))"""
     return screen('scrCeoTickets', {'Fill': 'clrBg', 'OnVisible': on_visible}, children)
 
 def scr_ceo_detail():
@@ -196,7 +220,7 @@ Set(varPickDue, false);
         ('conCDAction', card([
             ('txtCeo', in_box({'type': 'Classic/TextInput@2.3.2', 'props': {
                 'Default': '""', 'Mode': 'TextMode.MultiLine', 'Height': 70, 'Font': FONT, 'Size': 14,
-                'HintText': f'"ข้อความถึงคุณ" & {who} & " (ไม่ผ่าน / ตอบ / ติดตาม ใส่ได้) เช่น ขอเพิ่มเงื่อนไขการต่ออายุสัญญา"',
+                'HintText': f'"ข้อความถึง" & {who} & " (ไม่ผ่าน / ตอบ / ติดตาม ใส่ได้) เช่น ขอเพิ่มเงื่อนไขการต่ออายุสัญญา"',
                 'BorderColor': 'clrLine', 'BorderThickness': 2, 'Fill': 'Color.White', 'HoverFill': 'Color.White',
                 'RadiusTopLeft': 10, 'RadiusTopRight': 10, 'RadiusBottomLeft': 10, 'RadiusBottomRight': 10}})),
             ('conCDDue', in_box(hbox([
