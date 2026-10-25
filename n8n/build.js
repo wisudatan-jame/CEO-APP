@@ -94,10 +94,49 @@ const nodes = [
   },
 ];
 
+// Secrets for n8n Cloud Starter (no Variables). Filled in once in the n8n editor; never commit values.
+const SETTING_NAMES = ['LINE_CHANNEL_SECRET', 'LINE_CHANNEL_ACCESS_TOKEN', 'MS_TENANT_ID', 'MS_CLIENT_ID',
+  'MS_CLIENT_SECRET', 'SP_HOSTNAME', 'SP_SITE_PATH', 'SP_WEBHOOK_CLIENT_STATE'];
+const SETTING_DEFAULTS = { SP_HOSTNAME: 'digitalfocusth.sharepoint.com', SP_SITE_PATH: '/sites/CEO-Tickets' };
+const settingsNodes = [
+  {
+    parameters: {
+      assignments: {
+        assignments: SETTING_NAMES.map((name, i) => ({
+          id: `5b0f2a1e-0c1d-4e57-9a2b-${String(900 + i).padStart(12, '0')}`,
+          name,
+          value: SETTING_DEFAULTS[name] || '',
+          type: 'string',
+        })),
+      },
+      options: {},
+    },
+    id: '5b0f2a1e-0c1d-4e57-9a2b-1f0e6c3d9a20',
+    name: 'Settings',
+    type: 'n8n-nodes-base.set',
+    typeVersion: 3.4,
+    position: [0, -320],
+    notes: 'ค่าลับของบอท โค้ดอ่านจากโหนดนี้โดยตรง ไม่ต้องต่อเส้น ห้ามเปลี่ยนชื่อโหนด',
+  },
+  {
+    parameters: {
+      content: '## ⚠️ Settings มีค่าลับ\n- อย่า Export / Download / แชร์ Workflow นี้\n- อัปเดตบอท: ลบทุกโหนด **ยกเว้น Settings และกล่องนี้** แล้ว Import `ceo-line-bot-update.json`\n- ค่าหลุด: Reissue ที่ LINE / สร้าง Client secret ใหม่ แล้วแก้ที่นี่',
+      height: 220,
+      width: 420,
+      color: 3,
+    },
+    id: '5b0f2a1e-0c1d-4e57-9a2b-1f0e6c3d9a21',
+    name: 'Settings warning',
+    type: 'n8n-nodes-base.stickyNote',
+    typeVersion: 1,
+    position: [260, -380],
+  },
+];
+
 const link = (to) => ({ main: [[{ node: to, type: 'main', index: 0 }]] });
 const workflow = {
   name: 'CEO LINE Bot',
-  nodes,
+  nodes: settingsNodes.concat(nodes),
   connections: {
     'LINE Webhook': link('Handle LINE events'),
     'Weekdays 07:00': link('Daily summary'),
@@ -111,6 +150,11 @@ const workflow = {
   active: false,
 };
 
-const out = path.join(__dirname, 'ceo-line-bot.json');
-fs.writeFileSync(out, JSON.stringify(workflow, null, 2) + '\n');
-console.log(`wrote ${path.relative(process.cwd(), out)}`);
+// Full file for the first import; the update file leaves out Settings so filled-in secrets survive updates.
+const write = (file, wf) => {
+  const out = path.join(__dirname, file);
+  fs.writeFileSync(out, JSON.stringify(wf, null, 2) + '\n');
+  console.log(`wrote ${path.relative(process.cwd(), out)}`);
+};
+write('ceo-line-bot.json', workflow);
+write('ceo-line-bot-update.json', Object.assign({}, workflow, { nodes }));

@@ -551,6 +551,34 @@ test('built workflow code runs in a simulated n8n Code node', async () => {
   assert.deepEqual(Object.keys(wf.connections).sort(), ['Check SharePoint call', 'Friday 17:00', 'LINE Webhook', 'Respond to SharePoint', 'SharePoint Webhook', 'Weekdays 07:00']);
 });
 
+test('on n8n Cloud Starter the code reads secrets from the Settings node', async () => {
+  const wf = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'ceo-line-bot.json'), 'utf8'));
+  const settingsNode = wf.nodes.find((n) => n.name === 'Settings');
+  const names = settingsNode.parameters.assignments.assignments.map((a) => a.name);
+  assert.deepEqual(names.sort(), Object.keys(SETTINGS).sort());
+  assert.equal(Object.keys(wf.connections).includes('Settings'), false); // never runs
+  // fill it in as the user would in the editor
+  for (const a of settingsNode.parameters.assignments.assignments) a.value = SETTINGS[a.name];
+  const node = wf.nodes.find((n) => n.name === 'Handle LINE events');
+  const w = fakeWorld();
+  const { raw, headers } = signed([textEv('งานจาก Cloud')]);
+  const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+  const fn = new AsyncFunction('$input', '$vars', '$getWorkflowStaticData', '$', node.parameters.jsCode);
+  const $ = (name) => {
+    const n = wf.nodes.find((x) => x.name === name);
+    if (!n) throw new Error("Referenced node doesn't exist");
+    return { params: n.parameters };
+  };
+  const self = { helpers: { httpRequest: w.ctx.http, getBinaryDataBuffer: async () => raw } };
+  const out = await fn.call(self, { first: () => ({ json: { headers }, binary: { data: {} } }) }, undefined, () => ({}), $);
+  assert.equal(out[0].json.ok, true);
+  assert.match(lastReply(w).text, /งานจาก Cloud/);
+
+  const upd = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'ceo-line-bot-update.json'), 'utf8'));
+  assert.equal(upd.nodes.some((n) => n.name === 'Settings' || n.name === 'Settings warning'), false);
+  assert.equal(upd.nodes.length, wf.nodes.length - 2);
+});
+
 // ---------- staff updates -> CEO, and CEO replies ----------
 function staffHistory(world, ticketId, action, comment, pending = true) {
   const row = { id: String(900 + world.items.TicketHistory.length), createdDateTime: '2026-10-19T03:00:00Z',
