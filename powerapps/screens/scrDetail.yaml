@@ -2,7 +2,9 @@ Screens:
   scrDetail:
     Properties:
       Fill: =clrBg
-      OnVisible: =Refresh(TicketHistory)
+      OnVisible: |-
+        =Refresh(TicketHistory);
+        Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)); Set(varHistPos, 0)
     Children:
       - recHeader:
           Control: Rectangle@2.3.0
@@ -47,7 +49,7 @@ Screens:
             PaddingBottom: =16
             PaddingLeft: =20
             PaddingRight: =20
-            LayoutGap: =12
+            LayoutGap: =10
             DropShadow: =DropShadow.None
             Fill: =clrBg
             BorderThickness: =0
@@ -71,7 +73,7 @@ Screens:
                   DropShadow: =DropShadow.None
                   Fill: =Color.Transparent
                   BorderThickness: =0
-                  Height: =64
+                  Height: =58
                   FillPortions: =0
                   AlignInContainer: =AlignInContainer.Stretch
                 Children:
@@ -134,7 +136,7 @@ Screens:
                   DropShadow: =DropShadow.None
                   Fill: =Color.Transparent
                   BorderThickness: =0
-                  Height: =44
+                  Height: =40
                   FillPortions: =0
                   AlignInContainer: =AlignInContainer.Stretch
                 Children:
@@ -185,8 +187,8 @@ Screens:
                 Properties:
                   LayoutDirection: =LayoutDirection.Vertical
                   LayoutAlignItems: =LayoutAlignItems.Stretch
-                  PaddingTop: =14
-                  PaddingBottom: =14
+                  PaddingTop: =12
+                  PaddingBottom: =12
                   PaddingLeft: =18
                   PaddingRight: =18
                   LayoutGap: =6
@@ -200,7 +202,7 @@ Screens:
                   RadiusBottomRight: =20
                   FillPortions: =0
                   AlignInContainer: =AlignInContainer.Stretch
-                  Height: =conDFrom.Height + 6 + conDWhen.Height + If(conDDetails.Visible, 6 + conDDetails.Height, 0) + If(conDExtra.Visible, 6 + conDExtra.Height, 0) + 28 + 4
+                  Height: =conDFrom.Height + 6 + conDWhen.Height + If(conDDetails.Visible, 6 + conDDetails.Height, 0) + If(conDExtra.Visible, 6 + conDExtra.Height, 0) + 24 + 4
                 Children:
                   - conDFrom:
                       Control: GroupContainer@1.3.0
@@ -230,6 +232,8 @@ Screens:
                               Width: =140
                               FontWeight: =FontWeight.Normal
                               VerticalAlign: =VerticalAlign.Top
+                              PaddingTop: =2
+                              PaddingBottom: =2
                               FillPortions: =0
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =140
@@ -244,6 +248,9 @@ Screens:
                               Color: =clrText
                               AutoHeight: =true
                               VerticalAlign: =VerticalAlign.Top
+                              PaddingTop: =2
+                              PaddingBottom: =2
+                              FontWeight: =FontWeight.Normal
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
@@ -276,6 +283,8 @@ Screens:
                               Width: =140
                               FontWeight: =FontWeight.Normal
                               VerticalAlign: =VerticalAlign.Top
+                              PaddingTop: =2
+                              PaddingBottom: =2
                               FillPortions: =0
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =140
@@ -290,6 +299,9 @@ Screens:
                               Color: =clrText
                               AutoHeight: =true
                               VerticalAlign: =VerticalAlign.Top
+                              PaddingTop: =2
+                              PaddingBottom: =2
+                              FontWeight: =FontWeight.Normal
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
@@ -323,6 +335,8 @@ Screens:
                               Width: =140
                               FontWeight: =FontWeight.Normal
                               VerticalAlign: =VerticalAlign.Top
+                              PaddingTop: =2
+                              PaddingBottom: =2
                               FillPortions: =0
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =140
@@ -337,6 +351,9 @@ Screens:
                               Color: =clrText
                               AutoHeight: =true
                               VerticalAlign: =VerticalAlign.Top
+                              PaddingTop: =2
+                              PaddingBottom: =2
+                              FontWeight: =FontWeight.Normal
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
@@ -375,6 +392,8 @@ Screens:
                               Width: =140
                               FontWeight: =FontWeight.Semibold
                               VerticalAlign: =VerticalAlign.Top
+                              PaddingTop: =2
+                              PaddingBottom: =2
                               FillPortions: =0
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =140
@@ -389,6 +408,9 @@ Screens:
                               Color: =clrText
                               AutoHeight: =true
                               VerticalAlign: =VerticalAlign.Top
+                              PaddingTop: =2
+                              PaddingBottom: =2
+                              FontWeight: =FontWeight.Normal
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
@@ -399,8 +421,8 @@ Screens:
                 Properties:
                   LayoutDirection: =LayoutDirection.Vertical
                   LayoutAlignItems: =LayoutAlignItems.Stretch
-                  PaddingTop: =14
-                  PaddingBottom: =14
+                  PaddingTop: =12
+                  PaddingBottom: =12
                   PaddingLeft: =18
                   PaddingRight: =18
                   LayoutGap: =8
@@ -414,7 +436,7 @@ Screens:
                   RadiusBottomRight: =20
                   FillPortions: =0
                   AlignInContainer: =AlignInContainer.Stretch
-                  Height: =34 + 8 + If(galSentFiles.Visible, galSentFiles.Height + 8, 0) + 96 + 8 + 56 + 28 + 4
+                  Height: =34 + 8 + If(galSentFiles.Visible, galSentFiles.Height + 8, 0) + 96 + 8 + 50 + 24 + 4
                 Children:
                   - conDFilesHead:
                       Control: GroupContainer@1.3.0
@@ -437,7 +459,7 @@ Screens:
                         - lblDFilesHead:
                             Control: Label@2.5.1
                             Properties:
-                              Text: ="ไฟล์ที่ส่งแล้ว (" & CountRows(Filter(galHistory.AllItems, StartsWith(Comment, "📎 แนบไฟล์"))) & ")"
+                              Text: ="ไฟล์ที่ส่งแล้ว (" & CountRows(Filter(varHist, StartsWith(Comment, "📎 แนบไฟล์"))) & ")"
                               Font: =Font.'Open Sans'
                               Size: =15
                               Color: =clrText
@@ -488,11 +510,11 @@ Screens:
                       Control: Gallery@2.15.0
                       Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
                       Properties:
-                        Items: =Filter(galHistory.AllItems, StartsWith(Comment, "📎 แนบไฟล์"))
-                        TemplateSize: =46
+                        Items: =Filter(varHist, StartsWith(Comment, "📎 แนบไฟล์"))
+                        TemplateSize: =36
                         Fill: =Color.Transparent
                         ShowScrollbar: =false
-                        Height: =CountRows(Self.AllItems) * 46
+                        Height: =CountRows(Self.AllItems) * 36
                         Visible: =!IsEmpty(Self.AllItems)
                         FillPortions: =0
                         AlignInContainer: =AlignInContainer.Stretch
@@ -504,7 +526,7 @@ Screens:
                               Color: =clrPrimary
                               OnSelect: =Select(Parent)
                               X: =0
-                              Y: =11.0
+                              Y: =6.0
                               Width: =24
                               Height: =24
                         - lblgalSentFilesName:
@@ -518,7 +540,7 @@ Screens:
                               X: =34
                               Y: =0
                               Width: =Parent.TemplateWidth - 34 - 150
-                              Height: =46
+                              Height: =36
                               Wrap: =false
                               OnSelect: =Select(Parent)
                         - lblgalSentFilesWhen:
@@ -531,7 +553,7 @@ Screens:
                               X: =Parent.TemplateWidth - 146
                               Y: =0
                               Width: =146
-                              Height: =46
+                              Height: =36
                               Align: =Align.Right
                               OnSelect: =Select(Parent)
                   - attFiles:
@@ -577,7 +599,8 @@ Screens:
                               Notify("ส่งไม่สำเร็จบางไฟล์: " & First(Filter(varUpload, Lower(ok) <> "true")).message, NotificationType.Error));
                           Refresh(Tickets);
                           Refresh(TicketHistory);
-                          Set(varTicket, LookUp(Tickets, ID = varTicket.ID))
+                          Set(varTicket, LookUp(Tickets, ID = varTicket.ID));
+                          Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)); Set(varHistPos, 0)
                         Font: =Font.'Open Sans'
                         Size: =15
                         FontWeight: =FontWeight.Bold
@@ -595,7 +618,7 @@ Screens:
                         PressedFill: =ColorFade(Self.Fill, -20%)
                         PressedColor: =Self.Color
                         PressedBorderColor: =Self.BorderColor
-                        Height: =56
+                        Height: =50
                         DisplayMode: =If(varBusy || IsEmpty(attFiles.Attachments) || !varTicket.IsOpen, DisplayMode.Disabled, DisplayMode.Edit)
                         DisabledFill: =ColorFade(clrAccent, 60%)
                         DisabledColor: =Color.White
@@ -607,8 +630,8 @@ Screens:
                 Properties:
                   LayoutDirection: =LayoutDirection.Vertical
                   LayoutAlignItems: =LayoutAlignItems.Stretch
-                  PaddingTop: =14
-                  PaddingBottom: =14
+                  PaddingTop: =12
+                  PaddingBottom: =12
                   PaddingLeft: =18
                   PaddingRight: =18
                   LayoutGap: =10
@@ -622,27 +645,98 @@ Screens:
                   RadiusBottomRight: =20
                   FillPortions: =0
                   AlignInContainer: =AlignInContainer.Stretch
-                  Height: =34 + 10 + galHistory.Height + 28 + 4
+                  Height: =34 + 10 + 92 + 24 + 4
                 Children:
-                  - lblHistHead:
-                      Control: Label@2.5.1
+                  - conconDHistHead:
+                      Control: GroupContainer@1.3.0
+                      Variant: AutoLayout
                       Properties:
-                        Text: ="ความเคลื่อนไหวล่าสุด"
-                        Font: =Font.'Open Sans'
-                        Size: =15
-                        Color: =clrText
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutAlignItems: =LayoutAlignItems.Stretch
+                        PaddingTop: =0
+                        PaddingBottom: =0
+                        PaddingLeft: =0
+                        PaddingRight: =0
+                        LayoutGap: =4
+                        DropShadow: =DropShadow.None
+                        Fill: =Color.Transparent
+                        BorderThickness: =0
                         Height: =34
-                        FontWeight: =FontWeight.Bold
                         FillPortions: =0
                         AlignInContainer: =AlignInContainer.Stretch
+                      Children:
+                        - lblHistHead:
+                            Control: Label@2.5.1
+                            Properties:
+                              Text: ="ความเคลื่อนไหวล่าสุด"
+                              Font: =Font.'Open Sans'
+                              Size: =15
+                              Color: =clrText
+                              Height: =34
+                              FontWeight: =FontWeight.Bold
+                              VerticalAlign: =VerticalAlign.Top
+                              PaddingTop: =2
+                              FillPortions: =1
+                              AlignInContainer: =AlignInContainer.Start
+                              LayoutMinWidth: =0
+                              LayoutMinHeight: =0
+                        - lblHistHeadCount:
+                            Control: Label@2.5.1
+                            Properties:
+                              Text: =If(CountRows(varHist) > 2, (varHistPos + 1) & "–" & Min(varHistPos + 2, CountRows(varHist)) & " / " & CountRows(varHist), "")
+                              Font: =Font.'Open Sans'
+                              Size: =12
+                              Color: =clrMuted
+                              Width: =110
+                              Height: =34
+                              Align: =Align.Right
+                              VerticalAlign: =VerticalAlign.Top
+                              PaddingTop: =6
+                              FillPortions: =0
+                              AlignInContainer: =AlignInContainer.Start
+                              LayoutMinWidth: =110
+                              LayoutMinHeight: =0
+                        - icoconDHistUp:
+                            Control: Classic/Icon@2.5.0
+                            Properties:
+                              Icon: =Icon.ChevronUp
+                              Color: =If(varHistPos > 0, clrPrimary, clrLine)
+                              OnSelect: =If(varHistPos > 0, Set(varHistPos, varHistPos - 2))
+                              Width: =40
+                              Height: =34
+                              PaddingTop: =6
+                              PaddingBottom: =6
+                              PaddingLeft: =8
+                              PaddingRight: =8
+                              FillPortions: =0
+                              AlignInContainer: =AlignInContainer.Start
+                              LayoutMinWidth: =40
+                              LayoutMinHeight: =0
+                        - icoconDHistDown:
+                            Control: Classic/Icon@2.5.0
+                            Properties:
+                              Icon: =Icon.ChevronDown
+                              Color: =If(varHistPos + 2 < CountRows(varHist), clrPrimary, clrLine)
+                              OnSelect: =If(varHistPos + 2 < CountRows(varHist), Set(varHistPos, varHistPos + 2))
+                              Width: =40
+                              Height: =34
+                              PaddingTop: =6
+                              PaddingBottom: =6
+                              PaddingLeft: =8
+                              PaddingRight: =8
+                              FillPortions: =0
+                              AlignInContainer: =AlignInContainer.Start
+                              LayoutMinWidth: =40
+                              LayoutMinHeight: =0
                   - galHistory:
                       Control: Gallery@2.15.0
                       Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
                       Properties:
-                        Items: =SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)
-                        TemplateSize: =56
+                        Items: =LastN(FirstN(varHist, varHistPos + 2), Max(Min(2, CountRows(varHist) - varHistPos), 0))
+                        TemplateSize: =46
                         Fill: =Color.Transparent
-                        Height: =Min(Max(CountRows(Self.AllItems), 1), 5) * Self.TemplateHeight
+                        ShowScrollbar: =false
+                        Height: =92
                         FillPortions: =0
                         AlignInContainer: =AlignInContainer.Stretch
                       Children:
@@ -655,7 +749,7 @@ Screens:
                               Color: =clrMuted
                               X: =0
                               Y: =0
-                              Width: =156
+                              Width: =150
                               Height: =Parent.TemplateHeight - 1
                               VerticalAlign: =VerticalAlign.Top
                               PaddingTop: =12
@@ -664,13 +758,21 @@ Screens:
                             Control: Label@2.5.1
                             Properties:
                               Text: |-
-                                =Switch(ThisItem.Action.Value, "create", "CEO สั่งงาน", "ack", "รับทราบ", "start", "เริ่มทำ", "wait", "ถาม CEO", "reply", "CEO ตอบ", "done", "ทำเสร็จ", "reopen", "CEO ส่งกลับ", "close", "CEO ปิดงาน", "cancel", "ยกเลิกงาน", "comment", "ความเห็น", "due_change", "เลื่อนวันส่ง", "reassign", "โอนงาน", ThisItem.Action.Value) & If(IsBlank(ThisItem.Comment), "", ": " & ThisItem.Comment)
+                                =With({a: Lower(ThisItem.ActorEmail)},
+                                    If(IsBlank(a), "",
+                                        a in ceoEmails, "CEO",
+                                        With({n: LookUp(Employees, Email = ThisItem.ActorEmail).Nickname}, If(IsBlank(n), First(Split(a, "@")).Value, "คุณ" & n))) & ": ") & With({c: ThisItem.Comment},
+                                    If(StartsWith(c, "📎 แนบไฟล์"), "แนบไฟล์ " & Mid(c, Find(": ", c) + 18),
+                                        ThisItem.Action.Value = "comment", c,
+                                        Switch(ThisItem.Action.Value, "create", "สั่งงาน", "ack", "รับทราบ", "start", "เริ่มทำ", "wait", "ถาม", "reply", "ตอบ", "done", "ทำเสร็จแล้ว",
+                                            "reopen", "ส่งกลับให้ทำต่อ", "close", "ผ่าน ปิดงาน", "cancel", "ยกเลิกงาน", "due_change", "เลื่อนวันส่ง", "reassign", "โอนงาน", ThisItem.Action.Value) &
+                                        If(IsBlank(c), "", " """ & c & """")))
                               Font: =Font.'Open Sans'
                               Size: =12
                               Color: =clrText
-                              X: =164
+                              X: =158
                               Y: =0
-                              Width: =Parent.TemplateWidth - 164
+                              Width: =Parent.TemplateWidth - 158
                               Height: =Parent.TemplateHeight - 1
                               VerticalAlign: =VerticalAlign.Top
                               PaddingTop: =12
@@ -690,8 +792,8 @@ Screens:
                 Properties:
                   LayoutDirection: =LayoutDirection.Vertical
                   LayoutAlignItems: =LayoutAlignItems.Stretch
-                  PaddingTop: =14
-                  PaddingBottom: =14
+                  PaddingTop: =12
+                  PaddingBottom: =12
                   PaddingLeft: =18
                   PaddingRight: =18
                   LayoutGap: =10
@@ -705,14 +807,14 @@ Screens:
                   RadiusBottomRight: =20
                   FillPortions: =0
                   AlignInContainer: =AlignInContainer.Stretch
-                  Height: =70 + 64 + 56 + 2 * 10 + 28 + 4
+                  Height: =52 + 56 + 50 + 2 * 10 + 24 + 4
                 Children:
                   - txtComment:
                       Control: Classic/TextInput@2.3.2
                       Properties:
                         Default: =""
                         Mode: =TextMode.MultiLine
-                        Height: =70
+                        Height: =52
                         Font: =Font.'Open Sans'
                         Size: =14
                         HintText: ="ข้อความถึง CEO (ถาม CEO / ส่งความเห็น ต้องพิมพ์ก่อน) เช่น รับทราบค่ะ จะเริ่มพรุ่งนี้"
@@ -740,7 +842,7 @@ Screens:
                         DropShadow: =DropShadow.None
                         Fill: =Color.Transparent
                         BorderThickness: =0
-                        Height: =64
+                        Height: =56
                         FillPortions: =0
                         AlignInContainer: =AlignInContainer.Stretch
                       Children:
@@ -755,7 +857,8 @@ Screens:
                                 If(varResult.ok = "true", Notify("บันทึกแล้ว", NotificationType.Success); Reset(txtComment), Notify(If(varResult.message = "STALE", "ข้อมูลเปลี่ยนไปแล้ว กำลังโหลดใหม่", varResult.message), NotificationType.Error));
                                 Refresh(Tickets);
                                 Refresh(TicketHistory);
-                                Set(varTicket, LookUp(Tickets, ID = varTicket.ID))
+                                Set(varTicket, LookUp(Tickets, ID = varTicket.ID));
+                                Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)); Set(varHistPos, 0)
                               Font: =Font.'Open Sans'
                               Size: =16
                               FontWeight: =FontWeight.Bold
@@ -777,7 +880,7 @@ Screens:
                               DisabledFill: =If(varTicket.Status.Value in ["Done", "Closed"], Color.White, ColorFade(clrAccent, 60%))
                               DisabledColor: =If(varTicket.Status.Value in ["Done", "Closed"], clrAccent, Color.White)
                               DisabledBorderColor: =clrAccent
-                              Height: =64
+                              Height: =56
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
@@ -793,7 +896,8 @@ Screens:
                                 If(varResult.ok = "true", Notify("บันทึกแล้ว", NotificationType.Success); Reset(txtComment), Notify(If(varResult.message = "STALE", "ข้อมูลเปลี่ยนไปแล้ว กำลังโหลดใหม่", varResult.message), NotificationType.Error));
                                 Refresh(Tickets);
                                 Refresh(TicketHistory);
-                                Set(varTicket, LookUp(Tickets, ID = varTicket.ID))
+                                Set(varTicket, LookUp(Tickets, ID = varTicket.ID));
+                                Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)); Set(varHistPos, 0)
                               Font: =Font.'Open Sans'
                               Size: =16
                               FontWeight: =FontWeight.Bold
@@ -815,7 +919,7 @@ Screens:
                               DisabledFill: =Color.White
                               DisabledColor: =ColorFade(clrAccent, 50%)
                               DisabledBorderColor: =ColorFade(clrAccent, 50%)
-                              Height: =64
+                              Height: =56
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
@@ -834,7 +938,7 @@ Screens:
                         DropShadow: =DropShadow.None
                         Fill: =Color.Transparent
                         BorderThickness: =0
-                        Height: =56
+                        Height: =50
                         FillPortions: =0
                         AlignInContainer: =AlignInContainer.Stretch
                       Children:
@@ -849,7 +953,8 @@ Screens:
                                 If(varResult.ok = "true", Notify("บันทึกแล้ว", NotificationType.Success); Reset(txtComment), Notify(If(varResult.message = "STALE", "ข้อมูลเปลี่ยนไปแล้ว กำลังโหลดใหม่", varResult.message), NotificationType.Error));
                                 Refresh(Tickets);
                                 Refresh(TicketHistory);
-                                Set(varTicket, LookUp(Tickets, ID = varTicket.ID))
+                                Set(varTicket, LookUp(Tickets, ID = varTicket.ID));
+                                Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)); Set(varHistPos, 0)
                               Font: =Font.'Open Sans'
                               Size: =14
                               FontWeight: =FontWeight.Semibold
@@ -871,7 +976,7 @@ Screens:
                               DisabledFill: =clrBg
                               DisabledColor: =clrMuted
                               DisabledBorderColor: =clrLine
-                              Height: =56
+                              Height: =50
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
@@ -887,7 +992,8 @@ Screens:
                                 If(varResult.ok = "true", Notify("บันทึกแล้ว", NotificationType.Success); Reset(txtComment), Notify(If(varResult.message = "STALE", "ข้อมูลเปลี่ยนไปแล้ว กำลังโหลดใหม่", varResult.message), NotificationType.Error));
                                 Refresh(Tickets);
                                 Refresh(TicketHistory);
-                                Set(varTicket, LookUp(Tickets, ID = varTicket.ID))
+                                Set(varTicket, LookUp(Tickets, ID = varTicket.ID));
+                                Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)); Set(varHistPos, 0)
                               Font: =Font.'Open Sans'
                               Size: =14
                               FontWeight: =FontWeight.Semibold
@@ -909,7 +1015,7 @@ Screens:
                               DisabledFill: =clrBg
                               DisabledColor: =clrMuted
                               DisabledBorderColor: =clrLine
-                              Height: =56
+                              Height: =50
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
@@ -925,7 +1031,8 @@ Screens:
                                 If(varResult.ok = "true", Notify("บันทึกแล้ว", NotificationType.Success); Reset(txtComment), Notify(If(varResult.message = "STALE", "ข้อมูลเปลี่ยนไปแล้ว กำลังโหลดใหม่", varResult.message), NotificationType.Error));
                                 Refresh(Tickets);
                                 Refresh(TicketHistory);
-                                Set(varTicket, LookUp(Tickets, ID = varTicket.ID))
+                                Set(varTicket, LookUp(Tickets, ID = varTicket.ID));
+                                Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)); Set(varHistPos, 0)
                               Font: =Font.'Open Sans'
                               Size: =14
                               FontWeight: =FontWeight.Semibold
@@ -947,7 +1054,7 @@ Screens:
                               DisabledFill: =Color.White
                               DisabledColor: =ColorFade(clrPrimary, 50%)
                               DisabledBorderColor: =clrLine
-                              Height: =56
+                              Height: =50
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0

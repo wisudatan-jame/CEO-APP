@@ -1,4 +1,5 @@
 from yamlgen import *
+from yamlgen import HIST_LOAD
 from staff_screens import history_card, status_row, CARD_W, X2, CONTENT_END
 
 CEO_TABS = [('Home', '"ภาพรวม"', 'Navigate(scrCeoHome)'), ('List', '"งานทั้งหมด"', 'Set(varFilter, "all"); Navigate(scrCeoTickets)'),
@@ -163,11 +164,11 @@ ClearCollect(colEmp, Filter(Employees, Active = true))"""
 
 def scr_ceo_detail():
     who = NAME.format(e='varTicket.AssigneeEmail')
-    file_rows = 'Filter(galCDHistory.AllItems, StartsWith(Comment, "📎"))'
+    file_rows = 'Filter(varHist, StartsWith(Comment, "📎"))'
     folder = 'Launch("https://digitalfocusth.sharepoint.com/sites/CEO-Tickets/TicketFiles/Forms/AllItems.aspx?id=" & EncodeUrl("/sites/CEO-Tickets/TicketFiles/T-" & varTicket.ID))'
     hist = lambda action, frm, to, comment: (f'Patch(TicketHistory, Defaults(TicketHistory), {HIST}, {{Title: "T-" & varTicket.ID, TicketID: varTicket.ID, '
                                               f'Action: {{Value: {action}}}, FromStatus: {frm}, ToStatus: {to}, Comment: {comment}, ActorEmail: Lower(User().Email)}})')
-    tail = 'Set(varTicket, LookUp(Tickets, ID = varTicket.ID));\nRefresh(TicketHistory)'
+    tail = 'Set(varTicket, LookUp(Tickets, ID = varTicket.ID));\nRefresh(TicketHistory);\n' + HIST_LOAD
     pass_ = f'''Set(varNow, LookUp(Tickets, ID = varTicket.ID));
 If(varNow.Status.Value <> "Done",
     Notify("สถานะเปลี่ยนเป็น " & varNow.Status.Value & " ไปแล้ว", NotificationType.Warning),
@@ -190,7 +191,8 @@ Reset(txtCeo); Notify("ส่งถึงพนักงานแล้ว", Not
 {tail}'''
     follow = f'''{hist('"comment"', 'varTicket.Status.Value', 'varTicket.Status.Value', '"📣 CEO ติดตามงาน: " & Coalesce(Trim(txtCeo.Text), "ขออัปเดตความคืบหน้าภายในวันนี้")')};
 Reset(txtCeo); Notify("ส่งข้อความติดตามแล้ว", NotificationType.Success);
-Refresh(TicketHistory)'''
+Refresh(TicketHistory);
+{HIST_LOAD}'''
     def due(date_expr):
         return f'''With({{d: {date_expr}}},
     If(d < Today() || d = varTicket.DueDate,
@@ -201,36 +203,36 @@ Refresh(TicketHistory)'''
 Set(varPickDue, false);
 {tail}'''
     friday = 'DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days)'
-    big = dict(Height=64, Size=16, FontWeight='FontWeight.Bold', RadiusTopLeft=16, RadiusTopRight=16, RadiusBottomLeft=16, RadiusBottomRight=16,
+    big = dict(Height=56, Size=16, FontWeight='FontWeight.Bold', RadiusTopLeft=16, RadiusTopRight=16, RadiusBottomLeft=16, RadiusBottomRight=16,
                DisplayMode='If(varTicket.Status.Value = "Done", DisplayMode.Edit, DisplayMode.Disabled)',
                DisabledFill='Color.White', DisabledColor='ColorFade(clrMuted, 40%)', DisabledBorderColor='clrLine')
-    small = dict(Height=56, Size=14, Fill='Color.White', Color='clrPrimary', BorderColor='clrLine', BorderThickness=2,
+    small = dict(Height=50, Size=14, Fill='Color.White', Color='clrPrimary', BorderColor='clrLine', BorderThickness=2,
                  DisabledFill='Color.White', DisabledColor='ColorFade(clrPrimary, 50%)', DisabledBorderColor='clrLine')
     open_mode = 'If(varTicket.IsOpen, DisplayMode.Edit, DisplayMode.Disabled)'
     body = vbox([
         ('conCDTitle', in_box(hbox([
             ('btnCBack', back_button('scrCeoTickets')),
             ('lblCDTitle', in_box(label('"T-" & varTicket.ID & " " & varTicket.Title', Size=19, FontWeight='FontWeight.Bold', Color='clrPrimary', Height=60), 1, AlignInContainer='AlignInContainer.Center')),
-        ], Height=64, LayoutAlignItems='LayoutAlignItems.Center', LayoutGap=14))),
-        status_row('CDStatus', CEO_STATUS.format(s='varTicket.Status.Value')),
+        ], Height=58, LayoutAlignItems='LayoutAlignItems.Center', LayoutGap=14))),
+        status_row('CDStatus', CEO_STATUS.format(s='varTicket.Status.Value').replace('"Done", "รอคุณตรวจ"', '"Done", "ทำเสร็จ รอคุณตรวจ"')),
         ('conCDInfo', card([
-            kv('CDWho', '"ผู้รับงาน"', who + ' & With({d: LookUp(colEmp, Lower(Email) = varTicket.AssigneeEmail).Department}, If(IsBlank(d), "", " (" & d & ")"))'),
+            kv('CDWho', '"ผู้รับงาน"', bold=True, value=who + ' & With({d: LookUp(colEmp, Lower(Email) = varTicket.AssigneeEmail).Department}, If(IsBlank(d), "", " (" & d & ")"))'),
             kv('CDWhen', '"สั่งเมื่อ"', 'Text(varTicket.Created, "d mmm hh:mm", "th-TH") & " ผ่าน " & varTicket.Source.Value'),
             kv('CDDetails', '"รายละเอียด"', 'varTicket.Details', visible='!IsBlank(varTicket.Details)'),
             kv('CDExtra', '"สั่งเพิ่ม"', 'varTicket.CEOExtra', fill='ColorFade(clrAccent, 92%)', key_color='clrDanger', visible='!IsBlank(varTicket.CEOExtra)'),
-        ], 'conCDWho.Height + 6 + conCDWhen.Height + If(conCDDetails.Visible, 6 + conCDDetails.Height, 0) + If(conCDExtra.Visible, 6 + conCDExtra.Height, 0) + 28',
+        ], 'conCDWho.Height + 6 + conCDWhen.Height + If(conCDDetails.Visible, 6 + conCDDetails.Height, 0) + If(conCDExtra.Visible, 6 + conCDExtra.Height, 0) + 24',
            LayoutGap=6)),
         ('conCDFiles', card([
             card_head('CDFiles', f'"ไฟล์งาน (" & CountRows({file_rows}) & ")"',
-                      ('btnCDFolder', link('"เปิดโฟลเดอร์"', folder, DisplayMode='If(varTicket.HasFiles, DisplayMode.Edit, DisplayMode.Disabled)'))),
+                      ('btnCDFolder', link('"เปิดโฟลเดอร์"', folder, DisplayMode=f'If(varTicket.HasFiles || !IsEmpty({file_rows}), DisplayMode.Edit, DisplayMode.Disabled)'))),
             file_list('galCDFiles', file_rows, 'If(StartsWith(ThisItem.Comment, "📎 แนบไฟล์"), Mid(ThisItem.Comment, Find(": ", ThisItem.Comment) + 18), Trim(Mid(ThisItem.Comment, 3)))'),
             ('lblCDFilesEmpty', in_box(label('If(varTicket.HasFiles, "มีไฟล์ในโฟลเดอร์งาน (รูปที่สั่งผ่าน LINE)", "ยังไม่มีไฟล์")', Height=40, Size=13,
                                              Color='clrMuted', Visible='!galCDFiles.Visible'))),
-        ], '34 + 8 + If(galCDFiles.Visible, galCDFiles.Height, 40) + 28', LayoutGap=8)),
-        history_card('galCDHistory', 'recCDHistLine', 'lblCDHist', 'lblCDHistHead', 'conCDHist'),
+        ], '34 + 8 + If(galCDFiles.Visible, galCDFiles.Height, 40) + 24', LayoutGap=8)),
+        history_card('galCDHistory', 'recCDHistLine', 'lblCDHist', 'lblCDHistHead', 'conCDHist', 'คุณ'),
         ('conCDAction', card([
             ('txtCeo', in_box({'type': 'Classic/TextInput@2.3.2', 'props': {
-                'Default': '""', 'Mode': 'TextMode.MultiLine', 'Height': 70, 'Font': FONT, 'Size': 14,
+                'Default': '""', 'Mode': 'TextMode.MultiLine', 'Height': 52, 'Font': FONT, 'Size': 14,
                 'HintText': f'"ข้อความถึง" & {who} & " (ไม่ผ่าน / ตอบ / ติดตาม ใส่ได้) เช่น ขอเพิ่มเงื่อนไขการต่ออายุสัญญา"',
                 'BorderColor': 'clrLine', 'BorderThickness': 2, 'Fill': 'Color.White', 'HoverFill': 'Color.White',
                 'RadiusTopLeft': 10, 'RadiusTopRight': 10, 'RadiusBottomLeft': 10, 'RadiusBottomRight': 10}})),
@@ -238,21 +240,21 @@ Set(varPickDue, false);
                 ('btnCDue1', in_box(button('"พรุ่งนี้"', due('DateAdd(Today(), 1, TimeUnit.Days)'), **small), 1)),
                 ('btnCDue2', in_box(button('"ศุกร์นี้"', due(friday), **small), 1)),
                 ('btnCDue3', in_box(button('"+7 วัน"', due('DateAdd(varTicket.DueDate, 7, TimeUnit.Days)'), **small), 1)),
-            ], Height=56, Visible='varPickDue'))),
+            ], Height=50, Visible='varPickDue'))),
             ('conCDBig', in_box(hbox([
                 ('btnCPass', in_box(button('"ผ่าน ปิดงาน"', pass_, Fill='clrSuccess', BorderColor='clrSuccess', **big), 1)),
                 ('btnCReject', in_box(button('"ไม่ผ่าน ส่งกลับ"', reject, Fill='Color.White', Color='clrAccent', BorderColor='clrAccent', BorderThickness=3, **big), 1)),
-            ], Height=64))),
+            ], Height=56))),
             ('conCDSmall', in_box(hbox([
                 ('btnCReply', in_box(button('"ตอบ"', reply, DisplayMode='If(varTicket.IsOpen && !IsBlank(Trim(txtCeo.Text)), DisplayMode.Edit, DisplayMode.Disabled)', **small), 1)),
                 ('btnCFollow', in_box(button('"ติดตาม"', follow, DisplayMode=open_mode, **small), 1)),
                 ('btnCDue', in_box(button('If(varPickDue, "ปิดเลือกวัน", "เลื่อนวันส่ง")', 'Set(varPickDue, !varPickDue)', DisplayMode=open_mode, **small), 1)),
-            ], Height=56))),
-        ], '70 + If(varPickDue, 56 + 10, 0) + 64 + 56 + 2 * 10 + 28')),
-    ], X=0, Y=94, Width='Parent.Width', Height=f'Parent.Height - 94 - {TAB_H}', Fill='clrBg', LayoutGap=12,
+            ], Height=50))),
+        ], '52 + If(varPickDue, 50 + 10, 0) + 56 + 50 + 2 * 10 + 24')),
+    ], X=0, Y=94, Width='Parent.Width', Height=f'Parent.Height - 94 - {TAB_H}', Fill='clrBg', LayoutGap=10,
        PaddingTop=12, PaddingBottom=16, PaddingLeft=20, PaddingRight=20, LayoutOverflowY='LayoutOverflow.Scroll')
     children = header('CD') + [('conCDBody', body)] + tabs('CD', CEO_TABS, 'List')
-    on_visible = 'Set(varPickDue, false);\nIf(IsEmpty(colEmp), ClearCollect(colEmp, Filter(Employees, Active = true)));\nRefresh(TicketHistory)'
+    on_visible = 'Set(varPickDue, false);\nIf(IsEmpty(colEmp), ClearCollect(colEmp, Filter(Employees, Active = true)));\nRefresh(TicketHistory);\n' + HIST_LOAD
     return screen('scrCeoDetail', {'Fill': 'clrBg', 'OnVisible': on_visible}, children)
 
 def scr_ceo_create():

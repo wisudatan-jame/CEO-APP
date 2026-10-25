@@ -97,7 +97,7 @@ def hbox(children, **p):
 def card(children, height, **p):
     return vbox(children, Fill='Color.White', BorderColor='clrLine', BorderThickness=2,
                 RadiusTopLeft=20, RadiusTopRight=20, RadiusBottomLeft=20, RadiusBottomRight=20,
-                PaddingTop=14, PaddingBottom=14, PaddingLeft=18, PaddingRight=18,
+                PaddingTop=12, PaddingBottom=12, PaddingLeft=18, PaddingRight=18,
                 FillPortions=0, AlignInContainer='AlignInContainer.Stretch', Height=f'{height} + 4', **p)  # + top/bottom border
 
 def panel(children, x, y, w, h, **p):
@@ -203,7 +203,7 @@ def link(text, onselect, width=190, **p):
                          HoverColor='clrAccent', DisabledFill='Color.Transparent', DisabledColor='ColorFade(clrPrimary, 60%)', **p),
                   0, LayoutMinWidth=width)
 
-def kv(name, key, value, fill=None, key_color='clrMuted', visible=None):
+def kv(name, key, value, fill=None, key_color='clrMuted', visible=None, bold=False):
     """Two-column info row (key on the left, wrapping value on the right); its height follows the value."""
     val = f'lbl{name}'
     extra = {'Visible': visible} if visible else {}
@@ -212,8 +212,9 @@ def kv(name, key, value, fill=None, key_color='clrMuted', visible=None):
     pad = 16 if fill else 0
     return (f'con{name}', in_box(hbox([
         (f'lbl{name}K', in_box(label(key, Width=140, Size=13, Color=key_color, FontWeight='FontWeight.Semibold' if fill else 'FontWeight.Normal',
-                                     VerticalAlign='VerticalAlign.Top'), 0, LayoutMinWidth=140)),
-        (val, in_box(label(value, AutoHeight='true', Size=13, VerticalAlign='VerticalAlign.Top'), 1, AlignInContainer='AlignInContainer.Start')),
+                                     VerticalAlign='VerticalAlign.Top', PaddingTop=2, PaddingBottom=2), 0, LayoutMinWidth=140)),
+        (val, in_box(label(value, AutoHeight='true', Size=13, VerticalAlign='VerticalAlign.Top', PaddingTop=2, PaddingBottom=2, FontWeight='FontWeight.Semibold' if bold else 'FontWeight.Normal'),
+                     1, AlignInContainer='AlignInContainer.Start')),
     ], Height=f'{val}.Height + {pad}', LayoutGap=8, LayoutAlignItems='LayoutAlignItems.Start', **box, **extra)))
 
 def card_head(name, text, right=None):
@@ -223,7 +224,7 @@ def card_head(name, text, right=None):
         kids.append(right)
     return (f'con{name}Head', in_box(hbox(kids, Height=34)))
 
-FILE_ROW = 46
+FILE_ROW = 36
 
 def file_list(name, rows, name_expr):
     """One row per file: document icon, file name, date on the right (as in the mockup)."""
@@ -236,3 +237,5 @@ def file_list(name, rows, name_expr):
                                  Size=12, Color='clrMuted', Align='Align.Right', OnSelect='Select(Parent)')),
     ], TemplateSize=FILE_ROW, Fill='Color.Transparent', ShowScrollbar='false', Height=f'CountRows(Self.AllItems) * {FILE_ROW}',
        Visible='!IsEmpty(Self.AllItems)')))
+
+HIST_LOAD = 'Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)); Set(varHistPos, 0)'  # history of the open ticket, newest first; pages and file lists read this
