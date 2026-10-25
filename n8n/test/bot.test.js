@@ -759,7 +759,7 @@ test('files uploaded from the app reach the CEO with a link to the ticket folder
   staffHistory(w, 3, 'comment', 'ความเห็นธรรมดา');
   await lib.notifyCeoOfStaffUpdates(w.ctx);
   const [f, c] = w.calls.pushes.map((p) => p.messages[0].text);
-  assert.match(f, /💬 📎 แนบไฟล์: 20261025-1630-รายงาน\.xlsx\n📂 เปิดไฟล์งาน: https:\/\/digitalfocusth\.sharepoint\.com\/sites\/CEO-Tickets\/TicketFiles\/Forms\/AllItems\.aspx\?id=%2Fsites%2FCEO-Tickets%2FTicketFiles%2FT-4$/);
+  assert.match(f, /💬 📎 แนบไฟล์: 20261025-1630-รายงาน\.xlsx\n📂 เปิดไฟล์งาน: https:\/\/digitalfocusth\.sharepoint\.com\/sites\/CEO-Tickets\/TicketFiles\/Forms\/AllItems\.aspx\?id=%2Fsites%2FCEO-Tickets%2FTicketFiles%2FT-4\n📱 เปิดในแอป: https:\/\/apps\.powerapps\.com\/play\/e\/[^\s]+\?tenantId=[\w-]+&ticketId=4$/);
   assert.doesNotMatch(c, /📂/);
 });
 

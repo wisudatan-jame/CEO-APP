@@ -96,7 +96,7 @@ const nodes = [
 
 // Secrets for n8n Cloud Starter (no Variables). Filled in once in the n8n editor; never commit values.
 const SETTING_NAMES = ['LINE_CHANNEL_SECRET', 'LINE_CHANNEL_ACCESS_TOKEN', 'MS_TENANT_ID', 'MS_CLIENT_ID',
-  'MS_CLIENT_SECRET', 'SP_HOSTNAME', 'SP_SITE_PATH', 'SP_WEBHOOK_CLIENT_STATE'];
+  'MS_CLIENT_SECRET', 'SP_HOSTNAME', 'SP_SITE_PATH', 'SP_WEBHOOK_CLIENT_STATE', 'APP_URL'];
 const SETTING_DEFAULTS = { SP_HOSTNAME: 'digitalfocusth.sharepoint.com', SP_SITE_PATH: '/sites/CEO-Tickets' };
 const settingsNodes = [
   {

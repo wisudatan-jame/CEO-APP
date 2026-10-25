@@ -34,6 +34,7 @@ Workflow อ่านค่าเหล่านี้ตามลำดับ �
 | `SP_HOSTNAME` | `digitalfocusth.sharepoint.com` |
 | `SP_SITE_PATH` | `/sites/CEO-Tickets` |
 | `SP_WEBHOOK_CLIENT_STATE` | ข้อความสุ่มยาว 32 ตัวอักษรขึ้นไปที่คุณตั้งเอง ใช้ยืนยันว่าการเรียกมาจาก SharePoint จริง (ใช้ค่าเดียวกันตอนรัน `setup/create-webhook.js`) |
+| `APP_URL` | ไม่บังคับ · Web link ของแอป `CEO-APP` (ไม่ต้องมี `&hint=`, `&sourcetime=`) ใช้ทำลิงก์ "📱 เปิดในแอป" ในข้อความถึง CEO ถ้าว่าง ใช้ลิงก์แอปปัจจุบันที่อยู่ในโค้ด |
 
 - **n8n Cloud Starter (ใช้งานจริง):** กรอกในโหนด `Settings` ตาม[คู่มือ ช](../docs/guides/G-n8n-cloud.md) ⚠️ ห้าม Export/แชร์ Workflow เพราะค่าลับติดไปด้วย และอัปเดตบอทด้วย `ceo-line-bot-update.json` (ไม่มีโหนด Settings) จะได้ไม่ต้องกรอกค่าใหม่
 - **บนโน้ตบุ๊ก:** ใส่ในไฟล์ `.env` (สคริปต์ใน `local/` ตั้ง `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` ให้ Code node อ่าน `$env` ได้) ห้าม Commit ไฟล์ `.env` และปล่อยโหนด Settings ว่างไว้

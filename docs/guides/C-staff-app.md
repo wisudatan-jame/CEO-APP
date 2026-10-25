@@ -496,19 +496,17 @@ bodyY = 94;                      // ใต้หัวแอปและเส�
 3. คัดลอก **Web link** ของแอป (หน้า Details) ไว้ใช้ข้อ 2.6
 
 ### 2.6 ใส่ลิงก์เปิดแอปในข้อความ Teams
-แทนลิงก์ SharePoint ในข้อความ Teams ของ Flow `OnLineEvent` (คู่มือ ก ข้อ d, 6.2 ข้อ 3 และ 7.2) ด้วยลิงก์แอป แอปเปิดหน้างานนั้นเองเพราะ `StartScreen` อ่าน `Param("ticketId")` (ข้อ 2.2)
-- ลิงก์ต้องเป็นแบบ `<a href>` (ข้อความธรรมดา Teams ไม่ทำให้กดได้)
-- Web link มี `?tenantId=...` อยู่แล้ว จึงต่อด้วย `&ticketId=`
+สูตรข้อความ Teams ในคู่มือ ก (ข้อ d, 6.2 ข้อ 3 และ 7.2) ใช้ลิงก์แอปแล้ว แอปเปิดหน้างานนั้นเองเพราะ `OnStart` ตั้ง `varTicket` และ `StartScreen` อ่าน `Param("ticketId")` (ข้อ 2.2)
 
-ในสูตรของคู่มือ ก ให้เปลี่ยนส่วนท้าย
+Web link ของแอป (หน้า Details) คือ
 ```
-' <a href="https://digitalfocusth.sharepoint.com/sites/CEO-Tickets/Lists/Tickets/DispForm.aspx?ID=', triggerBody()?['TicketID'], '">เปิดดูงาน</a>'
+https://apps.powerapps.com/play/e/default-9070e17c-15e0-49fd-acef-7e1f07a4952b/a/c5f95180-fe46-4693-84e9-4fa61118040e?tenantId=9070e17c-15e0-49fd-acef-7e1f07a4952b
 ```
-เป็น (แทน `<Web link>` ด้วยลิงก์จากข้อ 2.5)
-```
-' <a href="<Web link>&ticketId=', triggerBody()?['TicketID'], '">เปิดในแอป</a>'
-```
-ทดสอบ: พนักงานกด **เปิดในแอป** ใน Teams แล้วแอปต้องเปิดหน้างานนั้นทันที (ไม่ใช่หน้ารายการ)
+ลิงก์งานแต่ละใบคือ Web link ต่อด้วย `&ticketId=<เลขงาน>` (ไม่ต้องใส่ `&hint=` และ `&sourcetime=` ที่ติดมาตอนคัดลอก)
+- ลิงก์ใน Teams ต้องเป็นแบบ `<a href>` (ข้อความธรรมดา Teams ไม่ทำให้กดได้)
+- ถ้าสร้างแอปใหม่ Web link จะเปลี่ยน ต้องแก้ทั้งในสูตรคู่มือ ก และค่า `APP_URL` ในโหนด Settings ของ n8n
+
+ทดสอบ: พนักงานกด **เปิดในแอป** ใน Teams แล้วแอปต้องเปิดหน้างานนั้นทันที (ไม่ใช่หน้ารายการ) · CEO กดลิงก์เดียวกันต้องได้หน้าตรวจงาน `scrCeoDetail`
 
 ### 2.7 ติดตั้งบนมือถือพนักงาน
 1. ติดตั้งแอป **Power Apps** จาก App Store / Google Play แล้วล็อกอินด้วยบัญชีบริษัท

@@ -2234,18 +2234,33 @@ async function pendingStaffUpdates(ctx) {
   }
 }
 
+// Web link of the CEO-APP Power App (Details page). APP_URL in Settings overrides it, e.g. if the app is rebuilt.
+const DEFAULT_APP_URL = 'https://apps.powerapps.com/play/e/default-9070e17c-15e0-49fd-acef-7e1f07a4952b/a/c5f95180-fe46-4693-84e9-4fa61118040e?tenantId=9070e17c-15e0-49fd-acef-7e1f07a4952b';
+
+function ticketAppUrl(ctx, id) {
+  let base;
+  try {
+    base = ctx.setting('APP_URL');
+  } catch (e) {
+    // not in the Settings node: it is optional
+  }
+  base = base || DEFAULT_APP_URL;
+  return `${base}${base.includes('?') ? '&' : '?'}ticketId=${id}`;
+}
+
 function ticketFilesUrl(ctx, id) {
   const site = ctx.setting('SP_SITE_PATH');
   return `https://${ctx.setting('SP_HOSTNAME')}${site}/TicketFiles/Forms/AllItems.aspx?id=${encodeURIComponent(`${site}/TicketFiles/T-${id}`)}`;
 }
 
-function staffUpdateMessage(h, ticket, emp, filesUrl) {
+function staffUpdateMessage(h, ticket, emp, filesUrl, appUrl) {
   const who = personName(emp, ticket.fields.AssigneeEmail);
   const id = h.fields.TicketID;
   const title = truncate(ticket.fields.Title, 80);
   // Files uploaded from the app arrive as a comment starting with 📎; finished work usually has them too.
   const showFiles = filesUrl && ticket.fields.HasFiles === true && (h.fields.Action === 'done' || /^📎/.test(h.fields.Comment || ''));
-  const note = (h.fields.Comment ? `\n💬 ${truncate(h.fields.Comment, 1000)}` : '') + (showFiles ? `\n📂 เปิดไฟล์งาน: ${filesUrl}` : '');
+  const note = (h.fields.Comment ? `\n💬 ${truncate(h.fields.Comment, 1000)}` : '') + (showFiles ? `\n📂 เปิดไฟล์งาน: ${filesUrl}` : '')
+    + (appUrl ? `\n📱 เปิดในแอป: ${appUrl}` : '');
   const replyBtn = qrPostback('💬 ตอบ', { a: 'replyto', t: id }, `ตอบ T-${id}`);
   if (h.fields.Action === 'wait') {
     return textMsg(`⏳ ${who} รอคำตอบจากคุณ\nT-${id} ${title}${note}`, [replyBtn]);
@@ -2269,7 +2284,7 @@ async function notifyCeoOfStaffUpdates(ctx) {
   for (const h of pending) {
     const ticket = await getItem(ctx, 'Tickets', h.fields.TicketID);
     const emp = employees.find((e) => e.email === lower(ticket.fields.AssigneeEmail));
-    await linePush(ctx, cfg.CEO_LINE_USER_ID, [staffUpdateMessage(h, ticket, emp, ticketFilesUrl(ctx, h.fields.TicketID))]);
+    await linePush(ctx, cfg.CEO_LINE_USER_ID, [staffUpdateMessage(h, ticket, emp, ticketFilesUrl(ctx, h.fields.TicketID), ticketAppUrl(ctx, h.fields.TicketID))]);
     await updateFields(ctx, 'TicketHistory', h.id, { CEOPending: false });
     sent++;
   }

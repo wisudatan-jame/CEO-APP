@@ -42,7 +42,7 @@
 **รอบที่ 3: ตั้งค่าท้าย**
 1. **App → StartScreen**
    ```powerfx
-   If(!IsBlank(Param("ticketId")), scrDetail, isCEO, scrCeoHome, scrHome)
+   If(!IsBlank(Param("ticketId")), If(isCEO, scrCeoDetail, scrDetail), isCEO, scrCeoHome, scrHome)
    ```
 2. ลากหน้าใน Tree view ให้ `scrHome` อยู่บนสุด (ไม่บังคับ)
 3. **Save** แล้วเปิด **App checker** (ไอคอนหูฟังแพทย์) ถ้ามี ✖ ส่งภาพมา

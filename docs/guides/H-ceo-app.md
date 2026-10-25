@@ -35,7 +35,7 @@
    ```
 3. **App → StartScreen**
    ```powerfx
-   If(!IsBlank(Param("ticketId")), scrDetail, isCEO, scrCeoHome, scrHome)
+   If(!IsBlank(Param("ticketId")), If(isCEO, scrCeoDetail, scrDetail), isCEO, scrCeoHome, scrHome)
    ```
 4. **Settings → General → Data row limit** = `2000`
 
