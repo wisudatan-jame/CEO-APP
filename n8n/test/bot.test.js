@@ -304,10 +304,16 @@ test('photos sent before the text attach to the next task; voice messages get gu
   assert.equal(r.results[0].images, 2);
   assert.equal(w.items.Tickets[0].fields.HasFiles, true);
 
-  // photos right after a ticket: say they will not join it
+  // a photo right after a ticket: asked whether it belongs to that ticket; a task name instead keeps it for the new task
   await send(w, ev('message', { message: { type: 'image', id: 'i3' } }));
-  assert.match(lastReply(w).text, new RegExp(`T-${r.results[0].created} สร้างไปแล้ว`));
-  // stale photos are dropped
+  assert.match(lastReply(w).text, new RegExp(`แนบรูป 1 รูปกับงานก่อนหน้าใช่หรือไม่\\?\n\nT-${r.results[0].created} สั่งงานคุณปิ`));
+  await send(w, textEv('งานใหม่มีรูป'));
+  assert.match(lastReply(w).text, /^📎 แนบรูปที่ส่งไว้ 1 รูป\n📝 "งานใหม่มีรูป"/);
+  await send(w, textEv('ยกเลิก'));
+  // stale photos are dropped (2 hours later nothing is offered either)
+  w.now.value = new Date(w.now.value.getTime() + 3 * 3600000);
+  await send(w, ev('message', { message: { type: 'image', id: 'i4' } }));
+  assert.match(lastReply(w).text, /^📎 รับรูปแล้ว \(1 รูป\)/);
   w.now.value = new Date(w.now.value.getTime() + 11 * 60000);
   await send(w, textEv('งานไม่มีรูป'));
   assert.doesNotMatch(lastReply(w).text, /📎/);
@@ -340,7 +346,115 @@ test('name typed or spoken at "สั่งใคร?": exact, with department, 
   // a detail that merely starts like a nickname is not a person
   const r = await send(w, textEv('เอกสารแนบตามที่คุยกัน'));
   assert.equal(r.results[0].appended !== undefined, true);
-  assert.match(lastReply(w).text, /^➕ เพิ่มเป็นรายละเอียดงานแล้ว/);
+  assert.match(lastReply(w).text, /^➕ เพิ่มในรายละเอียดของงานนี้แล้ว/);
+  // a due date before a person is chosen is not a detail
+  await send(w, textEv('พรุ่งนี้'));
+  assert.match(lastReply(w).text, /^เลือกคนก่อน/);
+});
+
+// ---------- add to a ticket that already exists ----------
+async function makeTicket(w, title, email) {
+  await send(w, textEv(title));
+  const d = actionData(quick(lastReply(w))[0]).d;
+  await send(w, postbackEv({ a: 'who', d, e: email }));
+  const r = await send(w, postbackEv({ a: 'when', d, v: '2026-10-20' }));
+  return r.results[0].created;
+}
+
+test('photo after a ticket: CEO confirms, it uploads to that ticket and the assignee is told', async () => {
+  const w = fakeWorld();
+  const id = await makeTicket(w, 'เตรียมประชุมพรุ่งนี้', 'mkt@df.co.th');
+  await send(w, ev('message', { message: { type: 'image', id: 'p1' } }));
+  const msg = lastReply(w);
+  assert.match(msg.text, new RegExp(`T-${id} สั่งงานคุณมะลิ\n📝 เรื่อง "เตรียมประชุมพรุ่งนี้"`));
+  const yes = quick(msg).find((a) => actionData(a).a === 'addyes');
+  assert.equal(yes.label, `✅ ใช่ T-${id}`);
+  w.calls.uploads.length = 0;
+  await send(w, postbackEv(actionData(yes)));
+  assert.equal(w.calls.uploads.length, 1);
+  assert.match(w.calls.uploads[0].path, new RegExp(`^T-${id}/photo-20261019-100000-1\\.jpg$`));
+  const h = w.items.TicketHistory[w.items.TicketHistory.length - 1].fields;
+  assert.deepEqual([h.TicketID, h.Action, h.Comment, h.Processed], [id, 'comment', '📎 CEO แนบรูปเพิ่ม 1 รูป', false]);
+  assert.match(lastReply(w).text, new RegExp(`^✅ แนบรูป 1 รูปให้ T-${id} เรียบร้อย\nคุณมะลิจะได้รับแจ้งเตือน`));
+  // a second tap does nothing
+  await send(w, postbackEv(actionData(yes)));
+  assert.equal(w.calls.uploads.length, 1);
+  assert.match(lastReply(w).text, /หมดอายุ/);
+});
+
+test('"เพิ่มเติม ..." asks which ticket, confirms, then saves to CEOExtra and history', async () => {
+  const w = fakeWorld();
+  const first = await makeTicket(w, 'งานแรก', 'pm@df.co.th');
+  const latest = await makeTicket(w, 'เตรียมประชุมพรุ่งนี้', 'mkt@df.co.th');
+  await send(w, textEv('เพิ่มเติม ขอสไลด์ 5 หน้า'));
+  let msg = lastReply(w);
+  assert.match(msg.text, /^➕ เพิ่มรายละเอียดให้งานไหน\?/);
+  assert.match(msg.text, /"ขอสไลด์ 5 หน้า"/);
+  assert.deepEqual(quick(msg).slice(0, 2).map((a) => a.label), [`ล่าสุด T-${latest}`, `T-${first} ปิ`]);
+  // typed number of the wrong ticket, then "ไม่ใช่", then "ล่าสุด", then "ใช่"
+  await send(w, textEv(`ticket ${first}`));
+  assert.match(lastReply(w).text, new RegExp(`T-${first} สั่งงานคุณปิ\n📝 เรื่อง "งานแรก"`));
+  await send(w, textEv('ไม่ใช่'));
+  assert.match(lastReply(w).text, /^เลือกงานอีกครั้ง/);
+  await send(w, textEv('ล่าสุด'));
+  assert.match(lastReply(w).text, new RegExp(`T-${latest} สั่งงานคุณมะลิ`));
+  await send(w, textEv('ใช่ครับ'));
+  assert.match(lastReply(w).text, new RegExp(`^✅ เพิ่มรายละเอียดให้ T-${latest} เรียบร้อย`));
+  const t = w.items.Tickets.find((x) => Number(x.id) === latest).fields;
+  assert.equal(t.CEOExtra, '[19/10 10:00] ขอสไลด์ 5 หน้า');
+  const h = w.items.TicketHistory[w.items.TicketHistory.length - 1].fields;
+  assert.deepEqual([h.TicketID, h.Action, h.Comment], [latest, 'comment', '➕ คำสั่งเพิ่มเติม: ขอสไลด์ 5 หน้า']);
+  // a second addition is appended
+  await send(w, textEv('เพิ่มเติม'));
+  await send(w, textEv(String(latest)));
+  await send(w, textEv('ใช่'));
+  assert.match(lastReply(w).text, new RegExp(`^พิมพ์หรือพูดรายละเอียดที่ต้องการเพิ่มให้ T-${latest}`));
+  await send(w, textEv('ใส่กราฟยอดขายด้วย'));
+  assert.equal(t.CEOExtra, '[19/10 10:00] ขอสไลด์ 5 หน้า\n\n[19/10 10:00] ใส่กราฟยอดขายด้วย');
+});
+
+test('"เพิ่มให้งานเดิม" turns the draft into details of an old ticket; "เป็นงานใหม่" turns it back', async () => {
+  const w = fakeWorld();
+  const id = await makeTicket(w, 'เตรียมประชุมพรุ่งนี้', 'mkt@df.co.th');
+  await send(w, textEv('ใช้รูปที่ส่งประกอบการประชุม'));
+  let old = quick(lastReply(w)).find((a) => actionData(a).a === 'addold');
+  await send(w, postbackEv(actionData(old)));
+  let msg = lastReply(w);
+  assert.match(msg.text, /^➕ เพิ่มรายละเอียดให้งานไหน\?/);
+  await send(w, postbackEv(actionData(quick(msg).find((a) => actionData(a).a === 'addnew'))));
+  assert.match(lastReply(w).text, /📝 "ใช้รูปที่ส่งประกอบการประชุม"\nสั่งใคร\?/);
+  old = quick(lastReply(w)).find((a) => actionData(a).a === 'addold');
+  await send(w, postbackEv(actionData(old)));
+  await send(w, postbackEv(actionData(quick(lastReply(w))[0])));
+  await send(w, postbackEv(actionData(quick(lastReply(w)).find((a) => actionData(a).a === 'addyes'))));
+  assert.match(w.items.Tickets.find((x) => Number(x.id) === id).fields.CEOExtra, /ใช้รูปที่ส่งประกอบการประชุม$/);
+});
+
+test('a name or a date with no task being created is not taken as a task title', async () => {
+  const w = fakeWorld();
+  let r = await send(w, textEv('สั่งมะลิ'));
+  assert.equal(r.results[0].skipped, 'no-draft');
+  assert.match(lastReply(w).text, /^ยังไม่มีงานที่กำลังสั่ง/);
+  r = await send(w, textEv('พรุ่งนี้'));
+  assert.equal(r.results[0].skipped, 'no-draft');
+  assert.equal(w.items.Tickets.length, 0);
+});
+
+test('background runs never write the shared state, so they cannot undo the CEO chat', async () => {
+  const wf = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'ceo-line-bot.json'), 'utf8'));
+  const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+  for (const name of ['Daily summary', 'Weekly summary', 'Check SharePoint call', 'Notify CEO of staff updates']) {
+    const node = wf.nodes.find((n) => n.name === name);
+    const w = fakeWorld();
+    const shared = { drafts: { [CEO]: { id: 'x' } } };
+    const writes = [];
+    const guard = new Proxy(shared, { set(t, k, v) { writes.push(k); t[k] = v; return true; }, deleteProperty(t, k) { writes.push(k); delete t[k]; return true; } });
+    const fn = new AsyncFunction('$input', '$vars', '$getWorkflowStaticData', node.parameters.jsCode);
+    const self = { helpers: { httpRequest: w.ctx.http } };
+    const input = { first: () => ({ json: { process: true, query: {}, body: { value: [{ clientState: 'sp-state-secret' }] } } }) };
+    await fn.call(self, input, SETTINGS, () => guard);
+    assert.deepEqual(writes, [], name);
+  }
 });
 
 test('due date typed or spoken at "ส่งเมื่อไร?"', async () => {

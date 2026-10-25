@@ -10,6 +10,7 @@ const CEO_TICKETS_SCHEMA = [
       choice('Priority', ['Low', 'Normal', 'High'], 'Normal', true),
       choice('Status', ['New', 'Acknowledged', 'InProgress', 'WaitingCEO', 'Done', 'Closed'], 'New', true, true),
       '<Field Type="Note" Name="Details" DisplayName="Details" RichText="FALSE" NumLines="6" />',
+      '<Field Type="Note" Name="CEOExtra" DisplayName="CEOExtra" RichText="FALSE" NumLines="6" />',
       bool('IsOpen', true, true),
       '<Field Type="DateTime" Format="DateTime" Name="AckedAt" DisplayName="AckedAt" />',
       '<Field Type="DateTime" Format="DateTime" Name="DoneAt" DisplayName="DoneAt" />',

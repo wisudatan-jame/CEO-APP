@@ -328,6 +328,28 @@ clrSuccess = ColorValue("#1F9A4B");   // เขียวจากโลโก้
 
 **รูป CEO:** ต้องได้รับอนุญาตจาก CEO ก่อน เพราะรูปจะอยู่บนเครื่องพนักงานทุกคน ใช้เป็นรูปวงกลมเล็กบนแถบหัวเท่านั้น ไม่ใช้เป็นไอคอนแอป (ไอคอนเล็กมาก ดูไม่ออกว่าเป็นแอปบริษัท และข้อตกลงคือไอคอนเป็นโลโก้ Digital Focus)
 
+### 2.4.4 ช่องคำสั่งเพิ่มเติมจาก CEO
+CEO เพิ่มรายละเอียดให้งานที่สั่งไปแล้วผ่าน LINE ได้ บอทเก็บไว้ในคอลัมน์ `CEOExtra` (สร้างตาม[คู่มือ ก ข้อ 7.1](A-flow-onlineevent.md) ก่อน)
+1. แถบซ้าย **Data** → `Tickets` → **⋯** → **Refresh** (ให้แอปเห็นคอลัมน์ใหม่)
+2. หน้า `scrDetail` → Insert → **Text label** ชื่อ `lblDExtra`
+
+| Property | ค่า |
+|---|---|
+| Text | `"➕ คำสั่งเพิ่มเติมจาก CEO" & Char(10) & varTicket.CEOExtra` |
+| Visible | `!IsBlank(varTicket.CEOExtra)` |
+| X / Width | เหมือน `lblDDetails` |
+| Y | `lblDDetails.Y + lblDDetails.Height + 10` |
+| AutoHeight | `true` |
+| Size · Color | `14` · `clrText` |
+| Fill · BorderColor · BorderThickness | `ColorFade(clrAccent, 92%)` · `clrAccent` · `1` |
+| PaddingLeft/Right/Top/Bottom | `12` |
+
+3. แก้ `txtComment` → Y ให้อยู่ใต้ช่องนี้เมื่อมีข้อความ:
+   ```
+   If(lblDExtra.Visible, lblDExtra.Y + lblDExtra.Height, lblDDetails.Y + lblDDetails.Height) + 10
+   ```
+4. ทดสอบ: เปิดงานที่ CEO เพิ่มรายละเอียดแล้ว ต้องเห็นกรอบสีชมพูอ่อน **➕ คำสั่งเพิ่มเติมจาก CEO** พร้อมวันเวลา ส่วนงานที่ไม่มี กรอบต้องไม่แสดงและช่องพิมพ์ข้อความต่อจากรายละเอียดเหมือนเดิม
+
 ### 2.4.3 แสดงสวยทั้งมือถือและคอมพิวเตอร์ (Responsive)
 บนคอม แถบหัวกว้างเต็มจอ เนื้อหาเป็นคอลัมน์กว้างไม่เกิน 720 อยู่กลางจอแบบหน้าเว็บ บนมือถือเต็มจอเหมือนเดิม
 
@@ -349,7 +371,7 @@ clrSuccess = ColorValue("#1F9A4B");   // เขียวจากโลโก้
 | | `btnRefresh` | `colX + 20` | `colW - 40` |
 | scrDetail | `icoBack` | `colX + 10` | (เดิม) |
 | | `lblDTitle` | `colX + 60` | `colW - 80` |
-| | `lblDDue` `lblDDetails` `txtComment` `lblCommentHelp` `btnComment` `attFiles` | `colX + 20` | `colW - 40` |
+| | `lblDDue` `lblDDetails` `lblDExtra` `txtComment` `lblCommentHelp` `btnComment` `attFiles` | `colX + 20` | `colW - 40` |
 | | `btnAck` `btnWait` `btnPhotos` | `colX + 20` | `halfW` |
 | | `btnStart` `btnDone` `btnUpload` | `colX + 30 + halfW` | `halfW` |
 | | `galHistory` | `colX` | `colW` |
@@ -364,11 +386,19 @@ clrSuccess = ColorValue("#1F9A4B");   // เขียวจากโลโก้
 3. คัดลอก **Web link** ของแอป (หน้า Details) ไว้ใช้ข้อ 2.6
 
 ### 2.6 ใส่ลิงก์เปิดแอปในข้อความ Teams
-แก้ Message ใน Flow `OnLineEvent` (คู่มือ ก ข้อ d) และ `UpdateTicket` (ข้อ l) ต่อท้ายด้วย:
+แทนลิงก์ SharePoint ในข้อความ Teams ของ Flow `OnLineEvent` (คู่มือ ก ข้อ d, 6.2 ข้อ 3 และ 7.2) ด้วยลิงก์แอป แอปเปิดหน้างานนั้นเองเพราะ `StartScreen` อ่าน `Param("ticketId")` (ข้อ 2.2)
+- ลิงก์ต้องเป็นแบบ `<a href>` (ข้อความธรรมดา Teams ไม่ทำให้กดได้)
+- Web link มี `?tenantId=...` อยู่แล้ว จึงต่อด้วย `&ticketId=`
+
+ในสูตรของคู่มือ ก ให้เปลี่ยนส่วนท้าย
 ```
-, ' เปิดงาน: <Web link>&ticketId=', <เลขงาน>
+' <a href="https://digitalfocusth.sharepoint.com/sites/CEO-Tickets/Lists/Tickets/DispForm.aspx?ID=', triggerBody()?['TicketID'], '">เปิดดูงาน</a>'
 ```
-ตัวอย่างใน `OnLineEvent`: `concat('📌 งานใหม่จาก CEO: T-', triggerBody()?['TicketID'], ' เปิดงาน: https://apps.powerapps.com/play/e/.../a/...?tenantId=...&ticketId=', triggerBody()?['TicketID'])`
+เป็น (แทน `<Web link>` ด้วยลิงก์จากข้อ 2.5)
+```
+' <a href="<Web link>&ticketId=', triggerBody()?['TicketID'], '">เปิดในแอป</a>'
+```
+ทดสอบ: พนักงานกด **เปิดในแอป** ใน Teams แล้วแอปต้องเปิดหน้างานนั้นทันที (ไม่ใช่หน้ารายการ)
 
 ### 2.7 ติดตั้งบนมือถือพนักงาน
 1. ติดตั้งแอป **Power Apps** จาก App Store / Google Play แล้วล็อกอินด้วยบัญชีบริษัท

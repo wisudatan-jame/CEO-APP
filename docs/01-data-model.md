@@ -16,6 +16,7 @@ Site: `CEO-Tickets` เป็น Communication site (ไม่ผูก Microsof
 | `Priority` | Choice: `Low`, `Normal`, `High` | ใช่ | ค่าเริ่มต้น `Normal` แสดงผลเป็น ต่ำ/ปกติ/สูง |
 | `Status` | Choice (ดูตารางด้านล่าง) | ใช่ | ค่าเริ่มต้น `New` |
 | `Details` | Multiple lines (Plain text) | ไม่ | ห้ามเปิด Rich text เพื่อลดความเสี่ยงและความซับซ้อน |
+| `CEOExtra` | Multiple lines (Plain text) | ไม่ | คำสั่งเพิ่มเติมจาก CEO หลังสร้างงานแล้ว บอทต่อท้ายทีละข้อความพร้อมเวลา `[dd/MM HH:mm] ข้อความ` ห้ามแก้ด้วยมือ |
 | `IsOpen` | Yes/No | ใช่ | Flow เป็นคนตั้งค่า `true` ตอนสร้าง และ `false` ตอนปิดงาน ใช้กรองรายการเพื่อให้ Delegation ทำงานได้ |
 | `AckedAt` | Date and time | ไม่ | เวลารับทราบ |
 | `DoneAt` | Date and time | ไม่ | เวลาที่พนักงานกดเสร็จ |

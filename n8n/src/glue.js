@@ -36,11 +36,17 @@ function getSetting(name) {
   return value;
 }
 
-function makeContext(self) {
+// n8n saves the whole static data object at the end of any run that changed it, so a background
+// run (SharePoint alert, summaries) that refreshed a cached token would write back a stale copy of
+// the CEO's half-finished conversation. Only the LINE chat run keeps what it writes; the others
+// work on a private copy that n8n never sees as changed.
+function makeContext(self, opts) {
+  const shared = $getWorkflowStaticData('global');
+  const keepState = !opts || opts.keepState !== false;
   return {
-    http: (opts) => self.helpers.httpRequest(opts),
+    http: (o) => self.helpers.httpRequest(o),
     setting: getSetting,
-    store: $getWorkflowStaticData('global'),
+    store: keepState ? shared : JSON.parse(JSON.stringify(shared)),
     now: () => new Date(),
   };
 }

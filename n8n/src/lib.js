@@ -2,7 +2,7 @@
 // ctx = { http(opts), setting(name), store, now() }
 //   http    -> this.helpers.httpRequest in n8n
 //   setting -> secrets from n8n Variables / environment variables
-//   store   -> $getWorkflowStaticData('global') (persists only for active workflows)
+//   store   -> $getWorkflowStaticData('global') (persists only for active workflows; background runs get a copy)
 
 const TZ_OFFSET_MS = 7 * 3600 * 1000; // Asia/Bangkok, no DST
 const DRAFT_TTL_MS = 30 * 60 * 1000;
@@ -12,6 +12,9 @@ const PENDING_IMAGES_TTL_MS = 10 * 60 * 1000; // photos sent before the task tex
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_IMAGES = 5;
 const MAX_QUICK_PEOPLE = 8;
+const ADD_TTL_MS = 30 * 60 * 1000; // "add to an existing ticket" waits this long for an answer
+const RECENT_TICKET_MS = 2 * 3600 * 1000; // a photo sent this soon after a new ticket is offered to that ticket
+const RECENT_FOR_ADD = 4;
 const PAGE_SIZE = 10;
 const DONE_PAGE_SIZE = 5;
 const GRAPH = 'https://graph.microsoft.com/v1.0';
@@ -452,6 +455,8 @@ function helpText() {
     'ส่งรูปก่อนหรือหลังข้อความชื่องานก็ได้ (ก่อนเลือกวันส่ง)',
     'ส่งทีละข้อความ รอบอทตอบก่อนส่งข้อความถัดไป',
     'พิมพ์ "สรุป" เพื่อดูภาพรวม · "ยกเลิก" เพื่อยกเลิกงานที่กำลังสร้าง',
+    'พิมพ์ "เพิ่มเติม" ตามด้วยรายละเอียด เพื่อเพิ่มให้งานที่สั่งไปแล้ว',
+    'ส่งรูปหลังสร้างงาน บอทจะถามว่าแนบกับงานไหน',
     'พิมพ์ "โอนงาน" เพื่อโอนงานของคนที่ลาออกให้คนอื่น',
   ].join('\n');
 }
@@ -473,6 +478,29 @@ function currentDraft(ctx, userId) {
     return null;
   }
   return d || null;
+}
+
+async function startDraft(ctx, ev, t, notice) {
+  const userId = ev.source.userId;
+  const nowMs = ctx.now().getTime();
+  const title = truncate(t.replace(/\s+/g, ' '), 255);
+  const dr = {
+    id: newId(),
+    title,
+    details: chars(t).length > 255 ? [t] : [],
+    images: takePendingImages(ctx, userId, nowMs),
+    assignee: null,
+    stage: 'who',
+    createdAt: nowMs,
+    lastTextAt: nowMs,
+  };
+  drafts(ctx)[userId] = dr;
+  delete ctx.store.transfer; // a new task ends any half-finished transfer
+  delete ctx.store.addTo;
+  let note = notice || '';
+  if (dr.images.length) note += `📎 แนบรูปที่ส่งไว้ ${dr.images.length} รูป\n`;
+  if (ev.moreText && !note) return { draft: dr.id, stage: 'who' };
+  return askWho(ctx, ev, dr, note);
 }
 
 async function onMessage(ctx, ev, cfg) {
@@ -497,6 +525,12 @@ async function onMessage(ctx, ev, cfg) {
       const picked = await onTransferTo(ctx, ev, transfer, t);
       if (picked) return picked;
     }
+    const add = currentAdd(ctx);
+    if (t === 'ยกเลิก' && add) {
+      delete ctx.store.addTo;
+      await lineReply(ctx, ev, textMsg(add.fromPhoto ? 'ยกเลิกแล้ว ไม่ได้แนบรูป' : 'ยกเลิกแล้ว ไม่ได้เพิ่มรายละเอียด'));
+      return { addCancelled: add.id };
+    }
     if (t === 'ยกเลิก' && pendingReply) {
       delete ctx.store.replyTo;
       await lineReply(ctx, ev, textMsg(`ยกเลิกการตอบ T-${pendingReply.ticketId} แล้ว`));
@@ -513,15 +547,27 @@ async function onMessage(ctx, ev, cfg) {
       return { help: true };
     }
     if (pendingReply) return sendReply(ctx, ev, cfg, pendingReply, t);
+    if (add) {
+      const handled = await onAddText(ctx, ev, cfg, add, t);
+      if (handled) return handled;
+    }
+    if (!dr && EXTRA_PREFIX.test(t)) {
+      return startAdd(ctx, ev, { text: t.replace(EXTRA_PREFIX, '').trim(), raw: t, images: [] });
+    }
+    if (!dr && (await isOnlyNameOrDate(ctx, t))) {
+      await lineReply(ctx, ev, textMsg('ยังไม่มีงานที่กำลังสั่ง\nพิมพ์หรือพูดชื่องานก่อน แล้วค่อยบอกชื่อคนและวันส่ง\n\nถ้าจะเพิ่มรายละเอียดให้งานที่สั่งไปแล้ว พิมพ์ "เพิ่มเติม" ตามด้วยรายละเอียด'));
+      return { skipped: 'no-draft' };
+    }
     if (dr && dr.stage === 'search') return onSearch(ctx, ev, dr, t);
     if (dr && dr.stage === 'who') {
       const picked = await onTypedWho(ctx, ev, dr, t);
       if (picked) return picked;
+      if (parseDueText(t, bkkYmd(ctx.now()))) return askWho(ctx, ev, dr, 'เลือกคนก่อน แล้วค่อยบอกวันส่ง\n\n');
       if (nowMs - dr.lastTextAt < APPEND_WINDOW_MS) {
         dr.details.push(t);
         dr.lastTextAt = nowMs;
         // Quick-reply buttons vanish once the CEO sends anything, so offer them again.
-        if (!ev.moreText) await askWho(ctx, ev, dr, `➕ เพิ่มเป็นรายละเอียดงานแล้ว (${dr.details.length} ข้อความ)\n\n`);
+        if (!ev.moreText) await askWho(ctx, ev, dr, `➕ เพิ่มในรายละเอียดของงานนี้แล้ว (${dr.details.length} ข้อความ)\n\n`);
         return { appended: dr.id };
       }
     }
@@ -533,28 +579,22 @@ async function onMessage(ctx, ev, cfg) {
         return askWhen(ctx, ev, dr, emp, `ไม่เข้าใจวันส่ง "${truncate(t, 20)}" แตะปุ่มหรือ 📅 เลือกวัน\n\n`);
       }
     }
-    let notice = '';
-    if (dr) notice = `ยกเลิกงานก่อนหน้า: "${truncate(dr.title, 60)}"\n\n`;
-    const title = truncate(t.replace(/\s+/g, ' '), 255);
-    dr = {
-      id: newId(),
-      title,
-      details: chars(t).length > 255 ? [t] : [],
-      images: takePendingImages(ctx, userId, nowMs),
-      assignee: null,
-      stage: 'who',
-      createdAt: nowMs,
-      lastTextAt: nowMs,
-    };
-    drafts(ctx)[userId] = dr;
-    delete ctx.store.transfer; // a new task ends any half-finished transfer
-    if (dr.images.length) notice += `📎 แนบรูปที่ส่งไว้ ${dr.images.length} รูป\n`;
-    if (ev.moreText && !notice) return { draft: dr.id, stage: 'who' };
-    return askWho(ctx, ev, dr, notice);
+    return startDraft(ctx, ev, t, dr ? `ยกเลิกงานก่อนหน้า: "${truncate(dr.title, 60)}"\n\n` : '');
   }
 
   if (m.type === 'image') {
     const isLastOfSet = !m.imageSet || m.imageSet.index === m.imageSet.total;
+    const add = dr ? null : currentAdd(ctx);
+    if (add && add.fromPhoto) {
+      if (add.images.length >= MAX_IMAGES) {
+        if (isLastOfSet) await lineReply(ctx, ev, textMsg(`แนบรูปได้สูงสุด ${MAX_IMAGES} รูปต่อครั้ง`));
+        return { image: 'limit' };
+      }
+      add.images.push(m.id);
+      add.at = nowMs;
+      if (!isLastOfSet) return { image: 'add', count: add.images.length };
+      return add.stage === 'confirm' ? askAddConfirm(ctx, ev, add) : askAddPick(ctx, ev, add);
+    }
     if (!dr) {
       // Photo first, text after: keep the photos for the next task.
       const all = (ctx.store.pendingImages = ctx.store.pendingImages || {});
@@ -566,11 +606,21 @@ async function onMessage(ctx, ev, cfg) {
       p.ids.push(m.id);
       p.at = nowMs;
       all[userId] = p;
-      if (isLastOfSet) {
-        const last = ctx.store.lastCreated;
-        const justMade = last && last.at && nowMs - last.at < PENDING_IMAGES_TTL_MS ? `งาน T-${last.ticketId} สร้างไปแล้ว รูปนี้จะไม่แนบกับ T-${last.ticketId}\n` : '';
-        await lineReply(ctx, ev, textMsg(`📎 รับรูปแล้ว (${p.ids.length} รูป)\n${justMade}พิมพ์หรือพูดชื่องานต่อได้เลย รูปจะแนบกับงานที่สั่งภายใน 10 นาที`));
+      if (!isLastOfSet) return { image: 'pending', count: p.ids.length };
+      // A photo right after a new ticket is most likely for that ticket: ask before guessing.
+      const last = ctx.store.lastCreated;
+      if (last && last.at && nowMs - last.at < RECENT_TICKET_MS) {
+        const it = await tryGetTicket(ctx, last.ticketId);
+        if (it && it.fields.IsOpen) {
+          const a = newAdd({ images: takePendingImages(ctx, userId, nowMs), fromPhoto: true });
+          a.ticketId = last.ticketId;
+          a.stage = 'confirm';
+          return askAddConfirm(ctx, ev, a, it);
+        }
       }
+      await lineReply(ctx, ev, textMsg(`📎 รับรูปแล้ว (${p.ids.length} รูป)\nพิมพ์หรือพูดชื่องานต่อได้เลย รูปจะแนบกับงานที่สั่งภายใน 10 นาที\n\nถ้าเป็นรูปของงานที่สั่งไปแล้ว แตะ 📌 แนบกับงานเดิม`, [
+        qrPostback('📌 แนบกับงานเดิม', { a: 'photoold' }, 'แนบกับงานเดิม'),
+      ]));
       return { image: 'pending', count: p.ids.length };
     }
     if (dr.images.length >= MAX_IMAGES) {
@@ -617,8 +667,9 @@ async function askWho(ctx, ev, dr, notice) {
   const people = await quickPeople(ctx, await getConfig(ctx));
   const items = people.map((e) => qrPostback(personLabel(e), { a: 'who', d: dr.id, e: e.email }, `สั่ง${personName(e)}`));
   items.push(qrPostback('🔍 คนอื่น', { a: 'search', d: dr.id }, 'คนอื่น'));
+  items.push(qrPostback('➕ เพิ่มให้งานเดิม', { a: 'addold', d: dr.id }, 'เพิ่มให้งานเดิม'));
   items.push(qrPostback('❌ ยกเลิก', { a: 'cancel', d: dr.id }, 'ยกเลิก'));
-  await lineReply(ctx, ev, textMsg(`${notice || ''}📝 "${truncate(dr.title, 120)}"\nสั่งใคร?`, items));
+  await lineReply(ctx, ev, textMsg(`${notice || ''}📝 "${truncate(dr.title, 120)}"\nสั่งใคร?\n(ถ้าเป็นรายละเอียดของงานที่สั่งไปแล้ว แตะ ➕ เพิ่มให้งานเดิม)`, items));
   return { draft: dr.id, stage: 'who' };
 }
 
@@ -770,6 +821,15 @@ async function onPostback(ctx, ev, cfg) {
     }
     return p.a === 'xto' ? confirmTransfer(ctx, ev, x, p.e) : runTransfer(ctx, ev, cfg, x, p.e);
   }
+  if (p.a === 'photoold') {
+    const imgs = takePendingImages(ctx, userId, ctx.now().getTime());
+    if (!imgs.length) {
+      await lineReply(ctx, ev, textMsg('ไม่พบรูปที่รอแนบ (เกิน 10 นาทีแล้ว) ส่งรูปใหม่อีกครั้ง'));
+      return { expired: 'photoold' };
+    }
+    return askAddPick(ctx, ev, newAdd({ images: imgs, fromPhoto: true }));
+  }
+  if (/^add(pick|yes|no|new|cancel)$/.test(p.a)) return onAddPostback(ctx, ev, cfg, p);
   if (p.a === 'replycancel') {
     delete ctx.store.replyTo;
     await lineReply(ctx, ev, textMsg(`ยกเลิกการตอบ T-${p.t} แล้ว`));
@@ -791,6 +851,11 @@ async function onPostback(ctx, ev, cfg) {
     delete drafts(ctx)[userId];
     await lineReply(ctx, ev, textMsg(`ยกเลิกแล้ว: "${truncate(dr.title, 60)}"`));
     return { cancelled: dr.id };
+  }
+  if (p.a === 'addold') {
+    delete drafts(ctx)[userId];
+    const text = [dr.title].concat(dr.details).join('\n');
+    return askAddPick(ctx, ev, newAdd({ text, raw: text, images: dr.images }));
   }
   if (p.a === 'search') {
     dr.stage = 'search';
@@ -1125,6 +1190,237 @@ async function replyList(ctx, ev, kind, page) {
   const header = `${titles[kind]} (${page * size + 1}–${page * size + rows.length} จาก ${sorted.length})`;
   await lineReply(ctx, ev, textMsg(`${header}\n${lines.join('\n')}`, items));
   return { list: kind, count: rows.length };
+}
+
+// ---------- Add details or photos to a ticket that already exists ----------
+// Flow: pick the ticket (tap, or type/say its number or "ล่าสุด") -> confirm "T-x สั่งงานคุณ... เรื่อง... ใช่หรือไม่?"
+// -> save. Details go to the ticket's CEOExtra column and to TicketHistory as a comment, so the
+// OnLineEvent flow tells the assignee in Teams.
+const EXTRA_PREFIX = /^(เพิ่มเติม|เพิ่มรายละเอียด|รายละเอียดเพิ่มเติม|รายละเอียดเพิ่ม|แจ้งเพิ่มเติม)\s*(ให้)?\s*(งาน)?\s*/;
+const YES_WORDS = /^(ใช่|ถูก|ถูกต้อง|ตกลง|โอเค|ok|okay|yes)(ครับ|ค่ะ|คะ|แล้ว)?$/i;
+const NO_WORDS = /^(ไม่ใช่|ไม่|ผิด|no)(ครับ|ค่ะ|คะ)?$/i;
+const LATEST_WORDS = /^(ล่าสุด|งานล่าสุด|อันล่าสุด|ticketล่าสุด|ทิกเก็ตล่าสุด)$/i;
+
+function currentAdd(ctx) {
+  const a = ctx.store.addTo;
+  if (a && ctx.now().getTime() - a.at > ADD_TTL_MS) {
+    delete ctx.store.addTo;
+    return null;
+  }
+  return a || null;
+}
+
+function newAdd(fields) {
+  return Object.assign({ id: newId(), text: '', raw: '', images: [], fromPhoto: false, stage: 'pick', ticketId: null }, fields);
+}
+
+async function tryGetTicket(ctx, id) {
+  try {
+    return await getItem(ctx, 'Tickets', id);
+  } catch (e) {
+    return null;
+  }
+}
+
+async function isOnlyNameOrDate(ctx, t) {
+  if (chars(t).length > 30) return false;
+  if (parseDueText(t, bkkYmd(ctx.now()))) return true;
+  const r = findAssignee(await getEmployees(ctx), t);
+  return r.people.length > 0 && r.exact;
+}
+
+function ticketNumber(t) {
+  const m = String(t).replace(/\s+/g, '').match(/^(?:ticket|ทิกเก็ต|ทิคเก็ต|งาน|เลขที่|เลข|ที่|t)?(?:ที่)?-?(\d{1,6})$/i);
+  return m ? Number(m[1]) : null;
+}
+
+async function recentOpenTickets(ctx) {
+  return (await getTickets(ctx)).filter((t) => t.isOpen).sort((a, b) => b.id - a.id).slice(0, RECENT_FOR_ADD);
+}
+
+async function startAdd(ctx, ev, fields) {
+  return askAddPick(ctx, ev, newAdd(fields));
+}
+
+function addWhat(add) {
+  const parts = [];
+  if (add.text) parts.push(`➕ รายละเอียดที่จะเพิ่ม:\n"${truncate(add.text, 300)}"`);
+  if (add.images.length) parts.push(`📎 รูปที่จะแนบ ${add.images.length} รูป`);
+  return parts.join('\n');
+}
+
+async function askAddPick(ctx, ev, add, notice) {
+  add.stage = 'pick';
+  add.at = ctx.now().getTime();
+  ctx.store.addTo = add;
+  const tickets = await recentOpenTickets(ctx);
+  const employees = await getEmployees(ctx);
+  const nameOf = (email) => personName(employees.find((e) => e.email === email), email);
+  const question = add.fromPhoto && !add.text ? '📎 แนบรูปกับงานไหน?' : '➕ เพิ่มรายละเอียดให้งานไหน?';
+  const lines = tickets.map((t) => `• T-${t.id} ${nameOf(t.assignee)}: ${truncate(t.title, 40)}`);
+  const body = lines.length ? `${lines.join('\n')}\n\nแตะเลขงาน หรือพิมพ์/พูดเลขงาน เช่น ${tickets[0].id}` : 'ไม่มีงานที่เปิดอยู่';
+  const what = addWhat(add);
+  const items = tickets.map((t, i) => qrPostback(i === 0 ? `ล่าสุด T-${t.id}` : `T-${t.id} ${nameOf(t.assignee).replace(/^คุณ/, '')}`, { a: 'addpick', x: add.id, t: t.id }, `T-${t.id}`));
+  items.push(qrPostback('🆕 เป็นงานใหม่', { a: 'addnew', x: add.id }, 'เป็นงานใหม่'));
+  items.push(qrPostback('❌ ยกเลิก', { a: 'addcancel', x: add.id }, 'ยกเลิก'));
+  await lineReply(ctx, ev, textMsg(`${notice || ''}${question}\n${body}${what ? `\n\n${what}` : ''}`, items));
+  return { add: add.id, stage: 'pick' };
+}
+
+async function askAddConfirm(ctx, ev, add, ticket) {
+  add.stage = 'confirm';
+  add.at = ctx.now().getTime();
+  ctx.store.addTo = add;
+  const it = ticket || (await getItem(ctx, 'Tickets', add.ticketId));
+  const emp = (await getEmployees(ctx)).find((e) => e.email === lower(it.fields.AssigneeEmail));
+  const question = add.text || !add.fromPhoto ? '➕ เพิ่มรายละเอียดให้งานนี้ใช่หรือไม่?' : `📎 แนบรูป ${add.images.length} รูปกับงานก่อนหน้าใช่หรือไม่?`;
+  const what = addWhat(add);
+  const hint = add.fromPhoto ? '\n\nถ้าเป็นรูปของงานใหม่ พิมพ์หรือพูดชื่องานได้เลย' : '';
+  const text = `${question}\n\nT-${add.ticketId} สั่งงาน${personName(emp, it.fields.AssigneeEmail)}\n📝 เรื่อง "${truncate(it.fields.Title, 120)}"${what && add.text ? `\n\n${what}` : ''}${hint}`;
+  await lineReply(ctx, ev, textMsg(text, [
+    qrPostback(`✅ ใช่ T-${add.ticketId}`, { a: 'addyes', x: add.id }, 'ใช่'),
+    qrPostback('❌ ไม่ใช่ เลือกใหม่', { a: 'addno', x: add.id }, 'ไม่ใช่'),
+    qrPostback('🆕 เป็นงานใหม่', { a: 'addnew', x: add.id }, 'เป็นงานใหม่'),
+    qrPostback('ยกเลิก', { a: 'addcancel', x: add.id }, 'ยกเลิก'),
+  ]));
+  return { add: add.id, stage: 'confirm', ticketId: add.ticketId };
+}
+
+async function pickAddTicket(ctx, ev, add, id) {
+  const it = await tryGetTicket(ctx, id);
+  if (!it) return askAddPick(ctx, ev, add, `ไม่พบงาน T-${id}\n\n`);
+  if (!it.fields.IsOpen) return askAddPick(ctx, ev, add, `T-${id} ปิดไปแล้ว เลือกงานอื่น\n\n`);
+  add.ticketId = id;
+  return askAddConfirm(ctx, ev, add, it);
+}
+
+async function onAddYes(ctx, ev, cfg, add) {
+  if (!add.text && !add.images.length) {
+    add.stage = 'text';
+    add.at = ctx.now().getTime();
+    await lineReply(ctx, ev, textMsg(`พิมพ์หรือพูดรายละเอียดที่ต้องการเพิ่มให้ T-${add.ticketId}`, [
+      qrPostback('ยกเลิก', { a: 'addcancel', x: add.id }, 'ยกเลิก'),
+    ]));
+    return { add: add.id, stage: 'text' };
+  }
+  return saveAdd(ctx, ev, cfg, add);
+}
+
+// Text while an "add" is waiting. Returns null when the text is not an answer, so it becomes a new task.
+async function onAddText(ctx, ev, cfg, add, t) {
+  const flat = t.replace(/\s+/g, '');
+  if (add.stage === 'text') {
+    add.text = t;
+    return saveAdd(ctx, ev, cfg, add);
+  }
+  if (add.stage === 'confirm' && YES_WORDS.test(flat)) return onAddYes(ctx, ev, cfg, add);
+  if (add.stage === 'confirm' && NO_WORDS.test(flat)) return askAddPick(ctx, ev, add, 'เลือกงานอีกครั้ง\n\n');
+  if (LATEST_WORDS.test(flat)) {
+    const latest = (await recentOpenTickets(ctx))[0];
+    if (latest) return pickAddTicket(ctx, ev, add, latest.id);
+  }
+  const id = ticketNumber(t);
+  if (id) return pickAddTicket(ctx, ev, add, id);
+  if (add.fromPhoto) {
+    // Photos first, then the name of a new task: the photos go with the new task.
+    restorePendingImages(ctx, ev.source.userId, add.images);
+    delete ctx.store.addTo;
+    return null;
+  }
+  if (add.stage === 'confirm') return askAddConfirm(ctx, ev, add);
+  return askAddPick(ctx, ev, add, `ไม่เข้าใจ "${truncate(t, 30)}"\n\n`);
+}
+
+function restorePendingImages(ctx, userId, ids) {
+  if (!ids.length) return;
+  const all = (ctx.store.pendingImages = ctx.store.pendingImages || {});
+  all[userId] = { ids: ids.slice(0, MAX_IMAGES), at: ctx.now().getTime() };
+}
+
+async function onAddPostback(ctx, ev, cfg, p) {
+  const add = currentAdd(ctx);
+  if (!add || add.id !== p.x) {
+    await lineReply(ctx, ev, textMsg('ปุ่มนี้ทำไปแล้วหรือหมดอายุ'));
+    return { addExpired: p.x };
+  }
+  if (p.a === 'addpick') return pickAddTicket(ctx, ev, add, Number(p.t));
+  if (p.a === 'addyes' && add.stage === 'confirm') return onAddYes(ctx, ev, cfg, add);
+  if (p.a === 'addno') return askAddPick(ctx, ev, add, 'เลือกงานอีกครั้ง\n\n');
+  if (p.a === 'addcancel') {
+    delete ctx.store.addTo;
+    await lineReply(ctx, ev, textMsg(add.fromPhoto ? 'ยกเลิกแล้ว ไม่ได้แนบรูป' : 'ยกเลิกแล้ว ไม่ได้เพิ่มรายละเอียด'));
+    return { addCancelled: add.id };
+  }
+  if (p.a === 'addnew') {
+    delete ctx.store.addTo;
+    restorePendingImages(ctx, ev.source.userId, add.images);
+    if (add.raw) return startDraft(ctx, ev, add.raw, '');
+    await lineReply(ctx, ev, textMsg('พิมพ์หรือพูดชื่องานใหม่ได้เลย รูปจะแนบกับงานนั้น (ภายใน 10 นาที)'));
+    return { add: 'new-task' };
+  }
+  return { add: add.id, stage: add.stage };
+}
+
+function bkkStamp(instant) {
+  const t = new Date(instant.getTime() + TZ_OFFSET_MS);
+  return {
+    file: `${t.getUTCFullYear()}${pad2(t.getUTCMonth() + 1)}${pad2(t.getUTCDate())}-${pad2(t.getUTCHours())}${pad2(t.getUTCMinutes())}${pad2(t.getUTCSeconds())}`,
+    note: `${pad2(t.getUTCDate())}/${pad2(t.getUTCMonth() + 1)} ${pad2(t.getUTCHours())}:${pad2(t.getUTCMinutes())}`,
+  };
+}
+
+async function saveAdd(ctx, ev, cfg, add) {
+  delete ctx.store.addTo; // a second tap on "ใช่" finds nothing to do
+  const id = add.ticketId;
+  const it = await getItem(ctx, 'Tickets', id);
+  if (!it.fields.IsOpen) {
+    await lineReply(ctx, ev, textMsg(`T-${id} ปิดไปแล้ว ไม่ได้เพิ่ม`));
+    return { add: 'closed' };
+  }
+  const stamp = bkkStamp(ctx.now());
+  let uploaded = 0;
+  let failed = 0;
+  for (let i = 0; i < add.images.length; i++) {
+    try {
+      const buf = await lineContent(ctx, add.images[i]);
+      await uploadFile(ctx, `T-${id}`, `photo-${stamp.file}-${i + 1}.jpg`, buf, 'image/jpeg');
+      uploaded++;
+    } catch (e) {
+      failed++;
+    }
+  }
+  const fields = {};
+  if (uploaded && it.fields.HasFiles !== true) fields.HasFiles = true;
+  if (add.text) {
+    const line = `[${stamp.note}] ${add.text}`;
+    fields.CEOExtra = it.fields.CEOExtra ? `${it.fields.CEOExtra}\n\n${line}` : line;
+  }
+  let extraSaved = true;
+  if (Object.keys(fields).length) {
+    try {
+      await updateFields(ctx, 'Tickets', id, fields);
+    } catch (e) {
+      // CEOExtra column not added yet: keep going, the history comment still reaches the assignee.
+      extraSaved = false;
+      if (fields.HasFiles) await updateFields(ctx, 'Tickets', id, { HasFiles: true });
+    }
+  }
+  const comment = [add.text ? `➕ คำสั่งเพิ่มเติม: ${add.text}` : '', uploaded ? `📎 CEO แนบรูปเพิ่ม ${uploaded} รูป` : ''].filter(Boolean).join('\n');
+  if (comment) {
+    await createItem(ctx, 'TicketHistory', {
+      Title: `T-${id}`, TicketID: id, Action: 'comment', FromStatus: it.fields.Status, ToStatus: it.fields.Status,
+      Comment: comment, ActorEmail: lower(cfg.CEO_EMAIL), Source: 'LINE', Processed: false, CEOPending: false,
+    });
+  }
+  const emp = (await getEmployees(ctx)).find((e) => e.email === lower(it.fields.AssigneeEmail));
+  const done = [];
+  if (add.text) done.push('เพิ่มรายละเอียด');
+  if (uploaded) done.push(`แนบรูป ${uploaded} รูป`);
+  const lines = [done.length ? `✅ ${done.join(' และ ')}ให้ T-${id} เรียบร้อย\n${personName(emp, it.fields.AssigneeEmail)}จะได้รับแจ้งเตือน` : `❌ แนบรูปกับ T-${id} ไม่สำเร็จ`];
+  if (failed) lines.push(`⚠️ แนบรูปไม่สำเร็จ ${failed} รูป (รูปใน LINE อาจหมดอายุ) ส่งใหม่อีกครั้ง`);
+  if (!extraSaved && add.text) lines.push('⚠️ ยังบันทึกช่อง "คำสั่งเพิ่มเติมจาก CEO" ไม่ได้ (แจ้งผู้ดูแลระบบ) แต่ส่งถึงพนักงานแล้ว');
+  await lineReply(ctx, ev, textMsg(lines.join('\n')));
+  return { added: id, text: !!add.text, uploaded, failed, extraSaved };
 }
 
 // ---------- CEO replies to staff from LINE ----------
