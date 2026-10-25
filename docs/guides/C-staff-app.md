@@ -181,7 +181,7 @@ or(not(equals(outputs('Current'), outputs('In_expected'))), empty(outputs('NewSt
 |---|---|---|---|
 | Icon (Back) | `icoBack` | OnSelect | `Navigate(scrTickets)` |
 | Label | `lblDTitle` | Text | `"T-" & varTicket.ID & " " & varTicket.Title` |
-| Label | `lblDDue` | Text | `"ส่ง " & Text(varTicket.DueDate, "dddd d mmmm", "th-TH") & If(varTicket.DueDate < Today(), " (เลยกำหนด)", "")` |
+| Label | `lblDDue` | Text | `Switch(varTicket.Status.Value, "New", "🆕 ใหม่", "Acknowledged", "👀 รับทราบ", "InProgress", "🔧 กำลังทำ", "WaitingCEO", "⏳ รอ CEO", "Done", "✅ รอ CEO ตรวจ", "Closed", "🔒 ปิดแล้ว") & " · ส่ง " & Text(varTicket.DueDate, "dddd d mmmm", "th-TH") & If(varTicket.DueDate < Today(), " (เลยกำหนด)", "")` |
 | Label | `lblDDetails` | Text | `varTicket.Details` |
 | Button | `btnPhotos` | Text / Visible | `"ดูรูปที่แนบ"` / `varTicket.HasFiles` |
 | | | OnSelect | `Launch("https://digitalfocusth.sharepoint.com/sites/CEO-Tickets/TicketFiles/T-" & varTicket.ID)` ⚠️ ตรวจว่าลิงก์เปิดโฟลเดอร์ได้ |
@@ -204,6 +204,7 @@ If(varResult.ok = "true",
     Notify("บันทึกแล้ว", NotificationType.Success); Reset(txtComment),
     Notify(If(varResult.message = "STALE", "ข้อมูลเปลี่ยนไปแล้ว กำลังโหลดใหม่", varResult.message), NotificationType.Error));
 Refresh(Tickets);
+Refresh(TicketHistory);
 Set(varTicket, LookUp(Tickets, ID = varTicket.ID))
 ```
 ตั้ง **DisplayMode** ของทุกปุ่มเป็น `If(varBusy, DisplayMode.Disabled, DisplayMode.Edit)` กันการกดซ้ำ
