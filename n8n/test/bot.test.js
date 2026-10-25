@@ -84,6 +84,10 @@ function fakeWorld(opts = {}) {
     if (opts.failCreate === list && o.method === 'POST') throw new Error(`create ${list} failed`);
     const rows = items[list];
     const query = m[5] || '';
+    if (o.method === 'GET' && !id && query.includes('fields/TicketID eq ')) {
+      const tid = Number(query.match(/TicketID eq (\d+)/)[1]);
+      return { value: rows.filter((r) => Number(r.fields.TicketID) === tid) };
+    }
     if (o.method === 'GET' && !id && query.includes('$filter=')) {
       if (opts.filterFails) throw new Error('filter not supported');
       assert.equal(o.headers.Prefer, 'HonorNonIndexedQueriesWarningMayFailRandomly');
@@ -818,4 +822,81 @@ test('built workflow wires the SharePoint webhook chain', () => {
   assert.equal(wf.connections['Respond to SharePoint'].main[0][0].node, 'Notify CEO of staff updates');
   const hook = wf.nodes.find((n) => n.name === 'SharePoint Webhook');
   assert.equal(hook.parameters.responseMode, 'responseNode');
+});
+
+// ---------- questions about a person or a ticket; follow up; move the due date ----------
+function statusWorld() {
+  const row = (id, created, fields) => ({ id: String(id), createdDateTime: created, fields: Object.assign({ Title: `งาน ${id}`, AssigneeEmail: 'mkt@df.co.th', IsOpen: true }, fields) });
+  const w = fakeWorld({ tickets: [
+    row(201, '2026-10-10T00:00:00Z', { Title: 'ปิดงบเดือน ก.ย.', Status: 'InProgress', DueDate: '2026-10-15' }),
+    row(202, '2026-10-10T00:00:00Z', { Status: 'New', DueDate: '2026-10-17' }),
+    row(203, '2026-10-10T00:00:00Z', { Status: 'WaitingCEO', DueDate: '2026-10-23' }),
+    row(204, '2026-10-01T02:00:00Z', { Status: 'Closed', IsOpen: false, DueDate: '2026-10-05', DoneAt: '2026-10-03T02:00:00Z', ClosedAt: '2026-10-03T05:00:00Z' }),
+    row(205, '2026-10-05T02:00:00Z', { Status: 'Closed', IsOpen: false, DueDate: '2026-10-07', DoneAt: '2026-10-10T02:00:00Z', ClosedAt: '2026-10-10T05:00:00Z' }),
+    row(206, '2026-10-10T00:00:00Z', { AssigneeEmail: 'pm@df.co.th', Status: 'New', DueDate: '2026-10-12' }),
+  ] });
+  w.items.TicketHistory.push({ id: '880', createdDateTime: '2026-10-18T04:30:00Z',
+    fields: { Title: 'T-201', TicketID: 201, Action: 'comment', Comment: 'รอเอกสารจากธนาคาร', Source: 'App' } });
+  return w;
+}
+
+test('"งานคุณมะลิถึงไหน" / "มะลิช้ากี่งาน": open work, lateness and 30-day averages', async () => {
+  const w = statusWorld();
+  for (const q of ['งานคุณมะลิถึงไหน', 'มะลิช้ากี่งาน ทั้งหมดกี่วัน เลทกี่วัน ค่าเฉลี่ยเท่าไร', 'สรุปมะลิ', 'งานของพี่มะลิการตลาดเป็นยังไง']) {
+    const r = await send(w, textEv(q));
+    assert.equal(r.results[0].person, 'mkt@df.co.th', q);
+  }
+  const text = lastReply(w).text;
+  assert.match(text, /^👤 คุณมะลิ \(Marketing\)\nงานเปิดอยู่ 3 งาน · ช้า 2 งาน \(เลยกำหนดรวม 6 วัน เฉลี่ย 3 วัน\/งาน\)/);
+  assert.match(text, /🔴 T-201 ปิดงบเดือน ก\.ย\. · กำลังทำ · เลย 4 วัน\n🔴 T-202 งาน 202 · ใหม่ · เลย 2 วัน\n⏳ T-203/);
+  assert.match(text, /📊 30 วันที่ผ่านมา\nสั่ง 5 งาน · ทำเสร็จ 2 งาน \(ทันกำหนด 1 · ช้า 1\)\nใช้เวลาทำเฉลี่ย 3\.5 วัน\/งาน\nส่งช้าเฉลี่ย 3 วัน\/งาน \(รวม 3 วัน\)/);
+  assert.deepEqual(quick(lastReply(w)).map((a) => a.label), ['📣 ติดตามทุกงานที่ช้า', '📣 ติดตาม T-201', '📣 ติดตาม T-202', '🔍 T-203']);
+  // a task title that only starts like a name is still a new task
+  await send(w, textEv('สรุปเอกสารประชุม'));
+  assert.match(lastReply(w).text, /📝 "สรุปเอกสารประชุม"\nสั่งใคร\?/);
+});
+
+test('follow up: all late work with a preset, or one task with spoken text', async () => {
+  const w = statusWorld();
+  await send(w, textEv('งานคุณมะลิถึงไหน'));
+  await send(w, postbackEv(actionData(quick(lastReply(w))[0])));
+  let msg = lastReply(w);
+  assert.match(msg.text, /^📣 ติดตาม 2 งานที่ช้า: T-201, T-202 \(คุณมะลิ\)/);
+  await send(w, postbackEv(actionData(quick(msg)[0])));
+  const rows = w.items.TicketHistory.filter((h) => /^📣/.test(h.fields.Comment || ''));
+  assert.deepEqual(rows.map((h) => [h.fields.TicketID, h.fields.Action, h.fields.Comment, h.fields.Processed]), [
+    [201, 'comment', '📣 CEO ติดตามงาน: ขออัปเดตความคืบหน้าภายในวันนี้', false],
+    [202, 'comment', '📣 CEO ติดตามงาน: ขออัปเดตความคืบหน้าภายในวันนี้', false],
+  ]);
+  assert.match(lastReply(w).text, /^✅ ส่งข้อความติดตามถึงคุณมะลิแล้ว \(T-201, T-202\)/);
+  await send(w, postbackEv({ a: 'fu', t: 201 }));
+  await send(w, textEv('ทำไมช้า ติดอะไร'));
+  assert.equal(w.items.TicketHistory[w.items.TicketHistory.length - 1].fields.Comment, '📣 CEO ติดตามงาน: ทำไมช้า ติดอะไร');
+  // the next text is a normal message again
+  await send(w, textEv('งานใหม่หลังติดตาม'));
+  assert.match(lastReply(w).text, /📝 "งานใหม่หลังติดตาม"/);
+});
+
+test('"T-201 ถึงไหน" shows the latest update; due date can be moved by button or by voice', async () => {
+  const w = statusWorld();
+  await send(w, textEv('T-201 ถึงไหน'));
+  let msg = lastReply(w);
+  assert.match(msg.text, /^T-201 ปิดงบเดือน ก\.ย\.\n👤 คุณมะลิ · 🔧 กำลังทำ\n📅 ส่ง พฤหัสบดี 15 ต\.ค\. \(เลย 4 วัน\)\n🕘 ล่าสุด: ความเห็น "รอเอกสารจากธนาคาร" \(18\/10 11:30\)/);
+  assert.deepEqual(quick(msg).map((a) => a.label).slice(0, 3), ['📣 ติดตาม', '📅 เลื่อนวันส่ง', '💬 ตอบ']);
+  await send(w, postbackEv(actionData(quick(msg)[1])));
+  msg = lastReply(w);
+  assert.match(msg.text, /^📅 เลื่อนวันส่ง T-201/);
+  await send(w, postbackEv(actionData(quick(msg).find((a) => a.label === 'ศุกร์นี้'))));
+  const t = w.items.Tickets.find((x) => x.id === '201').fields;
+  assert.deepEqual([t.DueDate, t.OverdueNotified], ['2026-10-23T00:00:00Z', false]);
+  assert.equal(w.items.TicketHistory[w.items.TicketHistory.length - 1].fields.Comment, '📅 CEO เลื่อนวันส่งจาก พฤหัสบดี 15 ต.ค. เป็น ศุกร์ 23 ต.ค.');
+  assert.match(lastReply(w).text, /^✅ เลื่อน T-201 เป็นส่ง ศุกร์ 23 ต\.ค\. แล้ว\nคุณมะลิจะได้รับแจ้งเตือน/);
+  // by voice
+  await send(w, postbackEv({ a: 'due', t: 202 }));
+  await send(w, textEv('จันทร์หน้า'));
+  assert.equal(w.items.Tickets.find((x) => x.id === '202').fields.DueDate, '2026-10-26T00:00:00Z');
+  // closed tickets have no buttons
+  await send(w, textEv('T-204'));
+  assert.equal(lastReply(w).quickReply, undefined);
+  assert.match(lastReply(w).text, /🔒 ปิดแล้ว/);
 });

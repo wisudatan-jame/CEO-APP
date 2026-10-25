@@ -184,11 +184,13 @@ List `TicketHistory` → คลิกหัวคอลัมน์ **Action** �
    - [ ] A เปิดลิงก์เดิมแล้วขึ้น Access denied
 6. ตั้ง A กลับเป็น `Active = Yes` ถ้าเป็นบัญชีทดสอบ
 
-## 7. คำสั่งเพิ่มเติมและรูปที่ CEO ส่งหลังสร้างงาน
+## 7. คำสั่งเพิ่มเติม รูป การติดตาม และการเลื่อนวันส่งจาก CEO
 CEO พิมพ์ "เพิ่มเติม ..." ใน LINE หรือส่งรูปหลังสร้างงาน บอทถามว่าเป็นของงานไหน ให้ CEO ยืนยัน แล้วทำ 3 อย่าง
 - ต่อท้ายข้อความในคอลัมน์ `CEOExtra` ของงาน
 - อัปโหลดรูปไปที่ `TicketFiles/T-<เลข>`
 - เขียนประวัติ `Action = comment` โดย `Comment` ขึ้นต้นด้วย `➕ คำสั่งเพิ่มเติม:` หรือ `📎 CEO แนบรูปเพิ่ม`
+
+ส่วนปุ่ม 📣 ติดตาม และ 📅 เลื่อนวันส่ง (จากคำถาม "งานคุณแตนถึงไหน") เขียนประวัติ `comment` ที่ขึ้นต้นด้วย `📣 CEO ติดตามงาน:` และ `📅 CEO เลื่อนวันส่ง...`
 
 Flow นี้ต้องทำ 2 อย่างให้ คือแจ้งพนักงานให้ชัด และตั้งสิทธิ์โฟลเดอร์รูป (งานที่ตอนสร้างไม่มีรูป บอทจะสร้างโฟลเดอร์ใหม่ซึ่งพนักงานยังเปิดไม่ได้) ใช้เวลาประมาณ 15 นาที
 
@@ -198,7 +200,7 @@ List `Tickets` → **+ Add column** → **Multiple lines of text** → Name: `CE
 ### 7.2 แก้ Flow `OnLineEvent` ฝั่ง False ของข้อ 3.2
 1. **Notify status change** เปลี่ยน Message (Expression) เป็น
    ```
-   concat('🔔 T-', triggerBody()?['TicketID'], ': ', if(startsWith(coalesce(triggerBody()?['Comment'], ''), '➕'), 'CEO สั่งงานเพิ่มเติม', if(startsWith(coalesce(triggerBody()?['Comment'], ''), '📎'), 'CEO แนบรูปเพิ่ม', json('{"close":"CEO ปิดงานแล้ว","reopen":"CEO ส่งกลับให้ทำต่อ","reply":"CEO ตอบคำถามแล้ว","comment":"CEO มีความเห็น"}')?[triggerBody()?['Action']?['Value']])), ' <a href="https://digitalfocusth.sharepoint.com/sites/CEO-Tickets/Lists/Tickets/DispForm.aspx?ID=', triggerBody()?['TicketID'], '">เปิดดูงาน</a>')
+   concat(if(startsWith(coalesce(triggerBody()?['Comment'], ''), '📣'), '📣 T-', '🔔 T-'), triggerBody()?['TicketID'], ': ', if(startsWith(coalesce(triggerBody()?['Comment'], ''), '➕'), 'CEO สั่งงานเพิ่มเติม', if(startsWith(coalesce(triggerBody()?['Comment'], ''), '📎'), 'CEO แนบรูปเพิ่ม', if(startsWith(coalesce(triggerBody()?['Comment'], ''), '📣'), 'CEO ติดตามงาน', if(startsWith(coalesce(triggerBody()?['Comment'], ''), '📅'), 'CEO เลื่อนวันส่ง', json('{"close":"CEO ปิดงานแล้ว","reopen":"CEO ส่งกลับให้ทำต่อ","reply":"CEO ตอบคำถามแล้ว","comment":"CEO มีความเห็น"}')?[triggerBody()?['Action']?['Value']])))), ' <a href="https://digitalfocusth.sharepoint.com/sites/CEO-Tickets/Lists/Tickets/DispForm.aspx?ID=', triggerBody()?['TicketID'], '">เปิดดูงาน</a>')
    ```
 2. **ใต้ Notify status change** (ยังอยู่ฝั่ง False) เพิ่ม **Condition** ชื่อ `CEO added photos`
    - ช่องซ้าย (Expression): `contains(coalesce(triggerBody()?['Comment'], ''), '📎 CEO แนบรูปเพิ่ม')` · **is equal to** · ช่องขวา (Expression): `true`
@@ -217,4 +219,6 @@ List `Tickets` → **+ Add column** → **Multiple lines of text** → Name: `CE
    - [ ] A ได้ Teams `🔔 T-...: CEO แนบรูปเพิ่ม` และ `🔔 T-...: CEO สั่งงานเพิ่มเติม`
    - [ ] A เปิดโฟลเดอร์ `TicketFiles/T-...` เห็นรูป (Manage access ของโฟลเดอร์มีแค่ A)
    - [ ] งานนั้นมีช่อง `CEOExtra` = `[วันที่ เวลา] ขอสไลด์ 5 หน้า`
+5. พิมพ์ `งานคุณ<ชื่อ A>ถึงไหน` → แตะ **🔍 T-...** → **📣 ติดตาม** → แตะ `ขออัปเดตความคืบหน้าภายในวันนี้` → A ได้ Teams `📣 T-...: CEO ติดตามงาน`
+6. แตะ **📅 เลื่อนวันส่ง** → **ศุกร์นี้** → A ได้ Teams `🔔 T-...: CEO เลื่อนวันส่ง` และวันส่งในแอปเปลี่ยน
 

@@ -318,6 +318,7 @@ async function getTickets(ctx) {
     status: it.fields.Status,
     isOpen: it.fields.IsOpen === true,
     closedAt: it.fields.ClosedAt || null,
+    doneAt: it.fields.DoneAt || null,
   }));
 }
 
@@ -456,6 +457,7 @@ function helpText() {
     'ส่งทีละข้อความ รอบอทตอบก่อนส่งข้อความถัดไป',
     'พิมพ์ "สรุป" เพื่อดูภาพรวม · "ยกเลิก" เพื่อยกเลิกงานที่กำลังสร้าง',
     'พิมพ์ "เพิ่มเติม" ตามด้วยรายละเอียด เพื่อเพิ่มให้งานที่สั่งไปแล้ว',
+    'ถาม "งานคุณแตนถึงไหน" หรือ "T-19 ถึงไหน" เพื่อดูความคืบหน้า ติดตาม หรือเลื่อนวันส่ง',
     'ส่งรูปหลังสร้างงาน บอทจะถามว่าแนบกับงานไหน',
     'พิมพ์ "โอนงาน" เพื่อโอนงานของคนที่ลาออกให้คนอื่น',
   ].join('\n');
@@ -521,6 +523,14 @@ async function onMessage(ctx, ev, cfg) {
       return { transferCancelled: transfer.id };
     }
     if (/^โอนงาน/.test(t)) return onTransferCommand(ctx, ev, t.replace(/^โอนงาน(ของ)?\s*/, '').trim());
+    const follow = currentFollow(ctx);
+    const dueChange = currentDueChange(ctx);
+    if (t === 'ยกเลิก' && (follow || dueChange)) {
+      delete ctx.store.followUp;
+      delete ctx.store.dueChange;
+      await lineReply(ctx, ev, textMsg(follow ? 'ยกเลิกแล้ว ไม่ได้ส่งข้อความติดตาม' : 'ยกเลิกแล้ว วันส่งเหมือนเดิม'));
+      return { cancelled: follow ? 'follow' : 'due' };
+    }
     if (transfer) {
       const picked = await onTransferTo(ctx, ev, transfer, t);
       if (picked) return picked;
@@ -547,10 +557,14 @@ async function onMessage(ctx, ev, cfg) {
       return { help: true };
     }
     if (pendingReply) return sendReply(ctx, ev, cfg, pendingReply, t);
+    if (follow) return sendFollow(ctx, ev, cfg, follow, t);
+    if (dueChange) return onDueText(ctx, ev, cfg, dueChange, t);
     if (add) {
       const handled = await onAddText(ctx, ev, cfg, add, t);
       if (handled) return handled;
     }
+    const asked = await answerQuestion(ctx, ev, t);
+    if (asked) return asked;
     if (!dr && EXTRA_PREFIX.test(t)) {
       return startAdd(ctx, ev, { text: t.replace(EXTRA_PREFIX, '').trim(), raw: t, images: [] });
     }
@@ -847,6 +861,15 @@ async function onPostback(ctx, ev, cfg) {
     return askAddPick(ctx, ev, newAdd({ images: imgs, fromPhoto: true }));
   }
   if (/^add(pick|yes|no|new|cancel)$/.test(p.a)) return onAddPostback(ctx, ev, cfg, p);
+  if (p.a === 'person') {
+    const emp = (await getEmployees(ctx)).find((e) => e.email === lower(p.e));
+    return emp ? personReport(ctx, ev, emp) : { skipped: 'unknown-person' };
+  }
+  if (p.a === 'tk') return ticketReport(ctx, ev, Number(p.t));
+  if (p.a === 'fu') return startFollow(ctx, ev, [Number(p.t)]);
+  if (p.a === 'fuall') return startFollowLate(ctx, ev, lower(p.e));
+  if (p.a === 'due') return startDueChange(ctx, ev, Number(p.t));
+  if (/^(fusend|fucancel|dueset|duecancel)$/.test(p.a)) return onFollowOrDuePostback(ctx, ev, cfg, p);
   if (p.a === 'replycancel') {
     delete ctx.store.replyTo;
     await lineReply(ctx, ev, textMsg(`ยกเลิกการตอบ T-${p.t} แล้ว`));
@@ -1207,6 +1230,331 @@ async function replyList(ctx, ev, kind, page) {
   return { list: kind, count: rows.length };
 }
 
+// ---------- CEO asks about a person or a ticket; follow up; move the due date ----------
+// "งานคุณแตนถึงไหน", "แตนช้ากี่งาน", "สรุปแตน" -> the person's open work and 30-day stats.
+// "T-19 ถึงไหน" -> one ticket with its latest update. No AI: fixed patterns over SharePoint data.
+const QUERY_WORDS = /(ถึงไหน|คืบหน้า|เป็นยังไง|เป็นไง|เป็นอย่างไร|ช้า|เลท|สถิติ|กี่งาน|เฉลี่ย|ค้าง)/;
+const QUERY_LEAD = /^(ขอ|ดู|เช็ค|เช็ก)?\s*(สรุป|สถิติ)?\s*(งาน)?\s*(ทั้งหมด)?\s*(ของ)?\s*/;
+const QUERY_TAIL = /^(งาน)?\s*(ทั้งหมด|ทุกงาน)?\s*(ถึงไหน|ไปถึงไหน|คืบหน้า|เป็นยังไง|เป็นไง|เป็นอย่างไร|ช้า|ล่าช้า|เลท|สถิติ|กี่|เฉลี่ย|เหลือ|ค้าง|มีอะไร|$)/;
+const STATS_DAYS = 30;
+const FOLLOW_TTL_MS = 10 * 60 * 1000;
+const FOLLOW_PRESETS = ['ขออัปเดตความคืบหน้าภายในวันนี้', 'ขอให้เสร็จภายในพรุ่งนี้', 'โทรหาผมด้วย'];
+const STATUS_ICON = { New: '🆕', Acknowledged: '👀', InProgress: '🔧', WaitingCEO: '⏳', Done: '✅', Closed: '🔒' };
+const ACTION_TH = {
+  create: 'สร้างงาน', ack: 'รับทราบ', start: 'เริ่มทำ', wait: 'ถาม CEO', reply: 'CEO ตอบ', done: 'ทำเสร็จ',
+  reopen: 'ส่งกลับ', close: 'ปิดงาน', cancel: 'ยกเลิก', comment: 'ความเห็น', due_change: 'เลื่อนวันส่ง', reassign: 'โอนงาน',
+};
+
+function stripDept(tail, dept) {
+  const t2 = tail.replace(/^(ฝ่าย|แผนก|ทีม)\s*/, '');
+  const d = lower(dept);
+  if (!d) return null;
+  const words = [d].concat(...DEPT_WORDS.filter((w) => w.some((x) => d.includes(x)))).sort((a, b) => b.length - a.length);
+  const hit = words.find((w) => w && t2.startsWith(w));
+  return hit ? t2.slice(hit.length).trim() : null;
+}
+
+// The person named at the start of a question, when what follows is a question word (or nothing).
+function findPersonInQuestion(employees, text) {
+  const q = lower(text).replace(/\s+/g, ' ').trim().replace(QUERY_LEAD, '').replace(HONORIFIC, '').trim();
+  const found = [];
+  for (const e of employees) {
+    if (!e.active) continue;
+    const names = [e.nick, e.first, e.full].concat(e.aliases).map((n) => lower(n).replace(HONORIFIC, '').trim()).filter(Boolean)
+      .sort((a, b) => chars(b).length - chars(a).length);
+    for (const n of names) {
+      if (!q.startsWith(n)) continue;
+      const tail = q.slice(n.length).trim();
+      const afterDept = stripDept(tail, e.dept);
+      if (QUERY_TAIL.test(tail) || (afterDept !== null && QUERY_TAIL.test(afterDept))) {
+        found.push({ e, len: chars(n).length });
+        break;
+      }
+    }
+  }
+  const longest = Math.max(0, ...found.map((f) => f.len));
+  return found.filter((f) => f.len === longest).map((f) => f.e);
+}
+
+function ticketRef(text) {
+  const m = String(text).replace(/\s+/g, '').match(/^(?:t-?|ticket|ทิกเก็ต|ทิคเก็ต|งาน(?:ที่)?|เลขที่)(\d{1,6})/i);
+  return m ? Number(m[1]) : null;
+}
+
+// Returns null when the text is not a question this bot understands (then it may be a new task).
+async function answerQuestion(ctx, ev, t) {
+  if (chars(t).length > 80) return null;
+  const flat = t.replace(/\s+/g, '');
+  const ref = ticketRef(t);
+  if (ref && (QUERY_WORDS.test(t) || /^(t-?|ticket|ทิกเก็ต|ทิคเก็ต)\d+$/i.test(flat))) return ticketReport(ctx, ev, ref);
+  if (!QUERY_WORDS.test(t) && !/^(ขอ|ดู|เช็ค|เช็ก)?(สรุป|สถิติ|งานของ|งานทั้งหมดของ)/.test(flat)) return null;
+  const people = findPersonInQuestion(await getEmployees(ctx), t);
+  if (people.length === 1) return personReport(ctx, ev, people[0]);
+  if (people.length > 1) {
+    await lineReply(ctx, ev, textMsg(`พบ ${people.length} คน หมายถึงใคร?`, people.slice(0, 12).map((e) => qrPostback(personLabel(e), { a: 'person', e: e.email }, personName(e)))));
+    return { question: 'which-person', count: people.length };
+  }
+  return null;
+}
+
+function finishedOn(t) {
+  const at = t.doneAt || t.closedAt;
+  return at && (t.status === 'Done' || t.status === 'Closed') ? bkkYmd(new Date(at)) : null;
+}
+
+function personStats(tickets, today) {
+  const since = addDays(today, -STATS_DAYS);
+  const open = tickets.filter((t) => t.isOpen);
+  const late = open.filter((t) => t.due && t.due < today);
+  const lateDays = late.map((t) => daysBetween(t.due, today));
+  const finished = tickets.filter((t) => finishedOn(t) && finishedOn(t) >= since);
+  const finishedLate = finished.filter((t) => t.due && finishedOn(t) > t.due);
+  const finishedLateDays = finishedLate.map((t) => daysBetween(t.due, finishedOn(t)));
+  const durations = finished.map((t) => (new Date(t.doneAt || t.closedAt).getTime() - new Date(t.created).getTime()) / 86400000);
+  const sum = (a) => a.reduce((x, y) => x + y, 0);
+  const avg = (a) => (a.length ? sum(a) / a.length : 0);
+  return {
+    open, late, lateDays: sum(lateDays), lateAvg: avg(lateDays),
+    assigned: tickets.filter((t) => t.created && bkkYmd(new Date(t.created)) >= since).length,
+    finished: finished.length, finishedLate: finishedLate.length,
+    finishedLateDays: sum(finishedLateDays), finishedLateAvg: avg(finishedLateDays), avgDays: avg(durations),
+  };
+}
+
+const fmt1 = (n) => (Math.round(n * 10) / 10).toString();
+
+async function personReport(ctx, ev, emp) {
+  const today = bkkYmd(ctx.now());
+  const mine = (await getTickets(ctx)).filter((t) => t.assignee === emp.email);
+  const s = personStats(mine, today);
+  const sorted = s.open.slice().sort((a, b) => String(a.due || '9').localeCompare(String(b.due || '9')) || a.id - b.id);
+  const lines = [`👤 ${personName(emp, emp.email)}${emp.dept ? ` (${emp.dept})` : ''}`];
+  let head = `งานเปิดอยู่ ${s.open.length} งาน · ช้า ${s.late.length} งาน`;
+  if (s.late.length) head += ` (เลยกำหนดรวม ${s.lateDays} วัน เฉลี่ย ${fmt1(s.lateAvg)} วัน/งาน)`;
+  lines.push(head);
+  for (const t of sorted.slice(0, 10)) {
+    const isLate = t.due && t.due < today;
+    const when = isLate ? `เลย ${daysBetween(t.due, today)} วัน` : (t.due ? `ส่ง ${thaiDate(t.due)}` : 'ไม่มีวันส่ง');
+    lines.push(`${isLate ? '🔴' : STATUS_ICON[t.status] || '•'} T-${t.id} ${truncate(t.title, 40)} · ${STATUS_TH[t.status] || t.status} · ${when}`);
+  }
+  if (sorted.length > 10) lines.push(`… และอีก ${sorted.length - 10} งาน`);
+  lines.push('', `📊 ${STATS_DAYS} วันที่ผ่านมา`);
+  lines.push(`สั่ง ${s.assigned} งาน · ทำเสร็จ ${s.finished} งาน (ทันกำหนด ${s.finished - s.finishedLate} · ช้า ${s.finishedLate})`);
+  if (s.finished) lines.push(`ใช้เวลาทำเฉลี่ย ${fmt1(s.avgDays)} วัน/งาน`);
+  if (s.finishedLate) lines.push(`ส่งช้าเฉลี่ย ${fmt1(s.finishedLateAvg)} วัน/งาน (รวม ${s.finishedLateDays} วัน)`);
+
+  const items = [];
+  if (s.late.length > 1) items.push(qrPostback('📣 ติดตามทุกงานที่ช้า', { a: 'fuall', e: emp.email }, `ติดตามทุกงานที่ช้าของ${personName(emp)}`));
+  for (const t of sorted) {
+    const isLate = t.due && t.due < today;
+    items.push(isLate
+      ? qrPostback(`📣 ติดตาม T-${t.id}`, { a: 'fu', t: t.id }, `ติดตาม T-${t.id}`)
+      : qrPostback(`🔍 T-${t.id}`, { a: 'tk', t: t.id }, `T-${t.id} ถึงไหน`));
+  }
+  await lineReply(ctx, ev, textMsg(lines.join('\n'), items));
+  return { person: emp.email, open: s.open.length, late: s.late.length };
+}
+
+async function ticketHistory(ctx, ticketId) {
+  const sid = await siteId(ctx);
+  try {
+    const out = [];
+    let url = `/sites/${sid}/lists/TicketHistory/items?expand=fields&$filter=fields/TicketID eq ${ticketId}&$top=200`;
+    while (url) {
+      const res = await graph(ctx, 'GET', url, undefined, { headers: { Prefer: 'HonorNonIndexedQueriesWarningMayFailRandomly' } });
+      for (const it of res.value || []) out.push({ id: Number(it.id), created: it.createdDateTime, fields: it.fields || {} });
+      url = res['@odata.nextLink'] || null;
+    }
+    return out;
+  } catch (e) {
+    return (await listItems(ctx, 'TicketHistory')).filter((it) => Number(it.fields.TicketID) === ticketId);
+  }
+}
+
+async function ticketReport(ctx, ev, id) {
+  const it = await tryGetTicket(ctx, id);
+  if (!it) {
+    await lineReply(ctx, ev, textMsg(`ไม่พบงาน T-${id}`));
+    return { ticket: 'not-found', id };
+  }
+  const f = it.fields;
+  const today = bkkYmd(ctx.now());
+  const due = spDate(f.DueDate);
+  const emp = (await getEmployees(ctx)).find((e) => e.email === lower(f.AssigneeEmail));
+  const isLate = f.IsOpen && due && due < today;
+  const lines = [
+    `T-${id} ${truncate(f.Title, 100)}`,
+    `👤 ${personName(emp, f.AssigneeEmail)} · ${STATUS_ICON[f.Status] || ''} ${STATUS_TH[f.Status] || f.Status}`,
+    `📅 ส่ง ${due ? thaiDate(due) : '-'}${isLate ? ` (เลย ${daysBetween(due, today)} วัน)` : ''}`,
+  ];
+  if (f.Details) lines.push(`📝 ${truncate(f.Details, 300)}`);
+  if (f.CEOExtra) lines.push(`➕ ${truncate(f.CEOExtra, 300)}`);
+  const last = (await ticketHistory(ctx, id)).sort((a, b) => String(b.created).localeCompare(String(a.created)))[0];
+  if (last) {
+    const a = last.fields.Action;
+    lines.push(`🕘 ล่าสุด: ${ACTION_TH[a] || a}${last.fields.Comment ? ` "${truncate(last.fields.Comment, 200)}"` : ''} (${bkkStamp(new Date(last.created)).note})`);
+  }
+  const items = [];
+  if (f.IsOpen) {
+    items.push(qrPostback('📣 ติดตาม', { a: 'fu', t: id }, `ติดตาม T-${id}`));
+    items.push(qrPostback('📅 เลื่อนวันส่ง', { a: 'due', t: id }, `เลื่อนวันส่ง T-${id}`));
+    items.push(qrPostback('💬 ตอบ', { a: 'replyto', t: id }, `ตอบ T-${id}`));
+    if (f.Status === 'Done') {
+      items.push(qrPostback('✅ ผ่าน ปิดงาน', { a: 'close', t: id, s: 'Done' }, `ผ่าน ปิด T-${id}`));
+      items.push(qrPostback('❌ ไม่ผ่าน ส่งกลับ', { a: 'reopen', t: id, s: 'Done' }, `ไม่ผ่าน ส่งกลับ T-${id}`));
+    }
+    if (emp) items.push(qrPostback(`👤 งานทั้งหมดของ${personName(emp).replace(/^คุณ/, '')}`, { a: 'person', e: emp.email }, `งาน${personName(emp)}ถึงไหน`));
+  }
+  await lineReply(ctx, ev, textMsg(lines.join('\n'), items));
+  return { ticket: id, status: f.Status };
+}
+
+function currentFollow(ctx) {
+  const f = ctx.store.followUp;
+  if (f && ctx.now().getTime() - f.at > FOLLOW_TTL_MS) {
+    delete ctx.store.followUp;
+    return null;
+  }
+  return f || null;
+}
+function currentDueChange(ctx) {
+  const d = ctx.store.dueChange;
+  if (d && ctx.now().getTime() - d.at > FOLLOW_TTL_MS) {
+    delete ctx.store.dueChange;
+    return null;
+  }
+  return d || null;
+}
+
+async function startFollow(ctx, ev, ticketIds, emp) {
+  const open = [];
+  for (const id of ticketIds) {
+    const it = await tryGetTicket(ctx, id);
+    if (it && it.fields.IsOpen) open.push(it);
+  }
+  if (!open.length) {
+    await lineReply(ctx, ev, textMsg(ticketIds.length === 1 ? `T-${ticketIds[0]} ปิดไปแล้วหรือไม่พบ` : 'ไม่มีงานที่ช้าแล้ว'));
+    return { follow: 'nothing' };
+  }
+  const who = emp || (await getEmployees(ctx)).find((e) => e.email === lower(open[0].fields.AssigneeEmail));
+  const f = { id: newId(), ticketIds: open.map((it) => it.id), at: ctx.now().getTime() };
+  ctx.store.followUp = f;
+  delete ctx.store.replyTo;
+  delete ctx.store.dueChange;
+  const what = open.length === 1
+    ? `T-${open[0].id} ${truncate(open[0].fields.Title, 60)}`
+    : `${open.length} งานที่ช้า: ${open.map((it) => `T-${it.id}`).join(', ')}`;
+  const items = FOLLOW_PRESETS.map((m, i) => qrPostback(m, { a: 'fusend', x: f.id, m: i }, m));
+  items.push(qrPostback('ยกเลิก', { a: 'fucancel', x: f.id }, 'ยกเลิก'));
+  await lineReply(ctx, ev, textMsg(`📣 ติดตาม ${what} (${personName(who, open[0].fields.AssigneeEmail)})\nเลือกข้อความ หรือพิมพ์/พูดเองได้เลย`, items));
+  return { follow: f.ticketIds };
+}
+
+async function startFollowLate(ctx, ev, email) {
+  const today = bkkYmd(ctx.now());
+  const late = (await getTickets(ctx)).filter((t) => t.assignee === email && t.isOpen && t.due && t.due < today).map((t) => t.id);
+  const emp = (await getEmployees(ctx)).find((e) => e.email === email);
+  if (!late.length) {
+    await lineReply(ctx, ev, textMsg(`${personName(emp, email)}ไม่มีงานที่ช้าแล้ว`));
+    return { follow: 'nothing' };
+  }
+  return startFollow(ctx, ev, late, emp);
+}
+
+async function sendFollow(ctx, ev, cfg, f, message) {
+  delete ctx.store.followUp; // a second tap finds nothing to send
+  const sent = [];
+  let who = null;
+  for (const id of f.ticketIds) {
+    const it = await tryGetTicket(ctx, id);
+    if (!it || !it.fields.IsOpen) continue;
+    await createItem(ctx, 'TicketHistory', {
+      Title: `T-${id}`, TicketID: id, Action: 'comment', FromStatus: it.fields.Status, ToStatus: it.fields.Status,
+      Comment: `📣 CEO ติดตามงาน: ${message}`, ActorEmail: lower(cfg.CEO_EMAIL), Source: 'LINE', Processed: false, CEOPending: false,
+    });
+    sent.push(id);
+    who = who || it.fields.AssigneeEmail;
+  }
+  if (!sent.length) {
+    await lineReply(ctx, ev, textMsg('งานปิดไปแล้ว ไม่ได้ส่ง'));
+    return { follow: 'closed' };
+  }
+  const emp = (await getEmployees(ctx)).find((e) => e.email === lower(who));
+  await lineReply(ctx, ev, textMsg(`✅ ส่งข้อความติดตามถึง${personName(emp, who)}แล้ว (${sent.map((id) => `T-${id}`).join(', ')})\n"${truncate(message, 200)}"\nเมื่อพนักงานตอบ คุณจะได้ข้อความใน LINE`));
+  return { followed: sent };
+}
+
+async function startDueChange(ctx, ev, id) {
+  const it = await tryGetTicket(ctx, id);
+  if (!it || !it.fields.IsOpen) {
+    await lineReply(ctx, ev, textMsg(`T-${id} ปิดไปแล้วหรือไม่พบ`));
+    return { due: 'nothing' };
+  }
+  const d = { id: newId(), ticketId: id, at: ctx.now().getTime() };
+  ctx.store.dueChange = d;
+  delete ctx.store.followUp;
+  delete ctx.store.replyTo;
+  return askNewDue(ctx, ev, d, it, '');
+}
+
+async function askNewDue(ctx, ev, d, it, notice) {
+  const today = bkkYmd(ctx.now());
+  const tomorrow = addDays(today, 1);
+  const friday = fridayOf(today);
+  const nextMon = addDays(mondayOf(addDays(today, 7)), 0);
+  const items = [qrPostback('พรุ่งนี้', { a: 'dueset', x: d.id, v: tomorrow }, 'เลื่อนเป็นพรุ่งนี้')];
+  if (friday !== today && friday !== tomorrow) items.push(qrPostback('ศุกร์นี้', { a: 'dueset', x: d.id, v: friday }, 'เลื่อนเป็นศุกร์นี้'));
+  items.push(qrPostback('จันทร์หน้า', { a: 'dueset', x: d.id, v: nextMon }, 'เลื่อนเป็นจันทร์หน้า'));
+  items.push(qrDatePicker('📅 เลือกวัน', { a: 'dueset', x: d.id }, tomorrow, today));
+  items.push(qrPostback('ยกเลิก', { a: 'duecancel', x: d.id }, 'ยกเลิก'));
+  const due = spDate(it.fields.DueDate);
+  await lineReply(ctx, ev, textMsg(`${notice}📅 เลื่อนวันส่ง T-${d.ticketId} ${truncate(it.fields.Title, 60)}\nตอนนี้: ส่ง ${due ? thaiDate(due) : '-'}\nเลือกวันใหม่ หรือพิมพ์/พูด เช่น "ศุกร์นี้"`, items));
+  return { due: d.ticketId, stage: 'ask' };
+}
+
+async function onDueText(ctx, ev, cfg, d, t) {
+  const date = parseDueText(t, bkkYmd(ctx.now()));
+  if (date) return setDue(ctx, ev, cfg, d, date);
+  return askNewDue(ctx, ev, d, await getItem(ctx, 'Tickets', d.ticketId), `ไม่เข้าใจวัน "${truncate(t, 20)}"\n\n`);
+}
+
+async function setDue(ctx, ev, cfg, d, date) {
+  const today = bkkYmd(ctx.now());
+  const it = await getItem(ctx, 'Tickets', d.ticketId);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date)) || date < today) return askNewDue(ctx, ev, d, it, 'เลือกวันที่ผ่านมาแล้วไม่ได้\n\n');
+  delete ctx.store.dueChange;
+  if (!it.fields.IsOpen) {
+    await lineReply(ctx, ev, textMsg(`T-${d.ticketId} ปิดไปแล้ว ไม่ได้เลื่อน`));
+    return { due: 'closed' };
+  }
+  const old = spDate(it.fields.DueDate);
+  await updateFields(ctx, 'Tickets', d.ticketId, { DueDate: `${date}T00:00:00Z`, OverdueNotified: false });
+  await createItem(ctx, 'TicketHistory', {
+    Title: `T-${d.ticketId}`, TicketID: d.ticketId, Action: 'comment', FromStatus: it.fields.Status, ToStatus: it.fields.Status,
+    Comment: `📅 CEO เลื่อนวันส่งจาก ${old ? thaiDate(old) : '-'} เป็น ${thaiDate(date)}`, ActorEmail: lower(cfg.CEO_EMAIL), Source: 'LINE', Processed: false, CEOPending: false,
+  });
+  const emp = (await getEmployees(ctx)).find((e) => e.email === lower(it.fields.AssigneeEmail));
+  await lineReply(ctx, ev, textMsg(`✅ เลื่อน T-${d.ticketId} เป็นส่ง ${thaiDate(date)} แล้ว\n${personName(emp, it.fields.AssigneeEmail)}จะได้รับแจ้งเตือน`));
+  return { dueChanged: d.ticketId, date };
+}
+
+async function onFollowOrDuePostback(ctx, ev, cfg, p) {
+  const isFollow = p.a.startsWith('fu');
+  const pending = isFollow ? currentFollow(ctx) : currentDueChange(ctx);
+  if (!pending || pending.id !== p.x) {
+    await lineReply(ctx, ev, textMsg('ปุ่มนี้ทำไปแล้วหรือหมดอายุ'));
+    return { expired: p.a };
+  }
+  if (p.a === 'fucancel' || p.a === 'duecancel') {
+    delete ctx.store[isFollow ? 'followUp' : 'dueChange'];
+    await lineReply(ctx, ev, textMsg(isFollow ? 'ยกเลิกแล้ว ไม่ได้ส่งข้อความติดตาม' : 'ยกเลิกแล้ว วันส่งเหมือนเดิม'));
+    return { cancelled: isFollow ? 'follow' : 'due' };
+  }
+  if (p.a === 'fusend') return sendFollow(ctx, ev, cfg, pending, FOLLOW_PRESETS[Number(p.m)] || FOLLOW_PRESETS[0]);
+  const date = (ev.postback.params && ev.postback.params.date) || p.v;
+  return setDue(ctx, ev, cfg, pending, date);
+}
+
 // ---------- Add details or photos to a ticket that already exists ----------
 // Flow: pick the ticket (tap, or type/say its number or "ล่าสุด") -> confirm "T-x สั่งงานคุณ... เรื่อง... ใช่หรือไม่?"
 // -> save. Details go to the ticket's CEOExtra column and to TicketHistory as a comment, so the
@@ -1497,6 +1845,8 @@ async function startReply(ctx, ev, ticketId) {
   }
   const emp = (await getEmployees(ctx)).find((e) => e.email === lower(it.fields.AssigneeEmail));
   ctx.store.replyTo = { ticketId, at: ctx.now().getTime() };
+  delete ctx.store.followUp;
+  delete ctx.store.dueChange;
   await lineReply(ctx, ev, textMsg(`💬 พิมพ์หรือพูดคำตอบถึง${personName(emp, it.fields.AssigneeEmail)} (T-${ticketId}) แล้วกดส่ง`, [
     qrPostback('❌ ยกเลิก', { a: 'replycancel', t: ticketId }, 'ยกเลิก'),
   ]));
@@ -1663,7 +2013,7 @@ async function weeklySummary(ctx) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     sha256, hmacSha256, verifyLineSignature, bkkYmd, addDays, fridayOf, mondayOf, spDate, thaiDate,
-    encodeData, decodeData, matchEmployees, findAssignee, leaverGroups, parseDueText, computeStats, weeklyLines, chunkMessages, truncate,
+    encodeData, decodeData, matchEmployees, findAssignee, findPersonInQuestion, personStats, leaverGroups, parseDueText, computeStats, weeklyLines, chunkMessages, truncate,
     handleWebhook, dailySummary, weeklySummary, checkSharePointCall, notifyCeoOfStaffUpdates,
   };
 }
