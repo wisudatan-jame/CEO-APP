@@ -539,7 +539,7 @@ async function onMessage(ctx, ev, cfg) {
     if (t === 'ยกเลิก') {
       if (dr) delete drafts(ctx)[userId];
       takePendingImages(ctx, userId, nowMs);
-      await lineReply(ctx, ev, textMsg(dr ? `ยกเลิกแล้ว: "${truncate(dr.title, 60)}"` : 'ไม่มีงานที่กำลังสร้าง'));
+      await lineReply(ctx, ev, textMsg(dr ? `ยกเลิกแล้ว: ${draftName(dr)}` : 'ไม่มีงานที่กำลังสร้าง'));
       return { cancelled: !!dr };
     }
     if (/^(ช่วย|วิธีใช้|help)$/i.test(t)) {
@@ -554,15 +554,34 @@ async function onMessage(ctx, ev, cfg) {
     if (!dr && EXTRA_PREFIX.test(t)) {
       return startAdd(ctx, ev, { text: t.replace(EXTRA_PREFIX, '').trim(), raw: t, images: [] });
     }
-    if (!dr && (await isOnlyNameOrDate(ctx, t))) {
-      await lineReply(ctx, ev, textMsg('ยังไม่มีงานที่กำลังสั่ง\nพิมพ์หรือพูดชื่องานก่อน แล้วค่อยบอกชื่อคนและวันส่ง\n\nถ้าจะเพิ่มรายละเอียดให้งานที่สั่งไปแล้ว พิมพ์ "เพิ่มเติม" ตามด้วยรายละเอียด'));
-      return { skipped: 'no-draft' };
+    if (!dr || dr.stage === 'what') {
+      // Only a person or a due date: a new task is starting, so ask for its name.
+      const hinted = await startFromHint(ctx, ev, t);
+      if (hinted) return hinted;
+    }
+    if (dr && dr.stage === 'what') {
+      dr.title = truncate(t.replace(/\s+/g, ' '), 255);
+      if (chars(t).length > 255) dr.details.push(t);
+      dr.lastTextAt = nowMs;
+      const note = `📝 "${truncate(dr.title, 120)}"\n`;
+      if (dr.assignee) {
+        dr.stage = 'when';
+        const emp = (await getEmployees(ctx)).find((e) => e.email === dr.assignee);
+        return askWhen(ctx, ev, dr, emp, note);
+      }
+      dr.stage = 'who';
+      return askWho(ctx, ev, dr, dr.due ? `📅 ส่ง${thaiDate(dr.due)}\n\n` : '');
     }
     if (dr && dr.stage === 'search') return onSearch(ctx, ev, dr, t);
     if (dr && dr.stage === 'who') {
       const picked = await onTypedWho(ctx, ev, dr, t);
       if (picked) return picked;
-      if (parseDueText(t, bkkYmd(ctx.now()))) return askWho(ctx, ev, dr, 'เลือกคนก่อน แล้วค่อยบอกวันส่ง\n\n');
+      const due = parseDueText(t, bkkYmd(ctx.now()));
+      if (due) {
+        // Date said before the person: remember it and create the task as soon as the person is picked.
+        dr.due = due;
+        return askWho(ctx, ev, dr, `📅 ส่ง${thaiDate(due)}\n\n`);
+      }
       if (nowMs - dr.lastTextAt < APPEND_WINDOW_MS) {
         dr.details.push(t);
         dr.lastTextAt = nowMs;
@@ -726,9 +745,7 @@ async function offerPeople(ctx, ev, dr, people, text) {
 async function onTypedWho(ctx, ev, dr, t) {
   const r = findAssignee(await getEmployees(ctx), t);
   if (r.people.length === 1 && r.exact) {
-    dr.assignee = r.people[0].email;
-    dr.stage = 'when';
-    return askWhen(ctx, ev, dr, r.people[0]);
+    return afterWho(ctx, ev, dr, r.people[0]);
   }
   if (r.people.length) {
     const text = r.exact ? `พบ ${r.people.length} คน เลือกคนที่ต้องการ` : `ไม่พบ "${truncate(r.query, 40)}" ตรงทุกคำ คนที่ชื่อใกล้เคียง:`;
@@ -849,7 +866,7 @@ async function onPostback(ctx, ev, cfg) {
 
   if (p.a === 'cancel') {
     delete drafts(ctx)[userId];
-    await lineReply(ctx, ev, textMsg(`ยกเลิกแล้ว: "${truncate(dr.title, 60)}"`));
+    await lineReply(ctx, ev, textMsg(`ยกเลิกแล้ว: ${draftName(dr)}`));
     return { cancelled: dr.id };
   }
   if (p.a === 'addold') {
@@ -868,9 +885,7 @@ async function onPostback(ctx, ev, cfg) {
       await lineReply(ctx, ev, textMsg('ไม่พบพนักงานคนนี้ในรายชื่อ (อาจลาออกแล้ว) เลือกใหม่อีกครั้ง'));
       return askWho(ctx, { source: ev.source }, dr, '');
     }
-    dr.assignee = emp.email;
-    dr.stage = 'when';
-    return askWhen(ctx, ev, dr, emp);
+    return afterWho(ctx, ev, dr, emp);
   }
   if ((p.a === 'when' || p.a === 'date') && dr.stage === 'when') {
     const date = p.a === 'date' ? ev.postback.params && ev.postback.params.date : p.v;
@@ -1222,11 +1237,50 @@ async function tryGetTicket(ctx, id) {
   }
 }
 
-async function isOnlyNameOrDate(ctx, t) {
-  if (chars(t).length > 30) return false;
-  if (parseDueText(t, bkkYmd(ctx.now()))) return true;
-  const r = findAssignee(await getEmployees(ctx), t);
-  return r.people.length > 0 && r.exact;
+function draftName(dr) {
+  return dr.title ? `"${truncate(dr.title, 60)}"` : 'งานใหม่';
+}
+
+// "สั่งแตน" or "พรุ่งนี้" with no task in progress: start a task that already knows the person or the date.
+async function startFromHint(ctx, ev, t) {
+  if (chars(t).length > 30) return null;
+  const nowMs = ctx.now().getTime();
+  const due = parseDueText(t, bkkYmd(ctx.now()));
+  const r = due ? null : findAssignee(await getEmployees(ctx), t);
+  if (!due && !(r.people.length && r.exact)) return null;
+  const emp = r && r.people.length === 1 ? r.people[0] : null;
+  const userId = ev.source.userId;
+  const old = drafts(ctx)[userId];
+  const dr = {
+    id: newId(),
+    title: '',
+    details: [],
+    images: old ? old.images : takePendingImages(ctx, userId, nowMs),
+    assignee: emp ? emp.email : (old && old.assignee) || null,
+    due: due || (old && old.due) || null,
+    stage: 'what',
+    createdAt: nowMs,
+    lastTextAt: nowMs,
+  };
+  drafts(ctx)[userId] = dr;
+  delete ctx.store.transfer;
+  delete ctx.store.addTo;
+  const parts = [];
+  if (dr.assignee) parts.push(`ให้${personName(emp || (await getEmployees(ctx)).find((e) => e.email === dr.assignee), dr.assignee)}`);
+  if (dr.due) parts.push(`ส่ง${thaiDate(dr.due)}`);
+  const photos = dr.images.length ? `\n📎 แนบรูปที่ส่งไว้ ${dr.images.length} รูป` : '';
+  await lineReply(ctx, ev, textMsg(`📝 สั่งงานใหม่${parts.length ? ' ' + parts.join(' ') : ''} ใช่ไหม?\nพิมพ์หรือพูดชื่องานได้เลย${photos}`, [
+    qrPostback('❌ ไม่ใช่', { a: 'cancel', d: dr.id }, 'ไม่ใช่'),
+  ]));
+  return { draft: dr.id, stage: 'what', assignee: dr.assignee, due: dr.due };
+}
+
+// The person is known: ask the due date, or create the task when the CEO already said it.
+async function afterWho(ctx, ev, dr, emp) {
+  dr.assignee = emp.email;
+  if (dr.due) return createTicketFromDraft(ctx, ev, await getConfig(ctx), dr, dr.due);
+  dr.stage = 'when';
+  return askWhen(ctx, ev, dr, emp);
 }
 
 function ticketNumber(t) {

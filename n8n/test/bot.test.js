@@ -347,9 +347,13 @@ test('name typed or spoken at "สั่งใคร?": exact, with department, 
   const r = await send(w, textEv('เอกสารแนบตามที่คุยกัน'));
   assert.equal(r.results[0].appended !== undefined, true);
   assert.match(lastReply(w).text, /^➕ เพิ่มในรายละเอียดของงานนี้แล้ว/);
-  // a due date before a person is chosen is not a detail
+  // a due date before a person is chosen is remembered, and picking the person creates the task
   await send(w, textEv('พรุ่งนี้'));
-  assert.match(lastReply(w).text, /^เลือกคนก่อน/);
+  assert.match(lastReply(w).text, /^📅 ส่งอังคาร 20 ต\.ค\.\n\n📝 "งาน 3"\nสั่งใคร\?/);
+  const before = w.items.Tickets.length;
+  await send(w, textEv('สั่งเอก'));
+  assert.equal(w.items.Tickets.length, before + 1);
+  assert.equal(w.items.Tickets[before].fields.DueDate, '2026-10-20T00:00:00Z');
 });
 
 // ---------- add to a ticket that already exists ----------
@@ -430,14 +434,33 @@ test('"เพิ่มให้งานเดิม" turns the draft into detai
   assert.match(w.items.Tickets.find((x) => Number(x.id) === id).fields.CEOExtra, /ใช้รูปที่ส่งประกอบการประชุม$/);
 });
 
-test('a name or a date with no task being created is not taken as a task title', async () => {
+test('a name or a date alone starts a new task that asks for its name', async () => {
   const w = fakeWorld();
+  // name first: asks "new task for คุณมะลิ?", then the task name goes straight to the due date
   let r = await send(w, textEv('สั่งมะลิ'));
-  assert.equal(r.results[0].skipped, 'no-draft');
-  assert.match(lastReply(w).text, /^ยังไม่มีงานที่กำลังสั่ง/);
+  assert.equal(r.results[0].stage, 'what');
+  assert.match(lastReply(w).text, /^📝 สั่งงานใหม่ ให้คุณมะลิ ใช่ไหม\?\nพิมพ์หรือพูดชื่องานได้เลย/);
+  await send(w, textEv('เตรียมประชุม'));
+  assert.match(lastReply(w).text, /^📝 "เตรียมประชุม"\n👤 คุณมะลิ\nส่งเมื่อไร\?/);
+  await send(w, textEv('พรุ่งนี้'));
+  assert.equal(w.items.Tickets.length, 1);
+  assert.deepEqual([w.items.Tickets[0].fields.Title, w.items.Tickets[0].fields.AssigneeEmail], ['เตรียมประชุม', 'mkt@df.co.th']);
+
+  // date first: asks "new task due tomorrow?", then name -> who -> created without asking the date again
   r = await send(w, textEv('พรุ่งนี้'));
-  assert.equal(r.results[0].skipped, 'no-draft');
-  assert.equal(w.items.Tickets.length, 0);
+  assert.equal(r.results[0].due, '2026-10-20');
+  assert.match(lastReply(w).text, /^📝 สั่งงานใหม่ ส่งอังคาร 20 ต\.ค\. ใช่ไหม\?/);
+  await send(w, textEv('สรุปยอดขาย'));
+  assert.match(lastReply(w).text, /^📅 ส่งอังคาร 20 ต\.ค\.\n\n📝 "สรุปยอดขาย"\nสั่งใคร\?/);
+  await send(w, textEv('สั่งปิ'));
+  assert.equal(w.items.Tickets.length, 2);
+  assert.equal(w.items.Tickets[1].fields.DueDate, '2026-10-20T00:00:00Z');
+
+  // "ไม่ใช่" cancels
+  await send(w, textEv('สั่งเอก'));
+  await send(w, postbackEv(actionData(quick(lastReply(w))[0])));
+  assert.equal(lastReply(w).text, 'ยกเลิกแล้ว: งานใหม่');
+  assert.equal(w.items.Tickets.length, 2);
 });
 
 test('background runs never write the shared state, so they cannot undo the CEO chat', async () => {
