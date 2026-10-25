@@ -62,7 +62,7 @@ Control → **Condition**
 - ฝั่ง True ใส่ 3 Action:
   1. SharePoint **Get folder metadata using path** ชื่อ `Get photo folder`
      - Site Address: `CEO-Tickets` · Folder Path (Expression): `concat('/TicketFiles/T-', triggerBody()?['TicketID'])`
-  2. **Stop sharing an item or a file** · Library Name: `TicketFiles` · Id (Expression): `body('Get_photo_folder')?['ItemId']`
+  2. **Send an HTTP request to SharePoint** ชื่อ `Reset photo folder` · Site Address: `CEO-Tickets` · Method: `POST` · Uri (Expression): `concat('_api/web/lists/getbytitle(''TicketFiles'')/items(', body('Get_photo_folder')?['ItemId'], ')/resetroleinheritance')` · Headers: `Accept` = `application/json;odata=nometadata` (Stop sharing ใช้กับโฟลเดอร์ไม่ได้ ขั้นนี้ให้โฟลเดอร์กลับไปใช้สิทธิ์ของ Library = เฉพาะ Owner แทน)
   3. **Grant access to an item or a folder** · Library or List: `TicketFiles` · Id: เหมือนข้อ 2 · Recipients: เหมือน b) · Roles: Can view · Notify recipients: No
 - ฝั่ง False: ว่าง
 
@@ -116,7 +116,7 @@ SharePoint **Update item** ชื่อ `Mark processed`
 2. คลิก Catch → แท็บ **Settings** → **Run after** → ติ๊ก **has failed** และ **has timed out** · เอา **is successful** ออก
 3. ใน Catch ใส่:
    1. SharePoint **Get items** ชื่อ `Get admins` · List Name: `Config` · Filter Query: `Title eq 'OWNER_EMAIL' or Title eq 'BACKUP_EMAIL'`
-   2. Data Operation → **Select** ชื่อ `Admin emails` · From: `body('Get_admins')?['value']` · Map: สลับเป็นโหมดข้อความ (ไอคอน T) แล้วใส่ Expression `item()?['Value']`
+   2. Data Operation → **Select** ชื่อ `Admin emails` · From: `body('Get_admins')?['value']` · Map: **สลับเป็นโหมดข้อความก่อน** (ไอคอน **T** ขวาของช่อง Map ให้เหลือช่องเดียว ไม่ใช่ช่อง Key/Value) แล้วใส่ Expression `item()?['Value']` ⚠️ ถ้าใส่ในช่อง Key/Value ผลจะเป็น Object และ Send an email ขึ้น Error `'emailMessage/To' is required to be of type 'String/email'`
    3. Office 365 Outlook → **Send an email (V2)**
       - To (Expression): `join(body('Admin_emails'), ';')`
       - Subject (Expression): `concat('[CEO-APP] OnLineEvent ล้มเหลว T-', triggerBody()?['TicketID'])`
@@ -210,7 +210,7 @@ Flow ไม่ต้องแก้เพิ่มสำหรับงานก
    - ช่องซ้าย (Expression): `contains(coalesce(triggerBody()?['Comment'], ''), '📎 CEO แนบรูปเพิ่ม')` · **is equal to** · ช่องขวา (Expression): `true`
    - ฝั่ง True ใส่ 3 Action (เหมือนข้อ c แต่ชื่อใหม่):
      1. SharePoint **Get folder metadata using path** ชื่อ `Get added photo folder` · Site Address: `CEO-Tickets` · Folder Path (Expression): `concat('/TicketFiles/T-', triggerBody()?['TicketID'])`
-     2. **Stop sharing an item or a file** · Library Name: `TicketFiles` · Id (Expression): `body('Get_added_photo_folder')?['ItemId']`
+     2. **Send an HTTP request to SharePoint** ชื่อ `Reset added photo folder` · Site Address: `CEO-Tickets` · Method: `POST` · Uri (Expression): `concat('_api/web/lists/getbytitle(''TicketFiles'')/items(', body('Get_added_photo_folder')?['ItemId'], ')/resetroleinheritance')` · Headers: `Accept` = `application/json;odata=nometadata` (Stop sharing ใช้กับโฟลเดอร์ไม่ได้ ขั้นนี้ให้โฟลเดอร์กลับไปใช้สิทธิ์ของ Library = เฉพาะ Owner แทน)
      3. **Grant access to an item or a folder** · Library or List: `TicketFiles` · Id: เหมือนข้อ 2 · Recipients (Expression): `body('Get_ticket')?['AssigneeEmail']` · Roles: Can view · Notify recipients: No
    - ฝั่ง False: ว่าง
 3. **Save**

@@ -50,7 +50,7 @@
 
 **c) SharePoint Get folder metadata using path** ชื่อ `Get folder` · Folder Path (Expression): `concat('/TicketFiles/T-', outputs('In_ticketId'))`
 
-**d) Stop sharing an item or a file** · Library `TicketFiles` · Id (Expression): `body('Get_folder')?['ItemId']`
+**d) SharePoint** **Send an HTTP request to SharePoint** ชื่อ `Reset folder access` · Site Address: `CEO-Tickets` · Method: `POST` · Uri (Expression): `concat('_api/web/lists/getbytitle(''TicketFiles'')/items(', body('Get_folder')?['ItemId'], ')/resetroleinheritance')` · Headers: `Accept` = `application/json;odata=nometadata` (Stop sharing ใช้กับโฟลเดอร์ไม่ได้ ขั้นนี้ให้โฟลเดอร์กลับไปใช้สิทธิ์ของ Library = เฉพาะ Owner แทน)
 
 **e) Grant access to an item or a folder** · Library `TicketFiles` · Id: เหมือน d) · Recipients (Expression): `body('Get_ticket')?['AssigneeEmail']` · Roles **Can view** · Notify recipients **No**
 (ทำทุกครั้งที่แนบ โฟลเดอร์จึงเห็นได้เฉพาะ Owner กับผู้รับงานปัจจุบันเสมอ แม้เป็นโฟลเดอร์ใหม่)
@@ -72,7 +72,7 @@
 **j) Respond to a PowerApp or flow** · `ok` = `true` · `id` = `outputs('In_ticketId')` · `message` = `outputs('File_name')`
 
 ### 1.4 Scope `Catch`
-เหมือน [คู่มือ ค ข้อ 1.4](C-staff-app.md) (Run after: has failed, has timed out · อีเมลผู้ดูแล Subject `concat('[CEO-APP] AttachTicketFile ล้มเหลว T-', outputs('In_ticketId'))`) และ **Respond** `ok` = `false` · `id` = `outputs('In_ticketId')` · `message` = `ส่งไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง` ก่อน Terminate Failed
+เหมือน [คู่มือ ค ข้อ 1.4](C-staff-app.md) และ[คู่มือ ก ข้อ 4](A-flow-onlineevent.md) (Get admins → Select `Admin emails` แบบโหมดข้อความ → Send an email To = `join(body('Admin_emails'), ';')` · Run after: has failed, has timed out · อีเมลผู้ดูแล Subject `concat('[CEO-APP] AttachTicketFile ล้มเหลว T-', outputs('In_ticketId'))`) และ **Respond** `ok` = `false` · `id` = `outputs('In_ticketId')` · `message` = `ส่งไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง` ก่อน Terminate Failed
 > Respond ทุกใบต้องมี `ok`, `id`, `message` ชนิด Text เหมือนกัน
 
 ### 1.5 สิทธิ์การรัน
@@ -98,7 +98,7 @@
    | DisplayMode | `If(varTicket.IsOpen, DisplayMode.Edit, DisplayMode.Disabled)` |
    | MaxAttachments | `5` |
    | MaxAttachmentSize | `10` (MB · Microsoft แนะนำไม่เกิน 10 ไฟล์ใหญ่กว่านั้นให้ส่งลิงก์ OneDrive ในความเห็น) |
-   | AddAttachmentText | `"📎 เลือกไฟล์ (Excel, PDF, Word, รูป · สูงสุด 5 ไฟล์ ไฟล์ละ 10 MB)"` |
+   | AddAttachmentText | `"เลือกไฟล์ (Excel, PDF, Word, รูป · สูงสุด 5 ไฟล์ ไฟล์ละ 10 MB)"` (ช่องนี้มีไอคอนคลิปของตัวเองแล้ว) |
    | NoAttachmentsText | `""` |
    | X · Y · Width · Height | `20` · `btnComment.Y + 60` · `Parent.Width - 40` · `160` |
    | Color · Size | `clrText` · `14` |
