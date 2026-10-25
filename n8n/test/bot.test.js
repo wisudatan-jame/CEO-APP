@@ -1014,4 +1014,14 @@ test('date picker on a Buddhist-calendar phone ("2569-10-27") is read as 27 Oct 
   await send(w, textEv('ที 201 ถึงไหน'));
   assert.match(lastReply(w).text, /^T-201 ปิดงบเดือน/);
   assert.equal(w.items.Tickets.find((x) => x.id === '202').fields.CEOExtra, undefined);
+  // ...also while the bot asks which ticket, or asks to confirm: never picked as the ticket to add to
+  await send(w, textEv('เพิ่มเติม ใส่เงื่อนไขชำระเงินด้วย'));
+  await send(w, textEv('ที 201 ถึงไหน'));
+  assert.match(lastReply(w).text, /^T-201 ปิดงบเดือน/);
+  await send(w, textEv('เพิ่มเติม ใส่เงื่อนไขชำระเงินด้วย'));
+  await send(w, textEv('202'));
+  await send(w, textEv('ที 201 ถึงไหน'));
+  assert.match(lastReply(w).text, /^T-201 ปิดงบเดือน/);
+  assert.equal(w.items.Tickets.find((x) => x.id === '201').fields.CEOExtra, undefined);
+  assert.equal(w.items.Tickets.find((x) => x.id === '202').fields.CEOExtra, undefined);
 });

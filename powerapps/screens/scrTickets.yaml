@@ -134,7 +134,7 @@ Screens:
                   - lblMeta:
                       Control: Label@2.5.1
                       Properties:
-                        Text: =If(ThisItem.DueDate < Today(), "เลยกำหนด " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & Text(ThisItem.DueDate, "ddd d mmm", "th-TH"))
+                        Text: =If(ThisItem.DueDate < Today(), "เลยกำหนด " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & (Text(ThisItem.DueDate, "ddd", "th-TH") & " " & Day(ThisItem.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(ThisItem.DueDate)).Value))
                         Font: =Font.'Open Sans'
                         Size: =12
                         Color: =If(ThisItem.DueDate < Today(), clrDanger, clrMuted)

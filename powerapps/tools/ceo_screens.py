@@ -110,7 +110,7 @@ def scr_ceo_tickets():
         !varCSearch || IsBlank(Trim(txtCSearch.Text)) || Trim(txtCSearch.Text) in Title || Trim(txtCSearch.Text) in AssigneeEmail ||
             Trim(txtCSearch.Text) in LookUp(colEmp, Lower(Email) = AssigneeEmail).Nickname),
     "DueDate", SortOrder.Ascending)"""
-    row_sub = (NAME.format(e='ThisItem.AssigneeEmail') + ' & " · " & If(ThisItem.DueDate < Today(), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & Text(ThisItem.DueDate, "ddd d mmm", "th-TH"))')
+    row_sub = (NAME.format(e='ThisItem.AssigneeEmail') + ' & " · " & If(ThisItem.DueDate < Today(), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & (Text(ThisItem.DueDate, "ddd", "th-TH") & " " & Day(ThisItem.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(ThisItem.DueDate)).Value))')
     late = 'ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today()'
     status = f'If({late}, "เลยกำหนด", ' + CEO_STATUS.format(s='ThisItem.Status.Value') + ')'
     bar = (f'Switch(true, {late}, clrAccent, ThisItem.Status.Value = "WaitingCEO", clrPrimary, '
@@ -198,7 +198,7 @@ Refresh(TicketHistory);
     If(d < Today() || d = varTicket.DueDate,
         Notify("เลือกวันส่งใหม่ที่ยังไม่ผ่านมา", NotificationType.Warning),
         Patch(Tickets, LookUp(Tickets, ID = varTicket.ID), {{DueDate: d, OverdueNotified: false}});
-        {hist('"comment"', 'varTicket.Status.Value', 'varTicket.Status.Value', '"📅 CEO เลื่อนวันส่งจาก " & Text(varTicket.DueDate, "ddd d mmm", "th-TH") & " เป็น " & Text(d, "ddd d mmm", "th-TH")')};
+        {hist('"comment"', 'varTicket.Status.Value', 'varTicket.Status.Value', '"📅 CEO เลื่อนวันส่งจาก " & (Text(varTicket.DueDate, "ddd", "th-TH") & " " & Day(varTicket.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(varTicket.DueDate)).Value) & " เป็น " & (Text(d, "ddd", "th-TH") & " " & Day(d) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(d)).Value)')};
         Notify("เลื่อนวันส่งแล้ว", NotificationType.Success)));
 Set(varPickDue, false);
 {tail}'''
@@ -217,7 +217,7 @@ Set(varPickDue, false);
         status_row('CDStatus', CEO_STATUS.format(s='varTicket.Status.Value').replace('"Done", "รอคุณตรวจ"', '"Done", "ทำเสร็จ รอคุณตรวจ"')),
         ('conCDInfo', card([
             kv('CDWho', '"ผู้รับงาน"', bold=True, value=who + ' & With({d: LookUp(colEmp, Lower(Email) = varTicket.AssigneeEmail).Department}, If(IsBlank(d), "", " (" & d & ")"))'),
-            kv('CDWhen', '"สั่งเมื่อ"', 'Text(varTicket.Created, "d mmm hh:mm", "th-TH") & " ผ่าน " & varTicket.Source.Value'),
+            kv('CDWhen', '"สั่งเมื่อ"', '(Day(varTicket.Created) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(varTicket.Created)).Value & " " & Text(varTicket.Created, "hh:mm")) & " ผ่าน " & varTicket.Source.Value'),
             kv('CDDetails', '"รายละเอียด"', 'varTicket.Details', visible='!IsBlank(varTicket.Details)'),
             kv('CDExtra', '"สั่งเพิ่ม"', 'varTicket.CEOExtra', fill='ColorFade(clrAccent, 92%)', key_color='clrDanger', visible='!IsBlank(varTicket.CEOExtra)'),
         ], 'conCDWho.Height + 6 + conCDWhen.Height + If(conCDDetails.Visible, 6 + conCDDetails.Height, 0) + If(conCDExtra.Visible, 6 + conCDExtra.Height, 0) + 24',
@@ -303,7 +303,7 @@ Reset(txtNTitle); Reset(txtNDetails); Reset(attNew); Clear(colPick); Set(varNMgr
     day_ctrls = [(f'btnNDay{k}', chip(t, f'varNDue = {d}', f'Set(varNDue, {d})', X=f'24 + {i} * ({w4} + 12)', Y='lblNWhenHead.Y + 38', Width=w4))
                  for i, (k, t, d) in enumerate(days)]
     custom = '!(varNDue in [' + ', '.join(d for _, _, d in days) + '])'
-    day_ctrls.append(('btnNDayPick', chip(f'If({custom}, Text(varNDue, "ddd d mmm", "th-TH"), "เลือกวัน…")', custom,
+    day_ctrls.append(('btnNDayPick', chip(f'If({custom}, (Text(varNDue, "ddd", "th-TH") & " " & Day(varNDue) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(varNDue)).Value), "เลือกวัน…")', custom,
                                           'Set(varNPickAll, false); Set(varCalMonth, Date(Year(varNDue), Month(varNDue), 1)); Set(varNCal, true)',
                                           X=f'24 + 3 * ({w4} + 12)', Y='lblNWhenHead.Y + 38', Width=w4)))
     tin = lambda hint, h: {'type': 'Classic/TextInput@2.3.2', 'props': {

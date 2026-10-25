@@ -367,7 +367,7 @@ Screens:
       - btnNDayPick:
           Control: Classic/Button@2.2.0
           Properties:
-            Text: =If(!(varNDue in [Today(), DateAdd(Today(), 1, TimeUnit.Days), DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days)]), Text(varNDue, "ddd d mmm", "th-TH"), "เลือกวัน…")
+            Text: =If(!(varNDue in [Today(), DateAdd(Today(), 1, TimeUnit.Days), DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days)]), (Text(varNDue, "ddd", "th-TH") & " " & Day(varNDue) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(varNDue)).Value), "เลือกวัน…")
             OnSelect: =Set(varNPickAll, false); Set(varCalMonth, Date(Year(varNDue), Month(varNDue), 1)); Set(varNCal, true)
             Font: =Font.'Open Sans'
             Size: =14

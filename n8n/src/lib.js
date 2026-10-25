@@ -2019,8 +2019,10 @@ async function onAddYes(ctx, ev, cfg, add) {
 // Text while an "add" is waiting. Returns null when the text is not an answer, so it becomes a new task.
 async function onAddText(ctx, ev, cfg, add, t) {
   const flat = t.replace(/\s+/g, '');
-  if (add.stage === 'text' && ticketRef(t) && QUERY_WORDS.test(t)) {
-    // "T-19 ถึงไหน" is a question, not the detail being waited for: drop the half-done addition.
+  if (ticketRef(t) && QUERY_WORDS.test(t)) {
+    // "ที 19 ถึงไหน" is a question about T-19, not the detail, the ticket to add to, or a yes/no:
+    // drop the half-done addition (photos go back to waiting) and let the question be answered.
+    if (add.fromPhoto) restorePendingImages(ctx, ev.source.userId, add.images);
     delete ctx.store.addTo;
     return null;
   }

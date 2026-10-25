@@ -12,7 +12,7 @@ Set(varMine, Filter(Tickets, AssigneeEmail = varMe));
 Set(varOpen, Filter(varMine, IsOpen = true));
 Set(varLate, Filter(varOpen, Status.Value <> "Done", DueDate < Today()));
 Set(varDone30, Filter(varMine, !IsBlank(DoneAt), DoneAt >= DateAdd(Today(), -30, TimeUnit.Days)))"""
-    todo_sub = """If(ThisItem.DueDate < Today(), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & Text(ThisItem.DueDate, "ddd d mmm", "th-TH")) &
+    todo_sub = """If(ThisItem.DueDate < Today(), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & (Text(ThisItem.DueDate, "ddd", "th-TH") & " " & Day(ThisItem.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(ThisItem.DueDate)).Value)) &
 " · " & Switch(ThisItem.Status.Value, "New", "ใหม่ ยังไม่รับทราบ", "Acknowledged", "รับทราบ", "InProgress", "กำลังทำ", "WaitingCEO", "รอ CEO ตอบ", ThisItem.Status.Value)"""
     late = 'ThisItem.DueDate < Today()'
     to_list = 'Navigate(scrTickets)'
@@ -60,7 +60,7 @@ Set(varDone30, Filter(varMine, !IsBlank(DoneAt), DoneAt >= DateAdd(Today(), -30,
 def scr_tickets():
     status = 'Switch(ThisItem.Status.Value, "New", "ใหม่", "Acknowledged", "รับทราบ", "InProgress", "กำลังทำ", "WaitingCEO", "รอ CEO ตอบ", "Done", "รอ CEO ตรวจ", ThisItem.Status.Value)'
     meta = ('If(ThisItem.DueDate < Today(), "เลยกำหนด " & DateDiff(ThisItem.DueDate, Today()) & " วัน", '
-            '"ส่ง " & Text(ThisItem.DueDate, "ddd d mmm", "th-TH"))')
+            '"ส่ง " & (Text(ThisItem.DueDate, "ddd", "th-TH") & " " & Day(ThisItem.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(ThisItem.DueDate)).Value))')
     children = header('') + [
         ('lblHeader', label('"งานจาก CEO"', X=24, Y=104, Width='Parent.Width - 48', Height=52, Size=20, FontWeight='FontWeight.Bold', Color='clrPrimary')),
         ('conTickets', area([
@@ -138,7 +138,7 @@ def history_card(gal_name, line_name, lbl_name, head_name, card_name, ceo_word, 
         'Icon': icon, 'Color': f'If({ok}, clrPrimary, clrLine)', 'OnSelect': f'If({ok}, {onselect})',
         'Width': 40, 'Height': 34, 'PaddingTop': 6, 'PaddingBottom': 6, 'PaddingLeft': 8, 'PaddingRight': 8}}, 0, LayoutMinWidth=40))
     gal = gallery(page, [
-        (f'{lbl_name}When', label('Text(ThisItem.Created, "d mmm hh:mm", "th-TH")', X=0, Y=0, Width=150, Height='Parent.TemplateHeight - 1', Size=12,
+        (f'{lbl_name}When', label('(Day(ThisItem.Created) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(ThisItem.Created)).Value & " " & Text(ThisItem.Created, "hh:mm"))', X=0, Y=0, Width=150, Height='Parent.TemplateHeight - 1', Size=12,
                                   Color='clrMuted', VerticalAlign='VerticalAlign.Top', PaddingTop=8, OnSelect='Select(Parent)')),
         (lbl_name, label(who + ' & ' + what, X=158, Y=0, Width='Parent.TemplateWidth - 158', Height='Parent.TemplateHeight - 1', Size=12,
                          VerticalAlign='VerticalAlign.Top', PaddingTop=8, OnSelect='Select(Parent)')),
@@ -161,7 +161,7 @@ STAFF_STATUS = 'Switch({s}, "New", "ใหม่", "Acknowledged", "รับท
 
 def due_text(t):
     """"ส่ง อังคาร 27 ต.ค. · อีก 1 วัน" (or "· เลย 2 วัน" / "· วันนี้"; finished work: "· ทันกำหนด" / "· ช้า n วัน")."""
-    return (f'"ส่ง " & Text({t}.DueDate, "dddd d mmm", "th-TH") & If({t}.Status.Value in ["Done", "Closed"], '
+    return (f'"ส่ง " & (Text({t}.DueDate, "dddd", "th-TH") & " " & Day({t}.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month({t}.DueDate)).Value) & If({t}.Status.Value in ["Done", "Closed"], '
             f'If(IsBlank({t}.DoneAt) || {t}.DoneAt < DateAdd({t}.DueDate, 1, TimeUnit.Days), " · ทันกำหนด", " · ช้า " & DateDiff({t}.DueDate, {t}.DoneAt) & " วัน"), '
             f'!{t}.IsOpen, "", {t}.DueDate < Today(), " · เลย " & DateDiff({t}.DueDate, Today()) & " วัน", '
             f'{t}.DueDate = Today(), " · วันนี้", " · อีก " & DateDiff(Today(), {t}.DueDate) & " วัน")')
@@ -208,7 +208,7 @@ Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID",
         status_row('DStatus', STAFF_STATUS.format(s='varTicket.Status.Value')),
         ('conDInfo', card([
             kv('DFrom', '"ผู้สั่ง"', '"คุณสมชาย (CEO)"'),
-            kv('DWhen', '"สั่งเมื่อ"', 'Text(varTicket.Created, "d mmm hh:mm", "th-TH")'),
+            kv('DWhen', '"สั่งเมื่อ"', '(Day(varTicket.Created) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(varTicket.Created)).Value & " " & Text(varTicket.Created, "hh:mm"))'),
             kv('DDetails', '"รายละเอียด"', 'varTicket.Details', visible='!IsBlank(varTicket.Details)'),
             kv('DExtra', '"สั่งเพิ่ม"', 'varTicket.CEOExtra', fill='ColorFade(clrAccent, 92%)', key_color='clrDanger', visible='!IsBlank(varTicket.CEOExtra)'),
         ], 'conDFrom.Height + 6 + conDWhen.Height + If(conDDetails.Visible, 6 + conDDetails.Height, 0) + If(conDExtra.Visible, 6 + conDExtra.Height, 0) + 24',

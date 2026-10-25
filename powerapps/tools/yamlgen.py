@@ -130,7 +130,7 @@ def kpi_card(key, title, num, sub, onselect, x, y, w, hot=False, title_c='clrPri
 
 def back_button(target):
     return in_box(button('"‹"', f'Navigate({target})', Width=56, Height=56, Size=26, FontWeight='FontWeight.Bold',
-                         Fill='Color.White', Color='clrPrimary', BorderColor='clrPrimary', BorderThickness=2,
+                         Fill='Color.White', Color='clrPrimary', BorderColor='clrPrimary', BorderThickness=3,
                          PaddingTop=0, PaddingBottom=6, PaddingLeft=0, PaddingRight=0,
                          RadiusTopLeft=28, RadiusTopRight=28, RadiusBottomLeft=28, RadiusBottomRight=28),
                   0, LayoutMinWidth=56, AlignInContainer='AlignInContainer.Center')
@@ -235,7 +235,7 @@ def file_list(name, rows, name_expr):
                                                              'X': 0, 'Y': (FILE_ROW - 24) / 2, 'Width': 24, 'Height': 24}}),
         (f'lbl{name}Name', label(name_expr, X=34, Y=0, Width='Parent.TemplateWidth - 34 - 150', Height=FILE_ROW, Size=13, Color='clrPrimary',
                                  Wrap='false', OnSelect='Select(Parent)')),
-        (f'lbl{name}When', label('Text(ThisItem.Created, "d mmm hh:mm", "th-TH")', X='Parent.TemplateWidth - 146', Y=0, Width=146, Height=FILE_ROW,
+        (f'lbl{name}When', label('(Day(ThisItem.Created) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(ThisItem.Created)).Value & " " & Text(ThisItem.Created, "hh:mm"))', X='Parent.TemplateWidth - 146', Y=0, Width=146, Height=FILE_ROW,
                                  Size=12, Color='clrMuted', Align='Align.Right', OnSelect='Select(Parent)')),
     ], TemplateSize=FILE_ROW, Fill='Color.Transparent', ShowScrollbar='false', Height=f'CountRows(Self.AllItems) * {FILE_ROW}',
        Visible='!IsEmpty(Self.AllItems)')))
