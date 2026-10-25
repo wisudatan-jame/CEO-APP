@@ -130,7 +130,9 @@ def kpi_card(key, title, num, sub, onselect, x, y, w, hot=False, title_c='clrPri
 
 def back_button(target):
     return in_box(button('"‹"', f'Navigate({target})', Width=56, Height=56, Size=26, FontWeight='FontWeight.Bold',
-                         Fill='Color.White', Color='clrPrimary', BorderColor='clrPrimary', BorderThickness=3,
+                         # a filled circle: a thin border on a small round button rendered unevenly
+                         Fill='ColorFade(clrPrimary, 88%)', Color='clrPrimary', BorderThickness=0,
+                         HoverFill='ColorFade(clrPrimary, 80%)', PressedFill='ColorFade(clrPrimary, 70%)',
                          PaddingTop=0, PaddingBottom=6, PaddingLeft=0, PaddingRight=0,
                          RadiusTopLeft=28, RadiusTopRight=28, RadiusBottomLeft=28, RadiusBottomRight=28),
                   0, LayoutMinWidth=56, AlignInContainer='AlignInContainer.Center')
