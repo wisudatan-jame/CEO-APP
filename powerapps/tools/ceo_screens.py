@@ -316,8 +316,8 @@ Reset(txtNTitle); Reset(txtNDetails); Reset(attNew); Clear(colPick); Set(varNMgr
         'Items': 'Blank()', 'MaxAttachments': 5, 'MaxAttachmentSize': 10, 'NoAttachmentsText': '""', 'DisplayMode': 'DisplayMode.Edit',
         'AddAttachmentText': '"แนบรูปหรือไฟล์ (ไม่บังคับ)"', 'Font': FONT, 'Size': 14, 'FontWeight': 'FontWeight.Bold', 'Color': 'clrPrimary', 'Fill': 'Color.White',
         # the add link is anchored to the bottom of the box; while there are no files, pad it up into the middle
-        'PaddingLeft': 'If(IsEmpty(Self.Attachments), (Self.Width - 250) / 2, 12)', 'PaddingTop': 8,
-        'PaddingBottom': 'If(IsEmpty(Self.Attachments), (Self.Height - 44) / 2, 8)',
+        'PaddingLeft': 'If(IsEmpty(Self.Attachments), (Self.Width - 250) / 2, 12)', 'PaddingTop': 'If(IsEmpty(Self.Attachments), 0, 8)',
+        'PaddingBottom': 'If(IsEmpty(Self.Attachments), Max(0, (Self.Height - 64) / 2), 8)',  # leaves the link more room than it needs: no scrollbar
         'BorderColor': 'clrLine', 'BorderThickness': 2, 'BorderStyle': 'BorderStyle.Dashed', 'ItemFill': 'clrBg', 'ItemColor': 'clrText',
         'ItemHoverFill': 'clrLine', 'HoverFill': 'clrBg', 'X': 24, 'Y': 'btnNDayToday.Y + 64', 'Width': 'Parent.Width - 48', 'Height': 100}}
     who_items = ('FirstN(SortByColumns(AddColumns(colEmp, Rank, If(Email in colPick.Email, 0, Lower(Email) in varFreq.AssigneeEmail, 1, 2)), '

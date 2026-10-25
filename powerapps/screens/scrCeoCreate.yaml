@@ -405,8 +405,8 @@ Screens:
             Color: =clrPrimary
             Fill: =Color.White
             PaddingLeft: =If(IsEmpty(Self.Attachments), (Self.Width - 250) / 2, 12)
-            PaddingTop: =8
-            PaddingBottom: =If(IsEmpty(Self.Attachments), (Self.Height - 44) / 2, 8)
+            PaddingTop: =If(IsEmpty(Self.Attachments), 0, 8)
+            PaddingBottom: =If(IsEmpty(Self.Attachments), Max(0, (Self.Height - 64) / 2), 8)
             BorderColor: =clrLine
             BorderThickness: =2
             BorderStyle: =BorderStyle.Dashed

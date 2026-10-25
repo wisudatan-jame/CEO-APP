@@ -596,10 +596,10 @@ Screens:
                               ItemColor: =clrText
                               ItemHoverFill: =clrLine
                               HoverFill: =clrBg
-                              PaddingTop: =6
+                              PaddingTop: =If(IsEmpty(Self.Attachments), 0, 6)
+                              PaddingBottom: =If(IsEmpty(Self.Attachments), 0, 6)
                               PaddingRight: =8
                               PaddingLeft: =If(IsEmpty(Self.Attachments), (Self.Width - 110) / 2, 8)
-                              PaddingBottom: =If(IsEmpty(Self.Attachments), (Self.Height - 44) / 2, 6)
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0

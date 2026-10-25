@@ -197,12 +197,12 @@ Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID",
         'DisplayMode': 'If(varTicket.IsOpen, DisplayMode.Edit, DisplayMode.Disabled)',
         'Font': FONT, 'Size': 14, 'FontWeight': 'FontWeight.Bold', 'Color': 'clrPrimary', 'Fill': 'Color.White',
         'BorderColor': 'ColorValue("#8A94A6")', 'BorderThickness': 2, 'BorderStyle': 'BorderStyle.Dashed',
-        # grows to list the chosen files; while empty, the bottom-anchored add link is padded into the middle
+        # grows to list the chosen files; while empty the box is just the add link, centred by the left padding
         'Height': 'If(IsEmpty(Self.Attachments), 56, 52 + CountRows(Self.Attachments) * 40)',
         'ItemFill': 'clrBg', 'ItemColor': 'clrText', 'ItemHoverFill': 'clrLine', 'HoverFill': 'clrBg',
-        'PaddingTop': 6, 'PaddingRight': 8,
-        'PaddingLeft': 'If(IsEmpty(Self.Attachments), (Self.Width - 110) / 2, 8)',
-        'PaddingBottom': 'If(IsEmpty(Self.Attachments), (Self.Height - 44) / 2, 6)'}}
+        # no top/bottom padding while empty: any padding left less room than the link needs and showed a scrollbar
+        'PaddingTop': 'If(IsEmpty(Self.Attachments), 0, 6)', 'PaddingBottom': 'If(IsEmpty(Self.Attachments), 0, 6)', 'PaddingRight': 8,
+        'PaddingLeft': 'If(IsEmpty(Self.Attachments), (Self.Width - 110) / 2, 8)'}}
     big, small = status_buttons()
     sent_rows = 'Filter(varHist, StartsWith(Comment, "📎 แนบไฟล์"))'
     body = vbox([
