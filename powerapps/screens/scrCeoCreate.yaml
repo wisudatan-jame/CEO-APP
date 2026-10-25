@@ -225,7 +225,7 @@ Screens:
       - btnNMgr:
           Control: Classic/Button@2.2.0
           Properties:
-            Text: ="หัวหน้า/ผู้จัดการ"
+            Text: ="หัวหน้า/ผู้จัดการ (ทุกคน)"
             OnSelect: =Set(varNMgr, !varNMgr)
             Font: =Font.'Open Sans'
             Size: =12
@@ -404,8 +404,9 @@ Screens:
             FontWeight: =FontWeight.Bold
             Color: =clrPrimary
             Fill: =Color.White
-            PaddingLeft: =If(IsEmpty(Self.Attachments), (Self.Width - 290) / 2, 12)
-            PaddingTop: =If(IsEmpty(Self.Attachments), (Self.Height - 40) / 2, 8)
+            PaddingLeft: =If(IsEmpty(Self.Attachments), (Self.Width - 250) / 2, 12)
+            PaddingTop: =8
+            PaddingBottom: =If(IsEmpty(Self.Attachments), (Self.Height - 44) / 2, 8)
             BorderColor: =clrLine
             BorderThickness: =2
             BorderStyle: =BorderStyle.Dashed
@@ -420,7 +421,7 @@ Screens:
       - lblNSummary:
           Control: Label@2.5.1
           Properties:
-            Text: =If(varNMgr, "สั่งหัวหน้า/ผู้จัดการ " & CountRows(Filter(colEmp, IsManager = true)) & " คน", IsEmpty(colPick), "ยังไม่ได้เลือกคน", "สั่งคุณ" & Concat(colPick, Coalesce(Nickname, FirstName), ", คุณ")) & " · ส่ง " & Text(varNDue, "dddd d mmmm", "th-TH")
+            Text: =If(varNMgr, "สั่งหัวหน้า/ผู้จัดการทุกคน " & CountRows(Filter(colEmp, IsManager = true)) & " คน", IsEmpty(colPick), "ยังไม่ได้เลือกคน", "สั่งคุณ" & Concat(colPick, Coalesce(Nickname, FirstName), ", คุณ")) & " · ส่ง " & Text(varNDue, "dddd d mmmm", "th-TH")
             Font: =Font.'Open Sans'
             Size: =13
             Color: =clrPrimary

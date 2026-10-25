@@ -285,7 +285,7 @@ Notify("สั่งงานแล้ว " & Concat(colMade, "T-" & ID, ", "), 
 Reset(txtNTitle); Reset(txtNDetails); Reset(attNew); Clear(colPick); Set(varNMgr, false)'''
     picked = '!IsBlank(LookUp(colPick, Email = ThisItem.Email))'
     toggle = f'If({picked}, Remove(colPick, LookUp(colPick, Email = ThisItem.Email)), Collect(colPick, ThisItem))'
-    summary = ('If(varNMgr, "สั่งหัวหน้า/ผู้จัดการ " & CountRows(Filter(colEmp, IsManager = true)) & " คน", '
+    summary = ('If(varNMgr, "สั่งหัวหน้า/ผู้จัดการทุกคน " & CountRows(Filter(colEmp, IsManager = true)) & " คน", '
                'IsEmpty(colPick), "ยังไม่ได้เลือกคน", "สั่งคุณ" & Concat(colPick, Coalesce(Nickname, FirstName), ", คุณ")) & '
                '" · ส่ง " & Text(varNDue, "dddd d mmmm", "th-TH")')
     friday = 'DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days)'
@@ -315,8 +315,9 @@ Reset(txtNTitle); Reset(txtNDetails); Reset(attNew); Clear(colPick); Set(varNMgr
     att = {'type': 'Attachments@2.3.0', 'props': {
         'Items': 'Blank()', 'MaxAttachments': 5, 'MaxAttachmentSize': 10, 'NoAttachmentsText': '""', 'DisplayMode': 'DisplayMode.Edit',
         'AddAttachmentText': '"แนบรูปหรือไฟล์ (ไม่บังคับ)"', 'Font': FONT, 'Size': 14, 'FontWeight': 'FontWeight.Bold', 'Color': 'clrPrimary', 'Fill': 'Color.White',
-        # the add link sits under the file list; while there are no files, pad it into the middle of the box
-        'PaddingLeft': 'If(IsEmpty(Self.Attachments), (Self.Width - 290) / 2, 12)', 'PaddingTop': 'If(IsEmpty(Self.Attachments), (Self.Height - 40) / 2, 8)',
+        # the add link is anchored to the bottom of the box; while there are no files, pad it up into the middle
+        'PaddingLeft': 'If(IsEmpty(Self.Attachments), (Self.Width - 250) / 2, 12)', 'PaddingTop': 8,
+        'PaddingBottom': 'If(IsEmpty(Self.Attachments), (Self.Height - 44) / 2, 8)',
         'BorderColor': 'clrLine', 'BorderThickness': 2, 'BorderStyle': 'BorderStyle.Dashed', 'ItemFill': 'clrBg', 'ItemColor': 'clrText',
         'ItemHoverFill': 'clrLine', 'HoverFill': 'clrBg', 'X': 24, 'Y': 'btnNDayToday.Y + 64', 'Width': 'Parent.Width - 48', 'Height': 100}}
     who_items = ('FirstN(SortByColumns(AddColumns(colEmp, Rank, If(Email in colPick.Email, 0, Lower(Email) in varFreq.AssigneeEmail, 1, 2)), '
@@ -397,7 +398,7 @@ Reset(txtNTitle); Reset(txtNDetails); Reset(attNew); Clear(colPick); Set(varNMgr
                                DisabledFill='clrBg', DisabledColor='clrMuted', DisabledBorderColor='clrLine')),
         ], TemplateSize=ROW, WrapCount=COLS, ShowScrollbar='false')))],
             24, WHO_Y, 'Parent.Width - 48', f'RoundUp({n} / {COLS}, 0) * {ROW}')),
-        ('btnNMgr', chip('"หัวหน้า/ผู้จัดการ"', 'varNMgr', 'Set(varNMgr, !varNMgr)', **extra(0))),
+        ('btnNMgr', chip('"หัวหน้า/ผู้จัดการ (ทุกคน)"', 'varNMgr', 'Set(varNMgr, !varNMgr)', **extra(0))),
         ('btnNMore', chip('"คนอื่น…"', 'false', 'Set(varNMgr, false); Reset(txtNFind); Set(varNPickAll, true)', **extra(1))),
         ('lblNWhenHead', label('"ส่งเมื่อไร"', X=24, Y=f'{after_who} + 6', Width=200, Height=34, Size=13, FontWeight='FontWeight.Semibold')),
     ] + day_ctrls + [
