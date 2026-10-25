@@ -12,7 +12,7 @@ CEO_STATUS = 'Switch({s}, "New", "ยังไม่รับทราบ", "Ack
 
 def chip(text, cond, onselect, **p):
     return button(text, onselect, Fill=f'If({cond}, clrPrimary, Color.White)', Color=f'If({cond}, Color.White, clrPrimary)',
-                  BorderColor='clrLine', BorderThickness=2, Size=14, Height=p.pop('Height', 52),
+                  BorderColor='clrLine', BorderThickness=2, Size=p.pop('Size', 14), Height=p.pop('Height', 52),
                   RadiusTopLeft=26, RadiusTopRight=26, RadiusBottomLeft=26, RadiusBottomRight=26, **p)
 
 def scr_ceo_home():
@@ -258,8 +258,11 @@ Set(varPickDue, false);
     return screen('scrCeoDetail', {'Fill': 'clrBg', 'OnVisible': on_visible}, children)
 
 def scr_ceo_create():
-    on_visible = '''ClearCollect(colEmp, Filter(Employees, Active = true));
-If(IsBlank(varNDue), Set(varNDue, DateAdd(Today(), 1, TimeUnit.Days)))'''
+    on_visible = """ClearCollect(colEmp, Filter(Employees, Active = true));
+If(IsBlank(varNDue), Set(varNDue, DateAdd(Today(), 1, TimeUnit.Days)));
+Set(varNPickAll, false);
+Set(varRecentT, Filter(Tickets, Created >= DateAdd(Today(), -60, TimeUnit.Days)));
+Set(varFreq, FirstN(SortByColumns(AddColumns(GroupBy(varRecentT, AssigneeEmail, Rows), Cnt, CountRows(Rows)), "Cnt", SortOrder.Descending), 4))"""
     create = f'''Set(varBusy, true);
 Set(varWho, If(varNMgr, Filter(colEmp, IsManager = true), colPick));
 Set(varBase, {{Title: Trim(txtNTitle.Text), Details: Trim(txtNDetails.Text), DueDate: varNDue,
@@ -281,14 +284,23 @@ Notify("สั่งงานแล้ว " & Concat(colMade, "T-" & ID, ", "), 
 Reset(txtNTitle); Reset(txtNDetails); Reset(attNew); Clear(colPick); Set(varNMgr, false)'''
     picked = '!IsBlank(LookUp(colPick, Email = ThisItem.Email))'
     toggle = f'If({picked}, Remove(colPick, LookUp(colPick, Email = ThisItem.Email)), Collect(colPick, ThisItem))'
-    summary = ('If(varNMgr, "สั่งหัวหน้าทุกคน " & CountRows(Filter(colEmp, IsManager = true)) & " คน", '
+    summary = ('If(varNMgr, "สั่งหัวหน้า/ผู้จัดการ " & CountRows(Filter(colEmp, IsManager = true)) & " คน", '
                'IsEmpty(colPick), "ยังไม่ได้เลือกคน", "สั่งคุณ" & Concat(colPick, Coalesce(Nickname, FirstName), ", คุณ")) & '
                '" · ส่ง " & Text(varNDue, "dddd d mmmm", "th-TH")')
     monday = 'DateAdd(Today(), If(Mod(9 - Weekday(Today()), 7) = 0, 7, Mod(9 - Weekday(Today()), 7)), TimeUnit.Days)'
     friday = 'DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days)'
     w4 = CHIP_W.format(g=36, n=4)
+    chip_label = 'Coalesce(ThisItem.Nickname, ThisItem.FirstName) & If(IsBlank(ThisItem.Department), "", " (" & ThisItem.Department & ")")'
+    # "สั่งใคร": frequent people (+ anyone already picked) as chips, then "หัวหน้า/ผู้จัดการ" and "คนอื่น…" continuing the same 3-column flow
+    WHO_Y, ROW, COLS = 480, 62, 3
+    col_w = f'(Parent.Width - 48) / {COLS}'
+    n = 'CountRows(galNWho.AllItems)'
+    who_rows = f'RoundUp(({n} + 2) / {COLS}, 0)'
+    extra = lambda j: dict(X=f'24 + Mod({n} + {j}, {COLS}) * {col_w} + 4', Y=f'{WHO_Y} + RoundDown(({n} + {j}) / {COLS}, 0) * {ROW} + 4',
+                           Width=f'{col_w} - 8', Height=ROW - 8, Size=12)
+    after_who = f'{WHO_Y} + {who_rows} * {ROW}'
     days = [('Today', '"วันนี้"', 'Today()'), ('Tmr', '"พรุ่งนี้"', 'DateAdd(Today(), 1, TimeUnit.Days)'), ('Fri', '"ศุกร์นี้"', friday), ('Mon', '"จันทร์หน้า"', monday)]
-    day_ctrls = [(f'btnNDay{k}', chip(t, f'varNDue = {d}', f'Set(varNDue, {d})', X=f'24 + {i} * ({w4} + 12)', Y=716, Width=w4))
+    day_ctrls = [(f'btnNDay{k}', chip(t, f'varNDue = {d}', f'Set(varNDue, {d})', X=f'24 + {i} * ({w4} + 12)', Y='lblNWhenHead.Y + 38', Width=w4))
                  for i, (k, t, d) in enumerate(days)]
     tin = lambda hint, h: {'type': 'Classic/TextInput@2.3.2', 'props': {
         'Default': '""', 'HintText': hint, 'Height': h, 'Font': FONT, 'Size': 15, 'BorderColor': 'clrLine', 'BorderThickness': 2,
@@ -300,35 +312,68 @@ Reset(txtNTitle); Reset(txtNDetails); Reset(attNew); Clear(colPick); Set(varNMgr
         'Items': 'Blank()', 'MaxAttachments': 5, 'MaxAttachmentSize': 10, 'NoAttachmentsText': '""', 'DisplayMode': 'DisplayMode.Edit',
         'AddAttachmentText': '"แนบรูปหรือไฟล์"', 'Font': FONT, 'Size': 13, 'Color': 'clrPrimary', 'Fill': 'Color.White',
         'BorderColor': 'clrLine', 'BorderThickness': 2, 'BorderStyle': 'BorderStyle.Dashed', 'ItemFill': 'clrBg', 'ItemColor': 'clrText',
-        'ItemHoverFill': 'clrLine', 'HoverFill': 'clrBg', 'X': 24, 'Y': 782, 'Width': 'Parent.Width - 48', 'Height': 80}}
+        'ItemHoverFill': 'clrLine', 'HoverFill': 'clrBg', 'X': 24, 'Y': 'btnNDayToday.Y + 64', 'Width': 'Parent.Width - 48', 'Height': 76}}
+    who_items = ('SortByColumns(Filter(colEmp As e, Lower(e.Email) in varFreq.AssigneeEmail || !IsBlank(LookUp(colPick, Email = e.Email))), '
+                 '"Nickname", SortOrder.Ascending)')
+    find = 'Trim(txtNFind.Text)'
+    all_items = (f'SortByColumns(Filter(colEmp, IsBlank({find}) || {find} in Nickname || {find} in FirstName || {find} in Department), '
+                 '"Nickname", SortOrder.Ascending)')
+    picker = panel([
+        ('conNPickHead', in_box(hbox([
+            ('lblNPickHead', in_box(label('"เลือกคน" & If(IsEmpty(colPick), "", " (เลือกแล้ว " & CountRows(colPick) & ")")', Height=50, Size=16,
+                                          FontWeight='FontWeight.Bold', Color='clrPrimary'), 1)),
+            ('btnNPickDone', in_box(button('"เสร็จ"', 'Set(varNPickAll, false)', Width=130, Height=50, Size=15, FontWeight='FontWeight.Bold'),
+                                    0, LayoutMinWidth=130)),
+        ], Height=50))),
+        ('txtNFind', in_box({'type': 'Classic/TextInput@2.3.2', 'props': {
+            'Default': '""', 'HintText': '"ค้นหาชื่อ ชื่อเล่น หรือฝ่าย"', 'Height': 54, 'Font': FONT, 'Size': 14, 'BorderColor': 'clrLine',
+            'BorderThickness': 2, 'Fill': 'Color.White', 'HoverFill': 'Color.White', 'PaddingLeft': 18,
+            'RadiusTopLeft': 27, 'RadiusTopRight': 27, 'RadiusBottomLeft': 27, 'RadiusBottomRight': 27}})),
+        ('galNAll', list_in(gallery(all_items, [
+            ('btnNAllCheck', button(f'If({picked}, "✓", "")', toggle, X=0, Y=14, Width=40, Height=40, Size=14, FontWeight='FontWeight.Bold',
+                                    Fill=f'If({picked}, clrPrimary, Color.White)', Color='Color.White', BorderColor=f'If({picked}, clrPrimary, clrLine)',
+                                    BorderThickness=2, RadiusTopLeft=20, RadiusTopRight=20, RadiusBottomLeft=20, RadiusBottomRight=20)),
+            ('lblNAllName', label('Coalesce(ThisItem.Nickname, ThisItem.FirstName) & "  " & ThisItem.FirstName & " " & ThisItem.LastName',
+                                  X=54, Y=6, Width='Parent.TemplateWidth - 54', Height=32, Size=14, FontWeight='FontWeight.Semibold', Wrap='false', OnSelect=toggle)),
+            ('lblNAllDept', label('ThisItem.Department & If(ThisItem.IsManager, " · หัวหน้า/ผู้จัดการ", "")', X=54, Y=36, Width='Parent.TemplateWidth - 54',
+                                  Height=28, Size=12, Color='clrMuted', OnSelect=toggle)),
+            ('recNAllLine', rect(X=0, Y='Parent.TemplateHeight - 1', Width='Parent.TemplateWidth', Height=1, Fill='clrLine', OnSelect=toggle)),
+        ], TemplateSize=68, OnSelect=toggle))),
+    ], 24, 150, 'Parent.Width - 48', f'Parent.Height - {TAB_H} - 16 - Self.Y', Visible='varNPickAll', LayoutGap=10,
+       DropShadow='DropShadow.Semibold', PaddingTop=14, PaddingBottom=8)
     children = header('CN') + [
         ('lblNHead', label('"สั่งงาน"', X=24, Y=104, Width='Parent.Width - 48', Height=46, Size=20, FontWeight='FontWeight.Bold', Color='clrPrimary')),
-        ('lblNNote', label('"ปกติสั่งผ่าน LINE ได้เร็วกว่า หน้านี้ใช้เมื่อบอท LINE ไม่ตอบ"', X=24, Y=152, Width='Parent.Width - 48', Height=48, Size=12,
-                           Color='clrMuted', Fill='Color.White', BorderColor='clrLine', BorderThickness=2, PaddingLeft=14, PaddingRight=14)),
+        ('btnNNote', button('"ปกติสั่งผ่าน LINE ได้เร็วกว่า หน้านี้ใช้เมื่อบอท LINE ไม่ตอบ"', 'false', X=24, Y=152, Width='Parent.Width - 48', Height=48,
+                            Size=12, FontWeight='FontWeight.Normal', Align='Align.Left', PaddingLeft=16, Fill='Color.White', Color='clrMuted',
+                            BorderColor='clrLine', BorderThickness=2, HoverFill='Color.White', PressedFill='Color.White',
+                            RadiusTopLeft=14, RadiusTopRight=14, RadiusBottomLeft=14, RadiusBottomRight=14)),
         ('lblNTitleHead', label('"งานอะไร"', X=24, Y=212, Width=300, Height=32, Size=13, FontWeight='FontWeight.Semibold')),
         ('txtNTitle', title_in),
         ('lblNDetailsHead', label('"รายละเอียด (ไม่บังคับ)"', X=24, Y=314, Width=300, Height=32, Size=13, FontWeight='FontWeight.Semibold')),
         ('txtNDetails', det_in),
         ('lblNWhoHead', label('"สั่งใคร"', X=24, Y=440, Width=200, Height=34, Size=13, FontWeight='FontWeight.Semibold')),
-        ('btnNMgr', chip('"หัวหน้าทุกคน (" & CountRows(Filter(colEmp, IsManager = true)) & ")"', 'varNMgr', 'Set(varNMgr, !varNMgr)',
-                         X='Parent.Width - 284', Y=434, Width=260, Height=46)),
-        ('conNWho', vbox([('galNWho', list_in(gallery('SortByColumns(colEmp, "Nickname", SortOrder.Ascending)', [
-            ('btnNWho', button('Coalesce(ThisItem.Nickname, ThisItem.FirstName) & " · " & ThisItem.Department', toggle,
+        ('conNWho', area([('galNWho', list_in(gallery(who_items, [
+            ('btnNWho', button(chip_label, toggle,
                                X=4, Y=4, Width='Parent.TemplateWidth - 8', Height='Parent.TemplateHeight - 8', Size=12,
                                Fill=f'If({picked}, clrPrimary, Color.White)', Color=f'If({picked}, Color.White, clrPrimary)',
-                               BorderColor='clrLine', BorderThickness=2, RadiusTopLeft=24, RadiusTopRight=24, RadiusBottomLeft=24, RadiusBottomRight=24,
+                               BorderColor=f'If({picked}, clrPrimary, clrLine)', BorderThickness=2,
+                               RadiusTopLeft=27, RadiusTopRight=27, RadiusBottomLeft=27, RadiusBottomRight=27,
                                DisplayMode='If(varNMgr, DisplayMode.Disabled, DisplayMode.Edit)',
                                DisabledFill='clrBg', DisabledColor='clrMuted', DisabledBorderColor='clrLine')),
-        ], TemplateSize=62, WrapCount=2, ShowScrollbar='false'))),
-        ], LayoutGap=0, X=24, Y=486, Width='Parent.Width - 48', Height=186)),
-        ('lblNWhenHead', label('"ส่งเมื่อไร"', X=24, Y=680, Width=200, Height=34, Size=13, FontWeight='FontWeight.Semibold')),
+        ], TemplateSize=ROW, WrapCount=COLS, ShowScrollbar='false')))],
+            24, WHO_Y, 'Parent.Width - 48', f'RoundUp({n} / {COLS}, 0) * {ROW}')),
+        ('btnNMgr', chip('"หัวหน้า/ผู้จัดการ"', 'varNMgr', 'Set(varNMgr, !varNMgr)', **extra(0))),
+        ('btnNMore', chip('"คนอื่น…"', 'false', 'Set(varNMgr, false); Reset(txtNFind); Set(varNPickAll, true)', **extra(1))),
+        ('lblNWhenHead', label('"ส่งเมื่อไร"', X=24, Y=f'{after_who} + 6', Width=200, Height=34, Size=13, FontWeight='FontWeight.Semibold')),
     ] + day_ctrls + [
         ('attNew', att),
-        ('lblNSummary', label(summary, X=24, Y=868, Width='Parent.Width - 48', Height=60, Size=13, Color='clrPrimary', FontWeight='FontWeight.Semibold')),
+        ('lblNSummary', label(summary, X=24, Y='attNew.Y + attNew.Height + 6', Width='Parent.Width - 48', Height=52, Size=13, Color='clrPrimary',
+                              FontWeight='FontWeight.Semibold')),
         ('btnNCreate', button('"สั่งงาน"', create, X=24, Y=f'Parent.Height - {TAB_H} - 92', Width='Parent.Width - 48', Height=80, Size=16, FontWeight='FontWeight.Bold',
                               RadiusTopLeft=16, RadiusTopRight=16, RadiusBottomLeft=16, RadiusBottomRight=16,
                               DisplayMode='If(varBusy || IsBlank(Trim(txtNTitle.Text)) || (!varNMgr && IsEmpty(colPick)) || varNDue < Today(), DisplayMode.Disabled, DisplayMode.Edit)',
                               DisabledFill='ColorFade(clrAccent, 60%)', DisabledColor='Color.White')),
+        ('conNPicker', picker),
     ] + tabs('CN', CEO_TABS, 'New')
     return screen('scrCeoCreate', {'Fill': 'clrBg', 'OnVisible': on_visible}, children)
 

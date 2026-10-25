@@ -4,7 +4,10 @@ Screens:
       Fill: =clrBg
       OnVisible: |-
         =ClearCollect(colEmp, Filter(Employees, Active = true));
-        If(IsBlank(varNDue), Set(varNDue, DateAdd(Today(), 1, TimeUnit.Days)))
+        If(IsBlank(varNDue), Set(varNDue, DateAdd(Today(), 1, TimeUnit.Days)));
+        Set(varNPickAll, false);
+        Set(varRecentT, Filter(Tickets, Created >= DateAdd(Today(), -60, TimeUnit.Days)));
+        Set(varFreq, FirstN(SortByColumns(AddColumns(GroupBy(varRecentT, AssigneeEmail, Rows), Cnt, CountRows(Rows)), "Cnt", SortOrder.Descending), 4))
     Children:
       - recTopCN:
           Control: Rectangle@2.3.0
@@ -51,22 +54,34 @@ Screens:
             Width: =Parent.Width - 48
             Height: =46
             FontWeight: =FontWeight.Bold
-      - lblNNote:
-          Control: Label@2.5.1
+      - btnNNote:
+          Control: Classic/Button@2.2.0
           Properties:
             Text: ="ปกติสั่งผ่าน LINE ได้เร็วกว่า หน้านี้ใช้เมื่อบอท LINE ไม่ตอบ"
+            OnSelect: =false
             Font: =Font.'Open Sans'
             Size: =12
+            FontWeight: =FontWeight.Normal
+            Fill: =Color.White
             Color: =clrMuted
+            BorderColor: =clrLine
+            BorderThickness: =2
+            RadiusTopLeft: =14
+            RadiusTopRight: =14
+            RadiusBottomLeft: =14
+            RadiusBottomRight: =14
+            HoverFill: =Color.White
+            HoverColor: =Self.Color
+            HoverBorderColor: =Self.BorderColor
+            PressedFill: =Color.White
+            PressedColor: =Self.Color
+            PressedBorderColor: =Self.BorderColor
             X: =24
             Y: =152
             Width: =Parent.Width - 48
             Height: =48
-            Fill: =Color.White
-            BorderColor: =clrLine
-            BorderThickness: =2
-            PaddingLeft: =14
-            PaddingRight: =14
+            Align: =Align.Left
+            PaddingLeft: =16
       - lblNTitleHead:
           Control: Label@2.5.1
           Properties:
@@ -142,32 +157,6 @@ Screens:
             Width: =200
             Height: =34
             FontWeight: =FontWeight.Semibold
-      - btnNMgr:
-          Control: Classic/Button@2.2.0
-          Properties:
-            Text: ="หัวหน้าทุกคน (" & CountRows(Filter(colEmp, IsManager = true)) & ")"
-            OnSelect: =Set(varNMgr, !varNMgr)
-            Font: =Font.'Open Sans'
-            Size: =14
-            FontWeight: =FontWeight.Semibold
-            Fill: =If(varNMgr, clrPrimary, Color.White)
-            Color: =If(varNMgr, Color.White, clrPrimary)
-            BorderColor: =clrLine
-            BorderThickness: =2
-            RadiusTopLeft: =26
-            RadiusTopRight: =26
-            RadiusBottomLeft: =26
-            RadiusBottomRight: =26
-            HoverFill: =ColorFade(Self.Fill, -10%)
-            HoverColor: =Self.Color
-            HoverBorderColor: =Self.BorderColor
-            PressedFill: =ColorFade(Self.Fill, -20%)
-            PressedColor: =Self.Color
-            PressedBorderColor: =Self.BorderColor
-            Height: =46
-            X: =Parent.Width - 284
-            Y: =434
-            Width: =260
       - conNWho:
           Control: GroupContainer@1.3.0
           Variant: AutoLayout
@@ -183,17 +172,17 @@ Screens:
             Fill: =Color.Transparent
             BorderThickness: =0
             X: =24
-            Y: =486
+            Y: =480
             Width: =Parent.Width - 48
-            Height: =186
+            Height: =RoundUp(CountRows(galNWho.AllItems) / 3, 0) * 62
           Children:
             - galNWho:
                 Control: Gallery@2.15.0
                 Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
                 Properties:
-                  Items: =SortByColumns(colEmp, "Nickname", SortOrder.Ascending)
+                  Items: =SortByColumns(Filter(colEmp As e, Lower(e.Email) in varFreq.AssigneeEmail || !IsBlank(LookUp(colPick, Email = e.Email))), "Nickname", SortOrder.Ascending)
                   TemplateSize: =62
-                  WrapCount: =2
+                  WrapCount: =3
                   ShowScrollbar: =false
                   Fill: =Color.Transparent
                   BorderThickness: =0
@@ -205,19 +194,19 @@ Screens:
                   - btnNWho:
                       Control: Classic/Button@2.2.0
                       Properties:
-                        Text: =Coalesce(ThisItem.Nickname, ThisItem.FirstName) & " · " & ThisItem.Department
+                        Text: =Coalesce(ThisItem.Nickname, ThisItem.FirstName) & If(IsBlank(ThisItem.Department), "", " (" & ThisItem.Department & ")")
                         OnSelect: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), Remove(colPick, LookUp(colPick, Email = ThisItem.Email)), Collect(colPick, ThisItem))
                         Font: =Font.'Open Sans'
                         Size: =12
                         FontWeight: =FontWeight.Semibold
                         Fill: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), clrPrimary, Color.White)
                         Color: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), Color.White, clrPrimary)
-                        BorderColor: =clrLine
+                        BorderColor: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), clrPrimary, clrLine)
                         BorderThickness: =2
-                        RadiusTopLeft: =24
-                        RadiusTopRight: =24
-                        RadiusBottomLeft: =24
-                        RadiusBottomRight: =24
+                        RadiusTopLeft: =27
+                        RadiusTopRight: =27
+                        RadiusBottomLeft: =27
+                        RadiusBottomRight: =27
                         HoverFill: =ColorFade(Self.Fill, -10%)
                         HoverColor: =Self.Color
                         HoverBorderColor: =Self.BorderColor
@@ -232,6 +221,58 @@ Screens:
                         DisabledFill: =clrBg
                         DisabledColor: =clrMuted
                         DisabledBorderColor: =clrLine
+      - btnNMgr:
+          Control: Classic/Button@2.2.0
+          Properties:
+            Text: ="หัวหน้า/ผู้จัดการ"
+            OnSelect: =Set(varNMgr, !varNMgr)
+            Font: =Font.'Open Sans'
+            Size: =12
+            FontWeight: =FontWeight.Semibold
+            Fill: =If(varNMgr, clrPrimary, Color.White)
+            Color: =If(varNMgr, Color.White, clrPrimary)
+            BorderColor: =clrLine
+            BorderThickness: =2
+            RadiusTopLeft: =26
+            RadiusTopRight: =26
+            RadiusBottomLeft: =26
+            RadiusBottomRight: =26
+            HoverFill: =ColorFade(Self.Fill, -10%)
+            HoverColor: =Self.Color
+            HoverBorderColor: =Self.BorderColor
+            PressedFill: =ColorFade(Self.Fill, -20%)
+            PressedColor: =Self.Color
+            PressedBorderColor: =Self.BorderColor
+            Height: =54
+            X: =24 + Mod(CountRows(galNWho.AllItems) + 0, 3) * (Parent.Width - 48) / 3 + 4
+            Y: =480 + RoundDown((CountRows(galNWho.AllItems) + 0) / 3, 0) * 62 + 4
+            Width: =(Parent.Width - 48) / 3 - 8
+      - btnNMore:
+          Control: Classic/Button@2.2.0
+          Properties:
+            Text: ="คนอื่น…"
+            OnSelect: =Set(varNMgr, false); Reset(txtNFind); Set(varNPickAll, true)
+            Font: =Font.'Open Sans'
+            Size: =12
+            FontWeight: =FontWeight.Semibold
+            Fill: =If(false, clrPrimary, Color.White)
+            Color: =If(false, Color.White, clrPrimary)
+            BorderColor: =clrLine
+            BorderThickness: =2
+            RadiusTopLeft: =26
+            RadiusTopRight: =26
+            RadiusBottomLeft: =26
+            RadiusBottomRight: =26
+            HoverFill: =ColorFade(Self.Fill, -10%)
+            HoverColor: =Self.Color
+            HoverBorderColor: =Self.BorderColor
+            PressedFill: =ColorFade(Self.Fill, -20%)
+            PressedColor: =Self.Color
+            PressedBorderColor: =Self.BorderColor
+            Height: =54
+            X: =24 + Mod(CountRows(galNWho.AllItems) + 1, 3) * (Parent.Width - 48) / 3 + 4
+            Y: =480 + RoundDown((CountRows(galNWho.AllItems) + 1) / 3, 0) * 62 + 4
+            Width: =(Parent.Width - 48) / 3 - 8
       - lblNWhenHead:
           Control: Label@2.5.1
           Properties:
@@ -240,7 +281,7 @@ Screens:
             Size: =13
             Color: =clrText
             X: =24
-            Y: =680
+            Y: =480 + RoundUp((CountRows(galNWho.AllItems) + 2) / 3, 0) * 62 + 6
             Width: =200
             Height: =34
             FontWeight: =FontWeight.Semibold
@@ -268,7 +309,7 @@ Screens:
             PressedBorderColor: =Self.BorderColor
             Height: =52
             X: =24 + 0 * ((Parent.Width - 48 - 36) / 4 + 12)
-            Y: =716
+            Y: =lblNWhenHead.Y + 38
             Width: =(Parent.Width - 48 - 36) / 4
       - btnNDayTmr:
           Control: Classic/Button@2.2.0
@@ -294,7 +335,7 @@ Screens:
             PressedBorderColor: =Self.BorderColor
             Height: =52
             X: =24 + 1 * ((Parent.Width - 48 - 36) / 4 + 12)
-            Y: =716
+            Y: =lblNWhenHead.Y + 38
             Width: =(Parent.Width - 48 - 36) / 4
       - btnNDayFri:
           Control: Classic/Button@2.2.0
@@ -320,7 +361,7 @@ Screens:
             PressedBorderColor: =Self.BorderColor
             Height: =52
             X: =24 + 2 * ((Parent.Width - 48 - 36) / 4 + 12)
-            Y: =716
+            Y: =lblNWhenHead.Y + 38
             Width: =(Parent.Width - 48 - 36) / 4
       - btnNDayMon:
           Control: Classic/Button@2.2.0
@@ -346,7 +387,7 @@ Screens:
             PressedBorderColor: =Self.BorderColor
             Height: =52
             X: =24 + 3 * ((Parent.Width - 48 - 36) / 4 + 12)
-            Y: =716
+            Y: =lblNWhenHead.Y + 38
             Width: =(Parent.Width - 48 - 36) / 4
       - attNew:
           Control: Attachments@2.3.0
@@ -369,20 +410,20 @@ Screens:
             ItemHoverFill: =clrLine
             HoverFill: =clrBg
             X: =24
-            Y: =782
+            Y: =btnNDayToday.Y + 64
             Width: =Parent.Width - 48
-            Height: =80
+            Height: =76
       - lblNSummary:
           Control: Label@2.5.1
           Properties:
-            Text: =If(varNMgr, "สั่งหัวหน้าทุกคน " & CountRows(Filter(colEmp, IsManager = true)) & " คน", IsEmpty(colPick), "ยังไม่ได้เลือกคน", "สั่งคุณ" & Concat(colPick, Coalesce(Nickname, FirstName), ", คุณ")) & " · ส่ง " & Text(varNDue, "dddd d mmmm", "th-TH")
+            Text: =If(varNMgr, "สั่งหัวหน้า/ผู้จัดการ " & CountRows(Filter(colEmp, IsManager = true)) & " คน", IsEmpty(colPick), "ยังไม่ได้เลือกคน", "สั่งคุณ" & Concat(colPick, Coalesce(Nickname, FirstName), ", คุณ")) & " · ส่ง " & Text(varNDue, "dddd d mmmm", "th-TH")
             Font: =Font.'Open Sans'
             Size: =13
             Color: =clrPrimary
             X: =24
-            Y: =868
+            Y: =attNew.Y + attNew.Height + 6
             Width: =Parent.Width - 48
-            Height: =60
+            Height: =52
             FontWeight: =FontWeight.Semibold
       - btnNCreate:
           Control: Classic/Button@2.2.0
@@ -432,6 +473,184 @@ Screens:
             DisplayMode: =If(varBusy || IsBlank(Trim(txtNTitle.Text)) || (!varNMgr && IsEmpty(colPick)) || varNDue < Today(), DisplayMode.Disabled, DisplayMode.Edit)
             DisabledFill: =ColorFade(clrAccent, 60%)
             DisabledColor: =Color.White
+      - conNPicker:
+          Control: GroupContainer@1.3.0
+          Variant: AutoLayout
+          Properties:
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            PaddingTop: =14
+            PaddingBottom: =8
+            PaddingLeft: =18
+            PaddingRight: =18
+            LayoutGap: =10
+            DropShadow: =DropShadow.Semibold
+            Fill: =Color.White
+            BorderThickness: =2
+            BorderColor: =clrLine
+            RadiusTopLeft: =20
+            RadiusTopRight: =20
+            RadiusBottomLeft: =20
+            RadiusBottomRight: =20
+            X: =24
+            Y: =150
+            Width: =Parent.Width - 48
+            Height: =Parent.Height - 96 - 16 - Self.Y
+            Visible: =varNPickAll
+          Children:
+            - conNPickHead:
+                Control: GroupContainer@1.3.0
+                Variant: AutoLayout
+                Properties:
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  PaddingTop: =0
+                  PaddingBottom: =0
+                  PaddingLeft: =0
+                  PaddingRight: =0
+                  LayoutGap: =12
+                  DropShadow: =DropShadow.None
+                  Fill: =Color.Transparent
+                  BorderThickness: =0
+                  Height: =50
+                  FillPortions: =0
+                  AlignInContainer: =AlignInContainer.Stretch
+                Children:
+                  - lblNPickHead:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: ="เลือกคน" & If(IsEmpty(colPick), "", " (เลือกแล้ว " & CountRows(colPick) & ")")
+                        Font: =Font.'Open Sans'
+                        Size: =16
+                        Color: =clrPrimary
+                        Height: =50
+                        FontWeight: =FontWeight.Bold
+                        FillPortions: =1
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =0
+                        LayoutMinHeight: =0
+                  - btnNPickDone:
+                      Control: Classic/Button@2.2.0
+                      Properties:
+                        Text: ="เสร็จ"
+                        OnSelect: =Set(varNPickAll, false)
+                        Font: =Font.'Open Sans'
+                        Size: =15
+                        FontWeight: =FontWeight.Bold
+                        Fill: =clrAccent
+                        Color: =Color.White
+                        BorderColor: =clrAccent
+                        BorderThickness: =0
+                        RadiusTopLeft: =14
+                        RadiusTopRight: =14
+                        RadiusBottomLeft: =14
+                        RadiusBottomRight: =14
+                        HoverFill: =ColorFade(Self.Fill, -10%)
+                        HoverColor: =Self.Color
+                        HoverBorderColor: =Self.BorderColor
+                        PressedFill: =ColorFade(Self.Fill, -20%)
+                        PressedColor: =Self.Color
+                        PressedBorderColor: =Self.BorderColor
+                        Width: =130
+                        Height: =50
+                        FillPortions: =0
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =130
+                        LayoutMinHeight: =0
+            - txtNFind:
+                Control: Classic/TextInput@2.3.2
+                Properties:
+                  Default: =""
+                  HintText: ="ค้นหาชื่อ ชื่อเล่น หรือฝ่าย"
+                  Height: =54
+                  Font: =Font.'Open Sans'
+                  Size: =14
+                  BorderColor: =clrLine
+                  BorderThickness: =2
+                  Fill: =Color.White
+                  HoverFill: =Color.White
+                  PaddingLeft: =18
+                  RadiusTopLeft: =27
+                  RadiusTopRight: =27
+                  RadiusBottomLeft: =27
+                  RadiusBottomRight: =27
+                  FillPortions: =0
+                  AlignInContainer: =AlignInContainer.Stretch
+            - galNAll:
+                Control: Gallery@2.15.0
+                Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
+                Properties:
+                  Items: =SortByColumns(Filter(colEmp, IsBlank(Trim(txtNFind.Text)) || Trim(txtNFind.Text) in Nickname || Trim(txtNFind.Text) in FirstName || Trim(txtNFind.Text) in Department), "Nickname", SortOrder.Ascending)
+                  TemplateSize: =68
+                  OnSelect: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), Remove(colPick, LookUp(colPick, Email = ThisItem.Email)), Collect(colPick, ThisItem))
+                  Fill: =Color.Transparent
+                  BorderThickness: =0
+                  FillPortions: =1
+                  AlignInContainer: =AlignInContainer.Stretch
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                Children:
+                  - btnNAllCheck:
+                      Control: Classic/Button@2.2.0
+                      Properties:
+                        Text: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), "✓", "")
+                        OnSelect: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), Remove(colPick, LookUp(colPick, Email = ThisItem.Email)), Collect(colPick, ThisItem))
+                        Font: =Font.'Open Sans'
+                        Size: =14
+                        FontWeight: =FontWeight.Bold
+                        Fill: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), clrPrimary, Color.White)
+                        Color: =Color.White
+                        BorderColor: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), clrPrimary, clrLine)
+                        BorderThickness: =2
+                        RadiusTopLeft: =20
+                        RadiusTopRight: =20
+                        RadiusBottomLeft: =20
+                        RadiusBottomRight: =20
+                        HoverFill: =ColorFade(Self.Fill, -10%)
+                        HoverColor: =Self.Color
+                        HoverBorderColor: =Self.BorderColor
+                        PressedFill: =ColorFade(Self.Fill, -20%)
+                        PressedColor: =Self.Color
+                        PressedBorderColor: =Self.BorderColor
+                        X: =0
+                        Y: =14
+                        Width: =40
+                        Height: =40
+                  - lblNAllName:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: =Coalesce(ThisItem.Nickname, ThisItem.FirstName) & "  " & ThisItem.FirstName & " " & ThisItem.LastName
+                        Font: =Font.'Open Sans'
+                        Size: =14
+                        Color: =clrText
+                        X: =54
+                        Y: =6
+                        Width: =Parent.TemplateWidth - 54
+                        Height: =32
+                        FontWeight: =FontWeight.Semibold
+                        Wrap: =false
+                        OnSelect: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), Remove(colPick, LookUp(colPick, Email = ThisItem.Email)), Collect(colPick, ThisItem))
+                  - lblNAllDept:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: =ThisItem.Department & If(ThisItem.IsManager, " · หัวหน้า/ผู้จัดการ", "")
+                        Font: =Font.'Open Sans'
+                        Size: =12
+                        Color: =clrMuted
+                        X: =54
+                        Y: =36
+                        Width: =Parent.TemplateWidth - 54
+                        Height: =28
+                        OnSelect: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), Remove(colPick, LookUp(colPick, Email = ThisItem.Email)), Collect(colPick, ThisItem))
+                  - recNAllLine:
+                      Control: Rectangle@2.3.0
+                      Properties:
+                        X: =0
+                        Y: =Parent.TemplateHeight - 1
+                        Width: =Parent.TemplateWidth
+                        Height: =1
+                        Fill: =clrLine
+                        OnSelect: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), Remove(colPick, LookUp(colPick, Email = ThisItem.Email)), Collect(colPick, ThisItem))
       - recTabLineCN:
           Control: Rectangle@2.3.0
           Properties:
