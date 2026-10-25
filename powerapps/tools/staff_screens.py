@@ -1,6 +1,9 @@
 from yamlgen import *
 from yamlgen import HIST_LOAD
 
+def in_box_named(pair, fill=0, **p):
+    return (pair[0], in_box(pair[1], fill, **p))
+
 STAFF_TABS = [('Home', '"ภาพรวม"', 'Navigate(scrHome)'), ('List', '"งานจาก CEO"', 'Navigate(scrTickets)')]
 CARD_W = '(Parent.Width - 60) / 2'
 X2 = '36 + (Parent.Width - 60) / 2'
@@ -196,14 +199,7 @@ Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID",
         'AddAttachmentText': '"เลือกไฟล์"',
         'DisplayMode': 'If(varTicket.IsOpen, DisplayMode.Edit, DisplayMode.Disabled)',
         'Font': FONT, 'Size': 13, 'FontWeight': 'FontWeight.Bold', 'Color': 'clrPrimary', 'Fill': 'Color.White',
-        'BorderColor': 'ColorValue("#8A94A6")', 'BorderThickness': 2, 'BorderStyle': 'BorderStyle.Dashed',
-        # grows to list the chosen files; while empty the box is just the add link, centred by the left padding
-        # the control keeps an empty "no files" line above the add link, so it needs about 80 to show both without a scrollbar
-        'Height': 'If(IsEmpty(Self.Attachments), 80, 60 + CountRows(Self.Attachments) * 40)',
-        'ItemFill': 'clrBg', 'ItemColor': 'clrText', 'ItemHoverFill': 'clrLine', 'HoverFill': 'clrBg',
-        # no top/bottom padding while empty: any padding left less room than the link needs and showed a scrollbar
-        'PaddingTop': 'If(IsEmpty(Self.Attachments), 0, 6)', 'PaddingBottom': 'If(IsEmpty(Self.Attachments), 0, 6)', 'PaddingRight': 8,
-        'PaddingLeft': 'If(IsEmpty(Self.Attachments), (Self.Width - 110) / 2, 8)'}}
+        'ItemFill': 'clrBg', 'ItemColor': 'clrText', 'ItemHoverFill': 'clrLine', 'HoverFill': 'clrBg'}}  # size, padding, border: att_window
     big, small = status_buttons()
     sent_rows = 'Filter(varHist, StartsWith(Comment, "📎 แนบไฟล์"))'
     body = vbox([
@@ -224,12 +220,12 @@ Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID",
                       ('btnPhotos', link('"เปิดโฟลเดอร์"', folder, DisplayMode=f'If(varTicket.HasFiles || !IsEmpty({sent_rows}), DisplayMode.Edit, DisplayMode.Disabled)'))),
             file_list('galSentFiles', sent_rows, 'Mid(ThisItem.Comment, Find(": ", ThisItem.Comment) + 18)'),
             ('conDUpload', in_box(hbox([
-                ('attFiles', in_box(att, 1)),
-                ('btnUpload', in_box(button('"ส่งไฟล์"', upload, Height='If(IsEmpty(attFiles.Attachments), attFiles.Height, 56)', Size=15, FontWeight='FontWeight.Bold', BorderThickness=0,
+                in_box_named(att_window('conDAtt', 'attFiles', att['props'], 60, 110), 1),
+                ('btnUpload', in_box(button('"ส่งไฟล์"', upload, Height=60, Size=15, FontWeight='FontWeight.Bold', BorderThickness=0,
                                             DisplayMode='If(varBusy || IsEmpty(attFiles.Attachments) || !varTicket.IsOpen, DisplayMode.Disabled, DisplayMode.Edit)',
                                             DisabledFill='ColorFade(clrAccent, 60%)', DisabledColor='Color.White'), 1)),
-            ], Height='attFiles.Height', LayoutGap=12))),
-        ], '34 + 8 + If(galSentFiles.Visible, galSentFiles.Height + 8, 0) + attFiles.Height + 24', LayoutGap=8)),
+            ], Height='conDAtt.Height', LayoutGap=12))),
+        ], '34 + 8 + If(galSentFiles.Visible, galSentFiles.Height + 8, 0) + conDAtt.Height + 24', LayoutGap=8)),
         history_card('galHistory', 'recHistLine', 'lblHist', 'lblHistHead', 'conDHist', 'CEO', '"คุณ"'),
         ('conDAction', card([
             ('txtComment', in_box({'type': 'Classic/TextInput@2.3.2', 'props': {

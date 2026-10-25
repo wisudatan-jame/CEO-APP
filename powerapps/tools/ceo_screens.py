@@ -315,12 +315,7 @@ Reset(txtNTitle); Reset(txtNDetails); Reset(attNew); Clear(colPick); Set(varNMgr
     att = {'type': 'Attachments@2.3.0', 'props': {
         'Items': 'Blank()', 'MaxAttachments': 5, 'MaxAttachmentSize': 10, 'NoAttachmentsText': '""', 'DisplayMode': 'DisplayMode.Edit',
         'AddAttachmentText': '"แนบรูปหรือไฟล์ (ไม่บังคับ)"', 'Font': FONT, 'Size': 13, 'FontWeight': 'FontWeight.Bold', 'Color': 'clrPrimary', 'Fill': 'Color.White',
-        # the add link is anchored to the bottom of the box; while there are no files, pad it up into the middle
-        'PaddingLeft': 'If(IsEmpty(Self.Attachments), (Self.Width - 250) / 2, 12)', 'PaddingTop': 'If(IsEmpty(Self.Attachments), 0, 8)',
-        # the control keeps an empty "no files" line above the add link; leave room for both or it shows a scrollbar
-        'PaddingBottom': 'If(IsEmpty(Self.Attachments), Max(0, (Self.Height - 90) / 2), 8)',
-        'BorderColor': 'clrLine', 'BorderThickness': 2, 'BorderStyle': 'BorderStyle.Dashed', 'ItemFill': 'clrBg', 'ItemColor': 'clrText',
-        'ItemHoverFill': 'clrLine', 'HoverFill': 'clrBg', 'X': 24, 'Y': 'btnNDayToday.Y + 64', 'Width': 'Parent.Width - 48', 'Height': 100}}
+        'ItemFill': 'clrBg', 'ItemColor': 'clrText', 'ItemHoverFill': 'clrLine', 'HoverFill': 'clrBg'}}  # size, padding, border: att_window
     who_items = ('FirstN(SortByColumns(AddColumns(colEmp, Rank, If(Email in colPick.Email, 0, Lower(Email) in varFreq.AssigneeEmail, 1, 2)), '
                  '"Rank", SortOrder.Ascending, "Nickname", SortOrder.Ascending), 7)')
     find = 'Trim(txtNFind.Text)'
@@ -403,8 +398,8 @@ Reset(txtNTitle); Reset(txtNDetails); Reset(attNew); Clear(colPick); Set(varNMgr
         ('btnNMore', chip('"คนอื่น…"', 'false', 'Set(varNMgr, false); Reset(txtNFind); Set(varNPickAll, true)', **extra(1))),
         ('lblNWhenHead', label('"ส่งเมื่อไร"', X=24, Y=f'{after_who} + 6', Width=200, Height=34, Size=13, FontWeight='FontWeight.Semibold')),
     ] + day_ctrls + [
-        ('attNew', att),
-        ('lblNSummary', label(summary, X=24, Y='attNew.Y + attNew.Height + 4', Width='Parent.Width - 48', Height=44, Size=13, Color='clrPrimary',
+        att_window('conNAtt', 'attNew', att['props'], 76, 250, X=24, Y='btnNDayToday.Y + 64', Width='Parent.Width - 48'),
+        ('lblNSummary', label(summary, X=24, Y='conNAtt.Y + conNAtt.Height + 8', Width='Parent.Width - 48', Height=44, Size=13, Color='clrPrimary',
                               FontWeight='FontWeight.Semibold')),
         ('btnNCreate', button('"สั่งงาน"', create, X=24, Y=f'Parent.Height - {TAB_H} - 84', Width='Parent.Width - 48', Height=72, Size=16, FontWeight='FontWeight.Bold',
                               RadiusTopLeft=16, RadiusTopRight=16, RadiusBottomLeft=16, RadiusBottomRight=16,

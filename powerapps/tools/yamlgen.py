@@ -243,3 +243,22 @@ def file_list(name, rows, name_expr):
        Visible='!IsEmpty(Self.AllItems)')))
 
 HIST_LOAD = 'Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)); Set(varHistPos, 0)'  # history of the open ticket, newest first; pages and file lists read this
+
+def att_window(con_name, att_name, att_props, empty_h, text_w, **box):
+    """Attachments control seen through a box: the control keeps an empty line above its bottom-anchored add link and
+    always shows a scrollbar, so while no file is chosen the box shows only the control's bottom (the add link, centred);
+    the control is wider than the box so its scrollbar falls outside. With files chosen the box shows the whole list."""
+    empty = f'IsEmpty({att_name}.Attachments)'
+    props = dict(att_props)
+    props.update({
+        'Height': f'If(IsEmpty(Self.Attachments), 110, 70 + CountRows(Self.Attachments) * 40)',
+        'Width': 'Parent.Width + 30', 'Fill': 'Color.Transparent', 'BorderThickness': 0,
+        'PaddingTop': 5, 'PaddingBottom': 8, 'PaddingRight': 36,
+        'PaddingLeft': f'If(IsEmpty(Self.Attachments), (Parent.Width - {text_w}) / 2, 12)',
+        'FillPortions': 0, 'AlignInContainer': 'AlignInContainer.Start', 'LayoutMinHeight': 'Self.Height', 'LayoutMinWidth': 'Self.Width'})
+    for k in ('X', 'Y', 'BorderStyle', 'BorderColor'):
+        props.pop(k, None)
+    return (con_name, vbox([(att_name, {'type': 'Attachments@2.3.0', 'props': props})],
+        LayoutGap=0, LayoutJustifyContent='LayoutJustifyContent.End', Fill='Color.White',
+        BorderColor='ColorValue("#8A94A6")', BorderThickness=2, RadiusTopLeft=14, RadiusTopRight=14, RadiusBottomLeft=14, RadiusBottomRight=14,
+        Height=f'If({empty}, {empty_h}, {att_name}.Height + 4)', **box))

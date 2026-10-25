@@ -390,34 +390,60 @@ Screens:
             X: =24 + 3 * ((Parent.Width - 48 - 36) / 4 + 12)
             Y: =lblNWhenHead.Y + 38
             Width: =(Parent.Width - 48 - 36) / 4
-      - attNew:
-          Control: Attachments@2.3.0
+      - conNAtt:
+          Control: GroupContainer@1.3.0
+          Variant: AutoLayout
           Properties:
-            Items: =Blank()
-            MaxAttachments: =5
-            MaxAttachmentSize: =10
-            NoAttachmentsText: =""
-            DisplayMode: =DisplayMode.Edit
-            AddAttachmentText: ="แนบรูปหรือไฟล์ (ไม่บังคับ)"
-            Font: =Font.'Open Sans'
-            Size: =13
-            FontWeight: =FontWeight.Bold
-            Color: =clrPrimary
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            PaddingTop: =0
+            PaddingBottom: =0
+            PaddingLeft: =0
+            PaddingRight: =0
+            LayoutGap: =0
+            DropShadow: =DropShadow.None
             Fill: =Color.White
-            PaddingLeft: =If(IsEmpty(Self.Attachments), (Self.Width - 250) / 2, 12)
-            PaddingTop: =If(IsEmpty(Self.Attachments), 0, 8)
-            PaddingBottom: =If(IsEmpty(Self.Attachments), Max(0, (Self.Height - 90) / 2), 8)
-            BorderColor: =clrLine
             BorderThickness: =2
-            BorderStyle: =BorderStyle.Dashed
-            ItemFill: =clrBg
-            ItemColor: =clrText
-            ItemHoverFill: =clrLine
-            HoverFill: =clrBg
+            LayoutJustifyContent: =LayoutJustifyContent.End
+            BorderColor: =ColorValue("#8A94A6")
+            RadiusTopLeft: =14
+            RadiusTopRight: =14
+            RadiusBottomLeft: =14
+            RadiusBottomRight: =14
+            Height: =If(IsEmpty(attNew.Attachments), 76, attNew.Height + 4)
             X: =24
             Y: =btnNDayToday.Y + 64
             Width: =Parent.Width - 48
-            Height: =100
+          Children:
+            - attNew:
+                Control: Attachments@2.3.0
+                Properties:
+                  Items: =Blank()
+                  MaxAttachments: =5
+                  MaxAttachmentSize: =10
+                  NoAttachmentsText: =""
+                  DisplayMode: =DisplayMode.Edit
+                  AddAttachmentText: ="แนบรูปหรือไฟล์ (ไม่บังคับ)"
+                  Font: =Font.'Open Sans'
+                  Size: =13
+                  FontWeight: =FontWeight.Bold
+                  Color: =clrPrimary
+                  Fill: =Color.Transparent
+                  ItemFill: =clrBg
+                  ItemColor: =clrText
+                  ItemHoverFill: =clrLine
+                  HoverFill: =clrBg
+                  Height: =If(IsEmpty(Self.Attachments), 110, 70 + CountRows(Self.Attachments) * 40)
+                  Width: =Parent.Width + 30
+                  BorderThickness: =0
+                  PaddingTop: =5
+                  PaddingBottom: =8
+                  PaddingRight: =36
+                  PaddingLeft: =If(IsEmpty(Self.Attachments), (Parent.Width - 250) / 2, 12)
+                  FillPortions: =0
+                  AlignInContainer: =AlignInContainer.Start
+                  LayoutMinHeight: =Self.Height
+                  LayoutMinWidth: =Self.Width
       - lblNSummary:
           Control: Label@2.5.1
           Properties:
@@ -426,7 +452,7 @@ Screens:
             Size: =13
             Color: =clrPrimary
             X: =24
-            Y: =attNew.Y + attNew.Height + 4
+            Y: =conNAtt.Y + conNAtt.Height + 8
             Width: =Parent.Width - 48
             Height: =44
             FontWeight: =FontWeight.Semibold
