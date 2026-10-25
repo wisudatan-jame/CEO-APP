@@ -106,6 +106,7 @@ Screens:
                         FillPortions: =0
                         AlignInContainer: =AlignInContainer.Center
                         LayoutMinWidth: =56
+                        LayoutMinHeight: =0
                   - lblDTitle:
                       Control: Label@2.5.1
                       Properties:
@@ -118,6 +119,7 @@ Screens:
                         FillPortions: =1
                         AlignInContainer: =AlignInContainer.Center
                         LayoutMinWidth: =0
+                        LayoutMinHeight: =0
             - conDStatus:
                 Control: GroupContainer@1.3.0
                 Variant: AutoLayout
@@ -164,17 +166,19 @@ Screens:
                         Height: =40
                         FillPortions: =0
                         AlignInContainer: =AlignInContainer.Center
+                        LayoutMinHeight: =0
                   - lblDStatusDue:
                       Control: Label@2.5.1
                       Properties:
-                        Text: ="ส่ง " & Text(varTicket.DueDate, "dddd d mmm", "th-TH") & If(!varTicket.IsOpen, "", varTicket.DueDate < Today(), " · เลย " & DateDiff(varTicket.DueDate, Today()) & " วัน", varTicket.DueDate = Today(), " · วันนี้", " · อีก " & DateDiff(Today(), varTicket.DueDate) & " วัน")
+                        Text: ="ส่ง " & Text(varTicket.DueDate, "dddd d mmm", "th-TH") & If(varTicket.Status.Value in ["Done", "Closed"], If(IsBlank(varTicket.DoneAt) || varTicket.DoneAt < DateAdd(varTicket.DueDate, 1, TimeUnit.Days), " · ทันกำหนด", " · ช้า " & DateDiff(varTicket.DueDate, varTicket.DoneAt) & " วัน"), !varTicket.IsOpen, "", varTicket.DueDate < Today(), " · เลย " & DateDiff(varTicket.DueDate, Today()) & " วัน", varTicket.DueDate = Today(), " · วันนี้", " · อีก " & DateDiff(Today(), varTicket.DueDate) & " วัน")
                         Font: =Font.'Open Sans'
                         Size: =13
                         Color: =If(varTicket.IsOpen && varTicket.Status.Value <> "Done" && varTicket.DueDate < Today(), clrDanger, clrMuted)
                         Height: =40
                         FillPortions: =1
-                        AlignInContainer: =AlignInContainer.Start
+                        AlignInContainer: =AlignInContainer.Center
                         LayoutMinWidth: =0
+                        LayoutMinHeight: =0
             - conDInfo:
                 Control: GroupContainer@1.3.0
                 Variant: AutoLayout
@@ -230,6 +234,7 @@ Screens:
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =140
                               Height: =Parent.Height - 0 - 0
+                              LayoutMinHeight: =0
                         - lblDFrom:
                             Control: Label@2.5.1
                             Properties:
@@ -242,6 +247,7 @@ Screens:
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
+                              LayoutMinHeight: =0
                   - conDWhen:
                       Control: GroupContainer@1.3.0
                       Variant: AutoLayout
@@ -274,6 +280,7 @@ Screens:
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =140
                               Height: =Parent.Height - 0 - 0
+                              LayoutMinHeight: =0
                         - lblDWhen:
                             Control: Label@2.5.1
                             Properties:
@@ -286,6 +293,7 @@ Screens:
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
+                              LayoutMinHeight: =0
                   - conDDetails:
                       Control: GroupContainer@1.3.0
                       Variant: AutoLayout
@@ -319,6 +327,7 @@ Screens:
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =140
                               Height: =Parent.Height - 0 - 0
+                              LayoutMinHeight: =0
                         - lblDDetails:
                             Control: Label@2.5.1
                             Properties:
@@ -331,6 +340,7 @@ Screens:
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
+                              LayoutMinHeight: =0
                   - conDExtra:
                       Control: GroupContainer@1.3.0
                       Variant: AutoLayout
@@ -369,6 +379,7 @@ Screens:
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =140
                               Height: =Parent.Height - 8 - 8
+                              LayoutMinHeight: =0
                         - lblDExtra:
                             Control: Label@2.5.1
                             Properties:
@@ -381,6 +392,7 @@ Screens:
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
+                              LayoutMinHeight: =0
             - conDFiles:
                 Control: GroupContainer@1.3.0
                 Variant: AutoLayout
@@ -402,9 +414,9 @@ Screens:
                   RadiusBottomRight: =20
                   FillPortions: =0
                   AlignInContainer: =AlignInContainer.Stretch
-                  Height: =34 + 8 + If(lblSentFiles.Visible, lblSentFiles.Height + 8, 0) + 96 + 8 + 56 + 28 + 4
+                  Height: =34 + 8 + If(galSentFiles.Visible, galSentFiles.Height + 8, 0) + 96 + 8 + 56 + 28 + 4
                 Children:
-                  - conDFileHead:
+                  - conDFilesHead:
                       Control: GroupContainer@1.3.0
                       Variant: AutoLayout
                       Properties:
@@ -431,9 +443,12 @@ Screens:
                               Color: =clrText
                               Height: =34
                               FontWeight: =FontWeight.Bold
+                              VerticalAlign: =VerticalAlign.Top
+                              PaddingTop: =2
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
+                              LayoutMinHeight: =0
                         - btnPhotos:
                             Control: Classic/Button@2.2.0
                             Properties:
@@ -458,6 +473,8 @@ Screens:
                               PressedBorderColor: =Self.BorderColor
                               Width: =190
                               Height: =34
+                              VerticalAlign: =VerticalAlign.Top
+                              PaddingTop: =4
                               Align: =Align.Right
                               PaddingRight: =0
                               DisabledFill: =Color.Transparent
@@ -466,21 +483,57 @@ Screens:
                               FillPortions: =0
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =190
-                  - lblSentFiles:
-                      Control: Label@2.5.1
+                              LayoutMinHeight: =0
+                  - galSentFiles:
+                      Control: Gallery@2.15.0
+                      Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
                       Properties:
-                        Text: |-
-                          =Concat(
-                              Filter(galHistory.AllItems, StartsWith(Comment, "📎 แนบไฟล์")),
-                              "• " & Mid(Comment, Find(": ", Comment) + 18) & "  (" & Text(Created, "d mmm hh:mm", "th-TH") & ")",
-                              Char(10))
-                        Font: =Font.'Open Sans'
-                        Size: =13
-                        Color: =clrPrimary
-                        AutoHeight: =true
-                        Visible: =CountRows(Filter(galHistory.AllItems, StartsWith(Comment, "📎 แนบไฟล์"))) > 0
+                        Items: =Filter(galHistory.AllItems, StartsWith(Comment, "📎 แนบไฟล์"))
+                        TemplateSize: =46
+                        Fill: =Color.Transparent
+                        ShowScrollbar: =false
+                        Height: =CountRows(Self.AllItems) * 46
+                        Visible: =!IsEmpty(Self.AllItems)
                         FillPortions: =0
                         AlignInContainer: =AlignInContainer.Stretch
+                      Children:
+                        - icogalSentFiles:
+                            Control: Classic/Icon@2.5.0
+                            Properties:
+                              Icon: =Icon.Document
+                              Color: =clrPrimary
+                              OnSelect: =Select(Parent)
+                              X: =0
+                              Y: =11.0
+                              Width: =24
+                              Height: =24
+                        - lblgalSentFilesName:
+                            Control: Label@2.5.1
+                            Properties:
+                              Text: |-
+                                =Mid(ThisItem.Comment, Find(": ", ThisItem.Comment) + 18)
+                              Font: =Font.'Open Sans'
+                              Size: =13
+                              Color: =clrPrimary
+                              X: =34
+                              Y: =0
+                              Width: =Parent.TemplateWidth - 34 - 150
+                              Height: =46
+                              Wrap: =false
+                              OnSelect: =Select(Parent)
+                        - lblgalSentFilesWhen:
+                            Control: Label@2.5.1
+                            Properties:
+                              Text: =Text(ThisItem.Created, "d mmm hh:mm", "th-TH")
+                              Font: =Font.'Open Sans'
+                              Size: =12
+                              Color: =clrMuted
+                              X: =Parent.TemplateWidth - 146
+                              Y: =0
+                              Width: =146
+                              Height: =46
+                              Align: =Align.Right
+                              OnSelect: =Select(Parent)
                   - attFiles:
                       Control: Attachments@2.3.0
                       Properties:
@@ -728,6 +781,7 @@ Screens:
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
+                              LayoutMinHeight: =0
                         - btnWait:
                             Control: Classic/Button@2.2.0
                             Properties:
@@ -765,6 +819,7 @@ Screens:
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
+                              LayoutMinHeight: =0
                   - conDSmall:
                       Control: GroupContainer@1.3.0
                       Variant: AutoLayout
@@ -820,6 +875,7 @@ Screens:
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
+                              LayoutMinHeight: =0
                         - btnStart:
                             Control: Classic/Button@2.2.0
                             Properties:
@@ -857,6 +913,7 @@ Screens:
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
+                              LayoutMinHeight: =0
                         - btnComment:
                             Control: Classic/Button@2.2.0
                             Properties:
@@ -894,6 +951,7 @@ Screens:
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Start
                               LayoutMinWidth: =0
+                              LayoutMinHeight: =0
       - recTabLineD:
           Control: Rectangle@2.3.0
           Properties:

@@ -498,6 +498,7 @@ Screens:
                         AlignInContainer: =AlignInContainer.Start
                         LayoutMinWidth: =0
                         Height: =Parent.Height - 0 - 0
+                        LayoutMinHeight: =0
                       Children:
                         - lblSGotN:
                             Control: Label@2.5.1
@@ -540,6 +541,7 @@ Screens:
                         AlignInContainer: =AlignInContainer.Start
                         LayoutMinWidth: =0
                         Height: =Parent.Height - 0 - 0
+                        LayoutMinHeight: =0
                       Children:
                         - lblSOnTimeN:
                             Control: Label@2.5.1
@@ -582,6 +584,7 @@ Screens:
                         AlignInContainer: =AlignInContainer.Start
                         LayoutMinWidth: =0
                         Height: =Parent.Height - 0 - 0
+                        LayoutMinHeight: =0
                       Children:
                         - lblSAvgN:
                             Control: Label@2.5.1

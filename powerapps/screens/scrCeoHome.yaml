@@ -375,6 +375,7 @@ Screens:
                         FillPortions: =1
                         AlignInContainer: =AlignInContainer.Start
                         LayoutMinWidth: =0
+                        LayoutMinHeight: =0
                   - lblCPeopleCols:
                       Control: Label@2.5.1
                       Properties:
@@ -388,6 +389,7 @@ Screens:
                         FillPortions: =0
                         AlignInContainer: =AlignInContainer.Start
                         LayoutMinWidth: =220
+                        LayoutMinHeight: =0
             - galCPeople:
                 Control: Gallery@2.15.0
                 Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0

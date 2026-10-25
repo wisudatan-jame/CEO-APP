@@ -130,8 +130,10 @@ def history_card(gal_name, line_name, lbl_name, head_name, card_name):
 STAFF_STATUS = 'Switch({s}, "New", "ใหม่", "Acknowledged", "รับทราบแล้ว", "InProgress", "กำลังทำ", "WaitingCEO", "รอ CEO ตอบ", "Done", "รอ CEO ตรวจ", "Closed", "ปิดแล้ว", {s})'
 
 def due_text(t):
-    """"ส่ง อังคาร 27 ต.ค. · อีก 1 วัน" (or "· เลย 2 วัน" / "· วันนี้")."""
-    return (f'"ส่ง " & Text({t}.DueDate, "dddd d mmm", "th-TH") & If(!{t}.IsOpen, "", {t}.DueDate < Today(), " · เลย " & DateDiff({t}.DueDate, Today()) & " วัน", '
+    """"ส่ง อังคาร 27 ต.ค. · อีก 1 วัน" (or "· เลย 2 วัน" / "· วันนี้"; finished work: "· ทันกำหนด" / "· ช้า n วัน")."""
+    return (f'"ส่ง " & Text({t}.DueDate, "dddd d mmm", "th-TH") & If({t}.Status.Value in ["Done", "Closed"], '
+            f'If(IsBlank({t}.DoneAt) || {t}.DoneAt < DateAdd({t}.DueDate, 1, TimeUnit.Days), " · ทันกำหนด", " · ช้า " & DateDiff({t}.DueDate, {t}.DoneAt) & " วัน"), '
+            f'!{t}.IsOpen, "", {t}.DueDate < Today(), " · เลย " & DateDiff({t}.DueDate, Today()) & " วัน", '
             f'{t}.DueDate = Today(), " · วันนี้", " · อีก " & DateDiff(Today(), {t}.DueDate) & " วัน")')
 
 def status_row(name, status_text):
@@ -140,14 +142,11 @@ def status_row(name, status_text):
     return (f'con{name}', in_box(hbox([
         (f'btn{name}Pill', in_box(pill(status_text, 'varTicket.Status.Value', late, OnSelect='false', Width='Len(Self.Text) * 11 + 40', Height=40, Size=13),
                                    0, AlignInContainer='AlignInContainer.Center')),
-        (f'lbl{name}Due', in_box(label(due_text('varTicket'), Height=40, Size=13, Color=f'If({late}, clrDanger, clrMuted)'), 1)),
+        (f'lbl{name}Due', in_box(label(due_text('varTicket'), Height=40, Size=13, Color=f'If({late}, clrDanger, clrMuted)'), 1,
+                                   AlignInContainer='AlignInContainer.Center')),
     ], Height=44, LayoutGap=12, LayoutAlignItems='LayoutAlignItems.Center')))
 
 def scr_detail():
-    sent = '''Concat(
-    Filter(galHistory.AllItems, StartsWith(Comment, "📎 แนบไฟล์")),
-    "• " & Mid(Comment, Find(": ", Comment) + 18) & "  (" & Text(Created, "d mmm hh:mm", "th-TH") & ")",
-    Char(10))'''
     upload = '''Set(varBusy, true);
 Set(varUpload,
     ForAll(attFiles.Attachments As f,
@@ -184,16 +183,14 @@ Set(varTicket, LookUp(Tickets, ID = varTicket.ID))'''
         ], 'conDFrom.Height + 6 + conDWhen.Height + If(conDDetails.Visible, 6 + conDDetails.Height, 0) + If(conDExtra.Visible, 6 + conDExtra.Height, 0) + 28',
            LayoutGap=6)),
         ('conDFiles', card([
-            ('conDFileHead', in_box(hbox([
-                ('lblDFilesHead', in_box(label(f'"ไฟล์ที่ส่งแล้ว (" & CountRows({sent_rows}) & ")"', Height=34, Size=15, FontWeight='FontWeight.Bold'), 1)),
-                ('btnPhotos', link('"เปิดโฟลเดอร์"', folder, DisplayMode='If(varTicket.HasFiles, DisplayMode.Edit, DisplayMode.Disabled)')),
-            ], Height=34))),
-            ('lblSentFiles', in_box(label(sent, AutoHeight='true', Size=13, Color='clrPrimary', Visible=f'CountRows({sent_rows}) > 0'))),
+            card_head('DFiles', f'"ไฟล์ที่ส่งแล้ว (" & CountRows({sent_rows}) & ")"',
+                      ('btnPhotos', link('"เปิดโฟลเดอร์"', folder, DisplayMode='If(varTicket.HasFiles, DisplayMode.Edit, DisplayMode.Disabled)'))),
+            file_list('galSentFiles', sent_rows, 'Mid(ThisItem.Comment, Find(": ", ThisItem.Comment) + 18)'),
             ('attFiles', in_box(att, AlignInContainer='AlignInContainer.Start', Width='Parent.Width - 40')),
             ('btnUpload', in_box(button('"ส่งไฟล์"', upload, Height=56, Size=15, FontWeight='FontWeight.Bold',
                                         DisplayMode='If(varBusy || IsEmpty(attFiles.Attachments) || !varTicket.IsOpen, DisplayMode.Disabled, DisplayMode.Edit)',
                                         DisabledFill='ColorFade(clrAccent, 60%)', DisabledColor='Color.White'))),
-        ], '34 + 8 + If(lblSentFiles.Visible, lblSentFiles.Height + 8, 0) + 96 + 8 + 56 + 28', LayoutGap=8)),
+        ], '34 + 8 + If(galSentFiles.Visible, galSentFiles.Height + 8, 0) + 96 + 8 + 56 + 28', LayoutGap=8)),
         history_card('galHistory', 'recHistLine', 'lblHist', 'lblHistHead', 'conDHist'),
         ('conDAction', card([
             ('txtComment', in_box({'type': 'Classic/TextInput@2.3.2', 'props': {

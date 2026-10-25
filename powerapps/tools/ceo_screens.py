@@ -163,10 +163,7 @@ ClearCollect(colEmp, Filter(Employees, Active = true))"""
 
 def scr_ceo_detail():
     who = NAME.format(e='varTicket.AssigneeEmail')
-    files = '''With({rows: Filter(galCDHistory.AllItems, StartsWith(Comment, "📎"))},
-    If(IsEmpty(rows),
-        If(varTicket.HasFiles, "มีไฟล์ในโฟลเดอร์งาน (รูปที่สั่งผ่าน LINE)", "ยังไม่มีไฟล์"),
-        Concat(rows, "• " & If(StartsWith(Comment, "📎 แนบไฟล์"), Mid(Comment, Find(": ", Comment) + 18), Trim(Mid(Comment, 3))) & "  (" & Text(Created, "d mmm hh:mm", "th-TH") & ")", Char(10))))'''
+    file_rows = 'Filter(galCDHistory.AllItems, StartsWith(Comment, "📎"))'
     folder = 'Launch("https://digitalfocusth.sharepoint.com/sites/CEO-Tickets/TicketFiles/Forms/AllItems.aspx?id=" & EncodeUrl("/sites/CEO-Tickets/TicketFiles/T-" & varTicket.ID))'
     hist = lambda action, frm, to, comment: (f'Patch(TicketHistory, Defaults(TicketHistory), {HIST}, {{Title: "T-" & varTicket.ID, TicketID: varTicket.ID, '
                                               f'Action: {{Value: {action}}}, FromStatus: {frm}, ToStatus: {to}, Comment: {comment}, ActorEmail: Lower(User().Email)}})')
@@ -224,12 +221,12 @@ Set(varPickDue, false);
         ], 'conCDWho.Height + 6 + conCDWhen.Height + If(conCDDetails.Visible, 6 + conCDDetails.Height, 0) + If(conCDExtra.Visible, 6 + conCDExtra.Height, 0) + 28',
            LayoutGap=6)),
         ('conCDFiles', card([
-            ('conCDFileHead', in_box(hbox([
-                ('lblCDFilesHead', in_box(label('"ไฟล์งาน"', Height=34, Size=15, FontWeight='FontWeight.Bold'), 1)),
-                ('btnCDFolder', link('"เปิดโฟลเดอร์"', folder, DisplayMode='If(varTicket.HasFiles, DisplayMode.Edit, DisplayMode.Disabled)')),
-            ], Height=34))),
-            ('lblCDFiles', in_box(label(files, AutoHeight='true', Size=13, Color='clrPrimary'))),
-        ], 'conCDFileHead.Height + 8 + lblCDFiles.Height + 28', LayoutGap=8)),
+            card_head('CDFiles', f'"ไฟล์งาน (" & CountRows({file_rows}) & ")"',
+                      ('btnCDFolder', link('"เปิดโฟลเดอร์"', folder, DisplayMode='If(varTicket.HasFiles, DisplayMode.Edit, DisplayMode.Disabled)'))),
+            file_list('galCDFiles', file_rows, 'If(StartsWith(ThisItem.Comment, "📎 แนบไฟล์"), Mid(ThisItem.Comment, Find(": ", ThisItem.Comment) + 18), Trim(Mid(ThisItem.Comment, 3)))'),
+            ('lblCDFilesEmpty', in_box(label('If(varTicket.HasFiles, "มีไฟล์ในโฟลเดอร์งาน (รูปที่สั่งผ่าน LINE)", "ยังไม่มีไฟล์")', Height=40, Size=13,
+                                             Color='clrMuted', Visible='!galCDFiles.Visible'))),
+        ], '34 + 8 + If(galCDFiles.Visible, galCDFiles.Height, 40) + 28', LayoutGap=8)),
         history_card('galCDHistory', 'recCDHistLine', 'lblCDHist', 'lblCDHistHead', 'conCDHist'),
         ('conCDAction', card([
             ('txtCeo', in_box({'type': 'Classic/TextInput@2.3.2', 'props': {

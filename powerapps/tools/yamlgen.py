@@ -91,6 +91,7 @@ def hbox(children, **p):
         if cp.get('AlignInContainer', 'AlignInContainer.Stretch') == 'AlignInContainer.Stretch':
             cp['AlignInContainer'] = 'AlignInContainer.Start'
             cp.setdefault('Height', inner)
+        cp['LayoutMinHeight'] = 0  # the default minimum is taller than our rows and pushed text and button borders out of the row
     return {'type': 'GroupContainer@1.3.0', 'variant': 'AutoLayout', 'props': props, 'children': children}
 
 def card(children, height, **p):
@@ -197,6 +198,7 @@ def pill(text, status, late, **p):
 def link(text, onselect, width=190, **p):
     """Small text button for the right side of a card header (the mockup's "เปิดโฟลเดอร์")."""
     return in_box(button(text, onselect, Width=width, Height=34, Size=13, Fill='Color.Transparent', Color='clrPrimary', BorderThickness=0,
+                         VerticalAlign='VerticalAlign.Top', PaddingTop=4,
                          Align='Align.Right', PaddingRight=0, HoverFill='Color.Transparent', PressedFill='Color.Transparent',
                          HoverColor='clrAccent', DisabledFill='Color.Transparent', DisabledColor='ColorFade(clrPrimary, 60%)', **p),
                   0, LayoutMinWidth=width)
@@ -213,3 +215,24 @@ def kv(name, key, value, fill=None, key_color='clrMuted', visible=None):
                                      VerticalAlign='VerticalAlign.Top'), 0, LayoutMinWidth=140)),
         (val, in_box(label(value, AutoHeight='true', Size=13, VerticalAlign='VerticalAlign.Top'), 1, AlignInContainer='AlignInContainer.Start')),
     ], Height=f'{val}.Height + {pad}', LayoutGap=8, LayoutAlignItems='LayoutAlignItems.Start', **box, **extra)))
+
+def card_head(name, text, right=None):
+    """Card heading row: bold title on the left, optional link on the right (text anchored to the top of the row)."""
+    kids = [(f'lbl{name}Head', in_box(label(text, Height=34, Size=15, FontWeight='FontWeight.Bold', VerticalAlign='VerticalAlign.Top', PaddingTop=2), 1))]
+    if right:
+        kids.append(right)
+    return (f'con{name}Head', in_box(hbox(kids, Height=34)))
+
+FILE_ROW = 46
+
+def file_list(name, rows, name_expr):
+    """One row per file: document icon, file name, date on the right (as in the mockup)."""
+    return (name, in_box(gallery(rows, [
+        (f'ico{name}', {'type': 'Classic/Icon@2.5.0', 'props': {'Icon': 'Icon.Document', 'Color': 'clrPrimary', 'OnSelect': 'Select(Parent)',
+                                                             'X': 0, 'Y': (FILE_ROW - 24) / 2, 'Width': 24, 'Height': 24}}),
+        (f'lbl{name}Name', label(name_expr, X=34, Y=0, Width='Parent.TemplateWidth - 34 - 150', Height=FILE_ROW, Size=13, Color='clrPrimary',
+                                 Wrap='false', OnSelect='Select(Parent)')),
+        (f'lbl{name}When', label('Text(ThisItem.Created, "d mmm hh:mm", "th-TH")', X='Parent.TemplateWidth - 146', Y=0, Width=146, Height=FILE_ROW,
+                                 Size=12, Color='clrMuted', Align='Align.Right', OnSelect='Select(Parent)')),
+    ], TemplateSize=FILE_ROW, Fill='Color.Transparent', ShowScrollbar='false', Height=f'CountRows(Self.AllItems) * {FILE_ROW}',
+       Visible='!IsEmpty(Self.AllItems)')))
