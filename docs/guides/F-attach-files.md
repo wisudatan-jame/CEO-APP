@@ -118,17 +118,19 @@
 **btnUpload → OnSelect**
 ```powerfx
 Set(varBusy, true);
-ClearCollect(colUpload,
+Set(varUpload,
     ForAll(attFiles.Attachments As f,
         AttachTicketFile.Run(varTicket.ID, {contentBytes: f.Value, name: f.Name})));
 Set(varBusy, false);
-If(CountIf(colUpload, ok = "true") = CountRows(colUpload),
-    Notify("ส่งไฟล์แล้ว " & CountRows(colUpload) & " ไฟล์", NotificationType.Success); Reset(attFiles),
-    Notify("ส่งไม่สำเร็จบางไฟล์: " & First(Filter(colUpload, ok <> "true")).message, NotificationType.Error));
+If(CountIf(varUpload, ok = "true") = CountRows(varUpload),
+    Notify("ส่งไฟล์แล้ว " & CountRows(varUpload) & " ไฟล์", NotificationType.Success); Reset(attFiles),
+    Notify("ส่งไม่สำเร็จบางไฟล์: " & First(Filter(varUpload, ok <> "true")).message, NotificationType.Error));
 Refresh(Tickets);
 Refresh(TicketHistory);
 Set(varTicket, LookUp(Tickets, ID = varTicket.ID))
 ```
+ใช้ตัวแปร `varUpload` (ไม่ใช่ Collection) เพราะผลการส่งไม่ต้องแก้ทีหลัง App checker จึงไม่เตือน "Collection is initialized but never updated"
+
 ⚠️ Input ของ Flow นี้เป็นแบบบังคับ จึงส่งค่าตามลำดับ (เลขงาน, ไฟล์) ถ้าขึ้น "Invalid number of arguments" ให้พิมพ์ `AttachTicketFile.Run(` แล้วดูกล่องคำแนะนำ ถ้าค่าอยู่ในวงเล็บปีกกา (Input ไม่บังคับ) ให้ใช้ `AttachTicketFile.Run({number: varTicket.ID, file: {contentBytes: f.Value, name: f.Name}})` แทน
 
 ### 2.4 ปรับตำแหน่ง
