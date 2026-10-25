@@ -99,6 +99,7 @@ Screens:
                         Height: =60
                         FillPortions: =1
                         AlignInContainer: =AlignInContainer.Stretch
+                        LayoutMinWidth: =0
             - lblDDue:
                 Control: Label@2.5.1
                 Properties:
@@ -275,6 +276,7 @@ Screens:
                               DisabledBorderColor: =clrLine
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Stretch
+                              LayoutMinWidth: =0
                         - btnUpload:
                             Control: Classic/Button@2.2.0
                             Properties:
@@ -314,6 +316,7 @@ Screens:
                               DisabledColor: =Color.White
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Stretch
+                              LayoutMinWidth: =0
             - conDHist:
                 Control: GroupContainer@1.3.0
                 Variant: AutoLayout
@@ -473,6 +476,7 @@ Screens:
                               Height: =64
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Stretch
+                              LayoutMinWidth: =0
                         - btnWait:
                             Control: Classic/Button@2.2.0
                             Properties:
@@ -509,6 +513,7 @@ Screens:
                               Height: =64
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Stretch
+                              LayoutMinWidth: =0
                   - conDSmall:
                       Control: GroupContainer@1.3.0
                       Variant: AutoLayout
@@ -559,6 +564,7 @@ Screens:
                               Height: =56
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Stretch
+                              LayoutMinWidth: =0
                         - btnStart:
                             Control: Classic/Button@2.2.0
                             Properties:
@@ -595,6 +601,7 @@ Screens:
                               Height: =56
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Stretch
+                              LayoutMinWidth: =0
                         - btnComment:
                             Control: Classic/Button@2.2.0
                             Properties:
@@ -631,6 +638,7 @@ Screens:
                               Height: =56
                               FillPortions: =1
                               AlignInContainer: =AlignInContainer.Stretch
+                              LayoutMinWidth: =0
       - recTabLineD:
           Control: Rectangle@2.3.0
           Properties:

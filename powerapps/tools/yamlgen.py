@@ -92,6 +92,8 @@ def card(children, height, **p):
 def in_box(c, fill=0, **p):
     """Placement inside an auto-layout box: fixed size unless fill > 0."""
     c['props'].update({'FillPortions': fill, 'AlignInContainer': 'AlignInContainer.Stretch'}, **p)
+    if fill and 'LayoutMinWidth' not in p:
+        c['props']['LayoutMinWidth'] = 0  # share the row equally instead of keeping the default minimum width
     return c
 
 def header(sfx):
