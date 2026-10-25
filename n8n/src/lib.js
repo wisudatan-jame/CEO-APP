@@ -892,9 +892,16 @@ async function changeStatus(ctx, ev, cfg, action, ticketId, expected) {
     ActorEmail: lower(cfg.CEO_EMAIL), Source: 'LINE', Processed: false,
   });
   const emp = (await getEmployees(ctx)).find((e) => e.email === lower(it.fields.AssigneeEmail));
-  await lineReply(ctx, ev, textMsg(action === 'close'
-    ? `✅ ปิด T-${ticketId} แล้ว`
-    : `↩️ ส่ง T-${ticketId} กลับให้${personName(emp, it.fields.AssigneeEmail)}ทำต่อแล้ว`));
+  const who = personName(emp, it.fields.AssigneeEmail);
+  if (action === 'close') {
+    await lineReply(ctx, ev, textMsg(`✅ ผ่าน ปิด T-${ticketId} แล้ว`));
+    return { changed: ticketId, to };
+  }
+  // A rejected task needs a reason: the next text the CEO sends goes to the assignee as a comment.
+  ctx.store.replyTo = { ticketId, at: ctx.now().getTime(), kind: 'reason' };
+  await lineReply(ctx, ev, textMsg(`❌ ไม่ผ่าน ส่ง T-${ticketId} กลับให้${who}ทำต่อแล้ว\nพิมพ์หรือพูดสิ่งที่ต้องแก้ ส่งถึง${who}ได้เลย`, [
+    qrPostback('ไม่ต้องบอกเหตุผล', { a: 'replycancel', t: ticketId }, 'ไม่ต้องบอกเหตุผล'),
+  ]));
   return { changed: ticketId, to };
 }
 
@@ -1110,8 +1117,8 @@ async function replyList(ctx, ev, kind, page) {
   const items = [];
   if (kind === 'done') {
     for (const t of rows) {
-      items.push(qrPostback(`✅ ปิด T-${t.id}`, { a: 'close', t: t.id, s: 'Done' }, `ปิด T-${t.id}`));
-      items.push(qrPostback(`↩️ ส่งกลับ T-${t.id}`, { a: 'reopen', t: t.id, s: 'Done' }, `ส่งกลับ T-${t.id}`));
+      items.push(qrPostback(`✅ ผ่าน T-${t.id}`, { a: 'close', t: t.id, s: 'Done' }, `ผ่าน ปิด T-${t.id}`));
+      items.push(qrPostback(`❌ ไม่ผ่าน T-${t.id}`, { a: 'reopen', t: t.id, s: 'Done' }, `ไม่ผ่าน ส่งกลับ T-${t.id}`));
     }
   }
   if (sorted.length > (page + 1) * size) items.push(qrPostback('ดูเพิ่ม ▶', { a: 'list', k: kind, p: page + 1 }, 'ดูเพิ่ม'));
@@ -1163,7 +1170,8 @@ async function sendReply(ctx, ev, cfg, pending, text) {
     ActorEmail: lower(cfg.CEO_EMAIL), Source: 'LINE', Processed: false, CEOPending: false,
   });
   const emp = (await getEmployees(ctx)).find((e) => e.email === lower(it.fields.AssigneeEmail));
-  await lineReply(ctx, ev, textMsg(`✅ ส่งคำตอบให้${personName(emp, it.fields.AssigneeEmail)}แล้ว (T-${pending.ticketId})`));
+  const what = pending.kind === 'reason' ? 'สิ่งที่ต้องแก้' : 'คำตอบ';
+  await lineReply(ctx, ev, textMsg(`✅ ส่ง${what}ให้${personName(emp, it.fields.AssigneeEmail)}แล้ว (T-${pending.ticketId})`));
   return { reply: pending.ticketId, answered: isAnswer };
 }
 
@@ -1204,8 +1212,8 @@ function staffUpdateMessage(h, ticket, emp) {
   }
   if (h.fields.Action === 'done') {
     return textMsg(`✅ ${who} ทำเสร็จแล้ว รอคุณตรวจ\nT-${id} ${title}${note}`, [
-      qrPostback('✅ ปิดงาน', { a: 'close', t: id, s: 'Done' }, `ปิด T-${id}`),
-      qrPostback('↩️ ส่งกลับ', { a: 'reopen', t: id, s: 'Done' }, `ส่งกลับ T-${id}`),
+      qrPostback('✅ ผ่าน ปิดงาน', { a: 'close', t: id, s: 'Done' }, `ผ่าน ปิด T-${id}`),
+      qrPostback('❌ ไม่ผ่าน ส่งกลับ', { a: 'reopen', t: id, s: 'Done' }, `ไม่ผ่าน ส่งกลับ T-${id}`),
       replyBtn,
     ]);
   }

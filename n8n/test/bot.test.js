@@ -488,7 +488,7 @@ test('done list offers close/reopen, and stale status is refused', async () => {
   const w = summaryWorld();
   await send(w, postbackEv({ a: 'list', k: 'done', p: 0 }));
   const acts = quick(lastReply(w));
-  assert.deepEqual(acts.map((a) => a.label), ['✅ ปิด T-4', '↩️ ส่งกลับ T-4']);
+  assert.deepEqual(acts.map((a) => a.label), ['✅ ผ่าน T-4', '❌ ไม่ผ่าน T-4']);
   await send(w, postbackEv(actionData(acts[0])));
   const t4 = w.items.Tickets.find((t) => t.id === '4').fields;
   assert.equal(t4.Status, 'Closed');
@@ -578,7 +578,7 @@ test('staff question and done are pushed to the CEO once, with action buttons', 
   assert.match(q.text, /⏳ คุณปิ รอคำตอบจากคุณ\nT-3 งาน 3\n💬 ลูกค้าขอส่วนลด 10% ได้ไหม/);
   assert.deepEqual(quick(q).map((a) => a.label), ['💬 ตอบ']);
   assert.match(d.text, /✅ คุณปิ ทำเสร็จแล้ว รอคุณตรวจ/);
-  assert.deepEqual(quick(d).map((a) => a.label), ['✅ ปิดงาน', '↩️ ส่งกลับ', '💬 ตอบ']);
+  assert.deepEqual(quick(d).map((a) => a.label), ['✅ ผ่าน ปิดงาน', '❌ ไม่ผ่าน ส่งกลับ', '💬 ตอบ']);
   assert.ok(w.items.TicketHistory.every((h) => h.fields.CEOPending !== true));
   assert.equal((await lib.notifyCeoOfStaffUpdates(w.ctx)).sent, 0);
 });
@@ -603,6 +603,22 @@ test('CEO answers a question from LINE: status back to InProgress, history for t
   assert.equal(w.items.Tickets.length, 6); // the reply did not become a new task
   await send(w, textEv('งานใหม่หลังตอบ'));
   assert.match(lastReply(w).text, /สั่งใคร/);
+});
+
+test('reject sends the task back and the next text becomes the reason for the assignee', async () => {
+  const w = summaryWorld();
+  const before = w.items.Tickets.length;
+  await send(w, postbackEv({ a: 'reopen', t: 4, s: 'Done' }));
+  const t4 = w.items.Tickets.find((t) => t.id === '4').fields;
+  assert.equal(t4.Status, 'InProgress');
+  let msg = lastReply(w);
+  assert.match(msg.text, /^❌ ไม่ผ่าน ส่ง T-4 กลับให้.*\nพิมพ์หรือพูดสิ่งที่ต้องแก้/);
+  assert.equal(quick(msg)[0].label, 'ไม่ต้องบอกเหตุผล');
+  await send(w, textEv('ตัวเลขยอดขายไม่ตรงกับ SAP แก้แล้วส่งใหม่'));
+  const h = w.items.TicketHistory.map((i) => i.fields);
+  assert.deepEqual(h.map((f) => [f.Action, f.Comment]), [['reopen', undefined], ['comment', 'ตัวเลขยอดขายไม่ตรงกับ SAP แก้แล้วส่งใหม่']]);
+  assert.match(lastReply(w).text, /^✅ ส่งสิ่งที่ต้องแก้ให้/);
+  assert.equal(w.items.Tickets.length, before); // the reason did not become a new task
 });
 
 test('reply on a task that is not waiting becomes a comment; cancel works', async () => {
