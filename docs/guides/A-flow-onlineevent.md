@@ -71,7 +71,7 @@ Control → **Condition**
 - Recipient (Expression): `body('Get_ticket')?['AssigneeEmail']`
 - Message (Expression):
   ```
-  concat('📌 งานใหม่จาก CEO: T-', triggerBody()?['TicketID'], ' (ส่ง ', formatDateTime(addHours(body('Get_ticket')?['DueDate'], 7), 'dd/MM/yyyy'), ') เปิดดู: https://digitalfocusth.sharepoint.com/sites/CEO-Tickets/Lists/Tickets/DispForm.aspx?ID=', triggerBody()?['TicketID'])
+  concat('📌 งานใหม่จาก CEO: T-', triggerBody()?['TicketID'], ' (ส่ง ', formatDateTime(addHours(body('Get_ticket')?['DueDate'], 7), 'dd/MM/yyyy'), ') <a href="https://digitalfocusth.sharepoint.com/sites/CEO-Tickets/Lists/Tickets/DispForm.aspx?ID=', triggerBody()?['TicketID'], '">เปิดดูงาน</a>')
   ```
   ข้อความมีแค่เลขงาน วันส่ง และลิงก์ **ไม่ใส่ชื่องาน** เพราะแจ้งเตือนแสดงบนหน้าจอล็อก ลิงก์เปิดรายการใน SharePoint ซึ่งพนักงานดูได้เพราะ b) ให้สิทธิ์ Can view ไว้แล้ว (เปิดหน้าแรกของ Site ไม่ได้ ต้องเปิดผ่านลิงก์นี้) เมื่อมีแอปพนักงานแล้วให้เปลี่ยนเป็นลิงก์แอปตาม[คู่มือ ค](C-staff-app.md) ⚠️ ตรวจในการทดสอบว่าวันที่ตรง ถ้าเลื่อน 1 วัน ให้ลบ `addHours(..., 7)` ออก
 
@@ -93,7 +93,7 @@ Control → **Condition**
 - Post as: Flow bot · Post in: Chat with Flow bot · Recipient: `body('Get_ticket')?['AssigneeEmail']`
 - Message (Expression):
   ```
-  concat('🔔 T-', triggerBody()?['TicketID'], ': ', json('{"close":"CEO ปิดงานแล้ว","reopen":"CEO ส่งกลับให้ทำต่อ","reply":"CEO ตอบคำถามแล้ว","comment":"CEO มีความเห็น"}')?[triggerBody()?['Action']?['Value']], ' เปิดดู: https://digitalfocusth.sharepoint.com/sites/CEO-Tickets/Lists/Tickets/DispForm.aspx?ID=', triggerBody()?['TicketID'])
+  concat('🔔 T-', triggerBody()?['TicketID'], ': ', json('{"close":"CEO ปิดงานแล้ว","reopen":"CEO ส่งกลับให้ทำต่อ","reply":"CEO ตอบคำถามแล้ว","comment":"CEO มีความเห็น"}')?[triggerBody()?['Action']?['Value']], ' <a href="https://digitalfocusth.sharepoint.com/sites/CEO-Tickets/Lists/Tickets/DispForm.aspx?ID=', triggerBody()?['TicketID'], '">เปิดดูงาน</a>')
   ```
   ไม่ใส่ข้อความที่ CEO ตอบในแจ้งเตือน (แสดงบนหน้าจอล็อก) ให้พนักงานเปิดอ่านในแอป
 
@@ -169,7 +169,7 @@ List `TicketHistory` → คลิกหัวคอลัมน์ **Action** �
    คนใหม่จึงเห็นประวัติเดิมทั้งหมดของงาน และคนเดิมเห็นไม่ได้อีก
 3. **d) Notify new task** เปลี่ยน Message (Expression) เป็น
    ```
-   concat(if(equals(triggerBody()?['Action']?['Value'], 'reassign'), '🔁 CEO โอนงานให้คุณ: T-', '📌 งานใหม่จาก CEO: T-'), triggerBody()?['TicketID'], ' (ส่ง ', formatDateTime(addHours(body('Get_ticket')?['DueDate'], 7), 'dd/MM/yyyy'), ') เปิดดู: https://digitalfocusth.sharepoint.com/sites/CEO-Tickets/Lists/Tickets/DispForm.aspx?ID=', triggerBody()?['TicketID'])
+   concat(if(equals(triggerBody()?['Action']?['Value'], 'reassign'), '🔁 CEO โอนงานให้คุณ: T-', '📌 งานใหม่จาก CEO: T-'), triggerBody()?['TicketID'], ' (ส่ง ', formatDateTime(addHours(body('Get_ticket')?['DueDate'], 7), 'dd/MM/yyyy'), ') <a href="https://digitalfocusth.sharepoint.com/sites/CEO-Tickets/Lists/Tickets/DispForm.aspx?ID=', triggerBody()?['TicketID'], '">เปิดดูงาน</a>')
    ```
 4. **Save**
 
