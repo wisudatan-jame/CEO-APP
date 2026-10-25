@@ -155,8 +155,10 @@ def header(sfx):
 TAB_H = 96
 TAB_ICONS = {'Home': 'Icon.Home', 'List': 'Icon.DetailList', 'New': 'Icon.Add'}
 
-def tabs(sfx, items, active):
-    """Bottom tab bar: icon over label, the active tab in red (as in the mockup)."""
+def tabs(sfx, items, active, badges=None):
+    """Bottom tab bar: icon over label, the active tab in red (as in the mockup).
+    badges: {tab key: count formula} draws a red number on that tab's icon while the count is above 0."""
+    badges = badges or {}
     n = len(items)
     out = [(f'recTabLine{sfx}', rect(Fill='clrLine', X=0, Y=f'Parent.Height - {TAB_H}', Width='Parent.Width', Height=2))]
     for i, (key, text, onselect) in enumerate(items):
@@ -173,6 +175,13 @@ def tabs(sfx, items, active):
             'Icon': TAB_ICONS[key], 'Color': color, 'OnSelect': onselect,
             'X': f'{x} + (Parent.Width / {n} - 34) / 2' if i else f'(Parent.Width / {n} - 34) / 2',
             'Y': f'Parent.Height - {TAB_H} + 14', 'Width': 34, 'Height': 34}}))
+        if key in badges:
+            count = badges[key]
+            out.append((f'btnTabBadge{key}{sfx}', button(f'If({count} > 9, "9+", Text({count}))', onselect,
+                X=f'{x} + Parent.Width / {n} / 2 + 6' if i else f'Parent.Width / {n} / 2 + 6', Y=f'Parent.Height - {TAB_H} + 6',
+                Width=32, Height=32, Size=10, FontWeight='FontWeight.Bold', Fill='clrAccent', Color='Color.White', BorderThickness=0,
+                PaddingTop=0, PaddingBottom=0, PaddingLeft=0, PaddingRight=0,
+                RadiusTopLeft=16, RadiusTopRight=16, RadiusBottomLeft=16, RadiusBottomRight=16, Visible=f'{count} > 0')))
     return out
 
 def area(children, x, y, w, h, **p):
@@ -262,3 +271,8 @@ def att_window(con_name, att_name, att_props, empty_h, text_w, **box):
         LayoutGap=0, LayoutJustifyContent='LayoutJustifyContent.End', Fill='Color.White',
         BorderColor='ColorValue("#8A94A6")', BorderThickness=2, RadiusTopLeft=14, RadiusTopRight=14, RadiusBottomLeft=14, RadiusBottomRight=14,
         Height=f'If({empty}, {empty_h}, {att_name}.Height + 4)', **box))
+
+# New work from the CEO not yet acknowledged; drives the red badge on the "งานจาก CEO" tab and the "มีงานใหม่" banner.
+NEW_LOAD = 'Set(varNewT, Filter(Tickets, AssigneeEmail = varMe, IsOpen = true, Status.Value = "New"))'
+NEW_NOTIFY = ('If(CountRows(varNewT) > Coalesce(varNewShown, 0), Notify("📌 มีงานใหม่จาก CEO " & CountRows(varNewT) & " งาน · แตะเมนูงานจาก CEO", '
+              'NotificationType.Information, 6000));\nSet(varNewShown, CountRows(varNewT))')

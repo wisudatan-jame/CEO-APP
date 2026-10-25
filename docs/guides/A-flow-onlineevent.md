@@ -11,8 +11,8 @@ Flow นี้รับต่อจากบอท LINE: ตั้งสิท�
 
 > **สร้างใน Environment หลักของบริษัทเท่านั้น:** มุมขวาบนของ make.powerautomate.com / make.powerapps.com ต้องเป็น Environment ชื่อ `Digital Focus (default)` หรือชื่อบริษัทที่มีคำว่า default **ห้ามสร้างใน Environment ส่วนตัวแบบ Developer** (ชื่อมักเป็น `<ชื่อคุณ>'s Environment`) เพราะ Microsoft ประกาศยกเลิก Developer environment แบบ unmanaged และ Power Apps Developer Plan: เริ่มระงับ 15 ธ.ค. 2026 และเริ่มลบ 15 ม.ค. 2027 ⚠️ ตรวจชื่อ Environment ก่อนเริ่มทุกครั้ง
 
-## การแจ้งเตือน: ใช้ Teams ไปก่อน
-แอป Power Apps ของพนักงาน ([คู่มือ ค](C-staff-app.md)) ยังไม่มี จึงส่งแจ้งเตือนผ่าน **Microsoft Teams (Flow bot)** ซึ่งพนักงานทุกคนมีอยู่แล้วและแจ้งเตือนบนมือถือได้ทันที เมื่อมีแอปแล้วค่อยเพิ่มลิงก์เปิดแอปในข้อความ
+## การแจ้งเตือน: Teams และแจ้งเตือนเด้งของแอป
+ส่งแจ้งเตือนผ่าน **Microsoft Teams (Flow bot)** ซึ่งพนักงานทุกคนมีอยู่แล้ว ข้อความมีลิงก์ **เปิดในแอป** และเมื่อพนักงานติดตั้งแอปในมือถือแล้ว เพิ่มแจ้งเตือนเด้งของแอปตามข้อ 8
 
 ## 1. สร้าง Flow
 1. เปิด **https://make.powerautomate.com** ด้วยบัญชีของคุณ
@@ -231,3 +231,45 @@ Flow ไม่ต้องแก้เพิ่มสำหรับงานก
    - [ ] คนที่ 1 เปิดลิงก์งานของคนที่ 2 แล้ว Access denied
    - [ ] พิมพ์ `กลุ่ม T-<เลขใบแรก> ถึงไหน` ได้ `ทำเสร็จ 0/2`
 
+
+## 8. แจ้งเตือนเด้งบนมือถือ (Push notification ของแอป)
+นอกจาก Teams แล้ว Flow ส่งแจ้งเตือนเด้งของแอป `CEO - สั่งงาน` ได้ด้วย แตะแล้วเปิดแอปที่หน้างานนั้นทันที (แอปอ่าน `ticketId` ใน `OnStart`)
+- ผู้รับต้องติดตั้งแอป **Power Apps** บนมือถือ ล็อกอินด้วยบัญชีบริษัท เปิดแอป `CEO - สั่งงาน` อย่างน้อยหนึ่งครั้ง และอนุญาตการแจ้งเตือน (เปิดผ่านเบราว์เซอร์จะไม่ได้รับ)
+- ข้อความไม่มีชื่องานเหมือน Teams เพราะแสดงบนหน้าจอล็อก
+- **Teams ยังส่งเหมือนเดิม** เป็นช่องทางสำรอง
+
+### 8.1 งานใหม่และการโอนงาน (ฝั่ง True ของข้อ 3.2)
+ใต้ **d) Notify new task** เพิ่ม Action **Power Apps Notification (V2) → Send push notification (V2)** ชื่อ `Push new task`
+- **Your App:** เลือก `CEO - สั่งงาน` (ถ้ารายการว่าง ตรวจว่า Flow อยู่ใน Environment `Digital Focus (default)` เดียวกับแอป)
+- **Recipients** (Items · Expression): `body('Get_ticket')?['AssigneeEmail']`
+- **Message** (Expression):
+  ```
+  concat(if(equals(triggerBody()?['Action']?['Value'], 'reassign'), '🔁 CEO โอนงานให้คุณ: T-', '📌 งานใหม่จาก CEO: T-'), triggerBody()?['TicketID'], ' · ส่ง ', formatDateTime(addHours(body('Get_ticket')?['DueDate'], 7), 'dd/MM/yyyy'))
+  ```
+- **Open app:** `Yes`
+- **Parameters:** เพิ่ม 1 คู่ · Key: `ticketId` · Value (Expression): `triggerBody()?['TicketID']`
+  (ถ้าหน้าจอเป็นช่อง JSON ช่องเดียว ใส่ Expression `json(concat('{"ticketId":', triggerBody()?['TicketID'], '}'))`)
+- ⚠️ ถ้า Action นี้ขึ้นป้าย **Premium** หยุดก่อนแล้วแจ้งผู้พัฒนา (ปกติเป็น Standard)
+
+### 8.2 CEO ตอบ ส่งกลับ ปิดงาน สั่งเพิ่ม ติดตาม เลื่อนวันส่ง (ฝั่ง False ของข้อ 3.2)
+ใต้ **Notify status change** (ก่อน Condition `CEO added photos`) เพิ่ม Action เดียวกัน ชื่อ `Push status change`
+- Your App, Recipients, Open app, Parameters: เหมือนข้อ 8.1
+- **Message** (Expression) = ข้อความเดียวกับ Teams ในข้อ 7.2 แต่ไม่มีลิงก์:
+  ```
+  concat(if(startsWith(coalesce(triggerBody()?['Comment'], ''), '📣'), '📣 T-', '🔔 T-'), triggerBody()?['TicketID'], ': ', if(startsWith(coalesce(triggerBody()?['Comment'], ''), '➕'), 'CEO สั่งงานเพิ่มเติม', if(startsWith(coalesce(triggerBody()?['Comment'], ''), '📎'), 'CEO แนบรูปเพิ่ม', if(startsWith(coalesce(triggerBody()?['Comment'], ''), '📣'), 'CEO ติดตามงาน', if(startsWith(coalesce(triggerBody()?['Comment'], ''), '📅'), 'CEO เลื่อนวันส่ง', json('{"close":"CEO ปิดงานแล้ว","reopen":"CEO ส่งกลับให้ทำต่อ","reply":"CEO ตอบคำถามแล้ว","comment":"CEO มีความเห็น"}')?[triggerBody()?['Action']?['Value']])))))
+  ```
+
+### 8.3 ตั้ง Run after (แจ้งเตือนเด้งพลาดต้องไม่ทำให้ทั้ง Flow ล้ม)
+ผู้รับที่ยังไม่ได้ติดตั้งแอปในมือถือทำให้ Action นี้ Failed ได้
+1. ที่ Action ถัดไปของแต่ละฝั่ง (ฝั่ง True: **e) Mark ticket ready** · ฝั่ง False: Condition **CEO added photos**) → **⋯** → **Settings** (หรือ **Configure run after**)
+2. ติ๊ก **is successful** และ **has failed** ของ `Push new task` / `Push status change` → **Done**
+3. **Save**
+
+### 8.4 ทดสอบ
+1. ติดตั้งแอป Power Apps บนมือถือพนักงานทดสอบ A แล้วเปิด `CEO - สั่งงาน` หนึ่งครั้ง (กดอนุญาตการแจ้งเตือน)
+2. ปิดแอป แล้ว CEO สั่งงานให้ A ทาง LINE
+   - [ ] มือถือ A เด้ง `📌 งานใหม่จาก CEO: T-... · ส่ง ...` แตะแล้วเปิดแอปที่หน้างานนั้น
+   - [ ] A ยังได้ Teams ด้วย
+3. CEO ตอบหรือส่งกลับงานของ A
+   - [ ] เด้ง `🔔 T-...: CEO ...` แตะแล้วเปิดหน้างานนั้น
+4. ผู้รับที่ไม่มีแอปในมือถือ: Flow ต้องยัง **Succeeded** (ดูประวัติ Run) และได้ Teams ตามปกติ

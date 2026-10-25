@@ -1,10 +1,11 @@
 from yamlgen import *
-from yamlgen import HIST_LOAD
+from yamlgen import HIST_LOAD, NEW_LOAD, NEW_NOTIFY
 
 def in_box_named(pair, fill=0, **p):
     return (pair[0], in_box(pair[1], fill, **p))
 
 STAFF_TABS = [('Home', '"ภาพรวม"', 'Navigate(scrHome)'), ('List', '"งานจาก CEO"', 'Navigate(scrTickets)')]
+STAFF_BADGES = {'List': 'CountRows(varNewT)'}
 CARD_W = '(Parent.Width - 60) / 2'
 X2 = '36 + (Parent.Width - 60) / 2'
 CONTENT_END = f'Parent.Height - {TAB_H} - 12'  # bottom edge for boxes that sit above the tab bar
@@ -14,7 +15,9 @@ def scr_home():
 Set(varMine, Filter(Tickets, AssigneeEmail = varMe));
 Set(varOpen, Filter(varMine, IsOpen = true));
 Set(varLate, Filter(varOpen, Status.Value <> "Done", DueDate < Today()));
-Set(varDone30, Filter(varMine, !IsBlank(DoneAt), DoneAt >= DateAdd(Today(), -30, TimeUnit.Days)))"""
+Set(varDone30, Filter(varMine, !IsBlank(DoneAt), DoneAt >= DateAdd(Today(), -30, TimeUnit.Days)));
+Set(varNewT, Filter(varOpen, Status.Value = "New"));
+""" + NEW_NOTIFY
     todo_sub = """If(ThisItem.DueDate < Today(), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & (Text(ThisItem.DueDate, "ddd", "th-TH") & " " & Day(ThisItem.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(ThisItem.DueDate)).Value)) &
 " · " & Switch(ThisItem.Status.Value, "New", "ใหม่ ยังไม่รับทราบ", "Acknowledged", "รับทราบ", "InProgress", "กำลังทำ", "WaitingCEO", "รอ CEO ตอบ", ThisItem.Status.Value)"""
     late = 'ThisItem.DueDate < Today()'
@@ -57,7 +60,7 @@ Set(varDone30, Filter(varMine, !IsBlank(DoneAt), DoneAt >= DateAdd(Today(), -30,
                      '"วันเฉลี่ย/งาน"', 'clrPrimary'),
             ], Height=70, LayoutGap=8))),
         ], 24, f'{CONTENT_END} - {stats_h}', 'Parent.Width - 48', stats_h)),
-    ] + tabs('H', STAFF_TABS, 'Home')
+    ] + tabs('H', STAFF_TABS, 'Home', STAFF_BADGES)
     return screen('scrHome', {'Fill': 'clrBg', 'OnVisible': on_visible}, children)
 
 def scr_tickets():
@@ -74,15 +77,15 @@ def scr_tickets():
                                    FontWeight='FontWeight.Semibold', OnSelect='Select(Parent)')),
                 ('lblMeta', label(meta, X=20, Y=48, Width='Parent.TemplateWidth - 230', Height=30, Size=12, FontWeight='FontWeight.Semibold',
                                   Color='If(ThisItem.DueDate < Today(), clrDanger, clrMuted)', OnSelect='Select(Parent)')),
-                ('lblStatus', label(status, X='Parent.TemplateWidth - 210', Y=48, Width=190, Height=30, Size=12, Align='Align.Right',
-                                    FontWeight='FontWeight.Semibold', Color='clrPrimary', OnSelect='Select(Parent)')),
+                ('btnStatusPill', pill(status, 'ThisItem.Status.Value', 'ThisItem.Status.Value = "New" || (ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today())',
+                                       X='Parent.TemplateWidth - 20 - Self.Width', Y=42, Width='Len(Self.Text) * 11 + 36', Height=38)),
             ], TemplateSize=102, OnSelect='Set(varTicket, ThisItem); Navigate(scrDetail)'))),
         ], 24, 160, 'Parent.Width - 48', f'Parent.Height - {TAB_H} - 104 - Self.Y')),
-        ('btnRefresh', button('"รีเฟรช"', 'Refresh(Tickets)', X=24, Y=f'Parent.Height - {TAB_H} - 92', Width='Parent.Width - 48', Height=80,
+        ('btnRefresh', button('"รีเฟรช"', 'Refresh(Tickets);\n' + NEW_LOAD + ';\n' + NEW_NOTIFY, X=24, Y=f'Parent.Height - {TAB_H} - 92', Width='Parent.Width - 48', Height=80,
                               Size=16, FontWeight='FontWeight.Bold',
                               RadiusTopLeft=16, RadiusTopRight=16, RadiusBottomLeft=16, RadiusBottomRight=16)),
-    ] + tabs('T', STAFF_TABS, 'List')
-    return screen('scrTickets', {'Fill': 'clrBg'}, children)
+    ] + tabs('T', STAFF_TABS, 'List', STAFF_BADGES)
+    return screen('scrTickets', {'Fill': 'clrBg', 'OnVisible': NEW_LOAD + ';\n' + NEW_NOTIFY}, children)
 
 def status_buttons():
     run = lambda action: f'''Set(varBusy, true);
@@ -92,7 +95,8 @@ If(varResult.ok = "true", Notify("บันทึกแล้ว", NotificationT
 Refresh(Tickets);
 Refresh(TicketHistory);
 Set(varTicket, LookUp(Tickets, ID = varTicket.ID));
-Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)); Set(varHistPos, 0)'''
+Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)); Set(varHistPos, 0);
+Set(varNewT, Filter(Tickets, AssigneeEmail = varMe, IsOpen = true, Status.Value = "New"))'''
     big = dict(Height=56, Size=16, FontWeight='FontWeight.Bold', RadiusTopLeft=16, RadiusTopRight=16, RadiusBottomLeft=16, RadiusBottomRight=16)
     small = dict(Height=50, Size=14, Fill='Color.White', Color='clrPrimary', BorderColor='clrLine', BorderThickness=2)
     done_set = 'varTicket.Status.Value in ["Done", "Closed"]'
@@ -244,7 +248,7 @@ Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID",
         ('imgLogoD', image("'df-logo-white'", X=16, Y=12, Width=150, Height=66)),
         ('imgCEOD', image("'ceo-avatar-sangngan'", X='Parent.Width - 80', Y=4, Width=64, Height=83)),
         ('conDBody', body),
-    ] + tabs('D', STAFF_TABS, 'List')
+    ] + tabs('D', STAFF_TABS, 'List', STAFF_BADGES)
     return screen('scrDetail', {'Fill': 'clrBg', 'OnVisible': 'Refresh(TicketHistory);\n' + HIST_LOAD}, children)
 
 if __name__ == '__main__':

@@ -908,7 +908,8 @@ Screens:
                                 Refresh(Tickets);
                                 Refresh(TicketHistory);
                                 Set(varTicket, LookUp(Tickets, ID = varTicket.ID));
-                                Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)); Set(varHistPos, 0)
+                                Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)); Set(varHistPos, 0);
+                                Set(varNewT, Filter(Tickets, AssigneeEmail = varMe, IsOpen = true, Status.Value = "New"))
                               Font: =Font.'Open Sans'
                               Size: =16
                               FontWeight: =FontWeight.Bold
@@ -946,7 +947,8 @@ Screens:
                                 Refresh(Tickets);
                                 Refresh(TicketHistory);
                                 Set(varTicket, LookUp(Tickets, ID = varTicket.ID));
-                                Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)); Set(varHistPos, 0)
+                                Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)); Set(varHistPos, 0);
+                                Set(varNewT, Filter(Tickets, AssigneeEmail = varMe, IsOpen = true, Status.Value = "New"))
                               Font: =Font.'Open Sans'
                               Size: =16
                               FontWeight: =FontWeight.Bold
@@ -1003,7 +1005,8 @@ Screens:
                                 Refresh(Tickets);
                                 Refresh(TicketHistory);
                                 Set(varTicket, LookUp(Tickets, ID = varTicket.ID));
-                                Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)); Set(varHistPos, 0)
+                                Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)); Set(varHistPos, 0);
+                                Set(varNewT, Filter(Tickets, AssigneeEmail = varMe, IsOpen = true, Status.Value = "New"))
                               Font: =Font.'Open Sans'
                               Size: =14
                               FontWeight: =FontWeight.Semibold
@@ -1042,7 +1045,8 @@ Screens:
                                 Refresh(Tickets);
                                 Refresh(TicketHistory);
                                 Set(varTicket, LookUp(Tickets, ID = varTicket.ID));
-                                Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)); Set(varHistPos, 0)
+                                Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)); Set(varHistPos, 0);
+                                Set(varNewT, Filter(Tickets, AssigneeEmail = varMe, IsOpen = true, Status.Value = "New"))
                               Font: =Font.'Open Sans'
                               Size: =14
                               FontWeight: =FontWeight.Semibold
@@ -1081,7 +1085,8 @@ Screens:
                                 Refresh(Tickets);
                                 Refresh(TicketHistory);
                                 Set(varTicket, LookUp(Tickets, ID = varTicket.ID));
-                                Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)); Set(varHistPos, 0)
+                                Set(varHist, SortByColumns(Filter(TicketHistory, TicketID = varTicket.ID), "ID", SortOrder.Descending)); Set(varHistPos, 0);
+                                Set(varNewT, Filter(Tickets, AssigneeEmail = varMe, IsOpen = true, Status.Value = "New"))
                               Font: =Font.'Open Sans'
                               Size: =14
                               FontWeight: =FontWeight.Semibold
@@ -1192,3 +1197,34 @@ Screens:
             Y: =Parent.Height - 96 + 14
             Width: =34
             Height: =34
+      - btnTabBadgeListD:
+          Control: Classic/Button@2.2.0
+          Properties:
+            Text: =If(CountRows(varNewT) > 9, "9+", Text(CountRows(varNewT)))
+            OnSelect: =Navigate(scrTickets)
+            Font: =Font.'Open Sans'
+            Size: =10
+            FontWeight: =FontWeight.Bold
+            Fill: =clrAccent
+            Color: =Color.White
+            BorderColor: =clrAccent
+            BorderThickness: =0
+            RadiusTopLeft: =16
+            RadiusTopRight: =16
+            RadiusBottomLeft: =16
+            RadiusBottomRight: =16
+            HoverFill: =ColorFade(Self.Fill, -10%)
+            HoverColor: =Self.Color
+            HoverBorderColor: =Self.BorderColor
+            PressedFill: =ColorFade(Self.Fill, -20%)
+            PressedColor: =Self.Color
+            PressedBorderColor: =Self.BorderColor
+            X: =Parent.Width * 1 / 2 + Parent.Width / 2 / 2 + 6
+            Y: =Parent.Height - 96 + 6
+            Width: =32
+            Height: =32
+            PaddingTop: =0
+            PaddingBottom: =0
+            PaddingLeft: =0
+            PaddingRight: =0
+            Visible: =CountRows(varNewT) > 0

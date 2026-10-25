@@ -2,6 +2,10 @@ Screens:
   scrTickets:
     Properties:
       Fill: =clrBg
+      OnVisible: |-
+        =Set(varNewT, Filter(Tickets, AssigneeEmail = varMe, IsOpen = true, Status.Value = "New"));
+        If(CountRows(varNewT) > Coalesce(varNewShown, 0), Notify("📌 มีงานใหม่จาก CEO " & CountRows(varNewT) & " งาน · แตะเมนูงานจาก CEO", NotificationType.Information, 6000));
+        Set(varNewShown, CountRows(varNewT))
     Children:
       - recTop:
           Control: Rectangle@2.3.0
@@ -144,25 +148,43 @@ Screens:
                         Height: =30
                         FontWeight: =FontWeight.Semibold
                         OnSelect: =Select(Parent)
-                  - lblStatus:
-                      Control: Label@2.5.1
+                  - btnStatusPill:
+                      Control: Classic/Button@2.2.0
                       Properties:
                         Text: =Switch(ThisItem.Status.Value, "New", "ใหม่", "Acknowledged", "รับทราบ", "InProgress", "กำลังทำ", "WaitingCEO", "รอ CEO ตอบ", "Done", "รอ CEO ตรวจ", ThisItem.Status.Value)
+                        OnSelect: =Select(Parent)
                         Font: =Font.'Open Sans'
                         Size: =12
-                        Color: =clrPrimary
-                        X: =Parent.TemplateWidth - 210
-                        Y: =48
-                        Width: =190
-                        Height: =30
-                        Align: =Align.Right
-                        FontWeight: =FontWeight.Semibold
-                        OnSelect: =Select(Parent)
+                        FontWeight: =FontWeight.Bold
+                        Fill: =Switch(true, ThisItem.Status.Value = "New" || (ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today()), ColorValue("#FDE8E8"), ThisItem.Status.Value = "WaitingCEO", ColorValue("#E9E9F5"), ThisItem.Status.Value = "Done", ColorValue("#E3F4EA"), ThisItem.Status.Value = "New", ColorValue("#EEF0F4"), ColorValue("#F1F2F6"))
+                        Color: =Switch(true, ThisItem.Status.Value = "New" || (ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today()), clrDanger, ThisItem.Status.Value = "WaitingCEO", clrPrimary, ThisItem.Status.Value = "Done", ColorValue("#17703A"), ThisItem.Status.Value = "New", ColorValue("#3F4A5C"), ColorValue("#3F4A5C"))
+                        BorderColor: =clrAccent
+                        BorderThickness: =0
+                        RadiusTopLeft: =20
+                        RadiusTopRight: =20
+                        RadiusBottomLeft: =20
+                        RadiusBottomRight: =20
+                        HoverFill: =Self.Fill
+                        HoverColor: =Self.Color
+                        HoverBorderColor: =Self.BorderColor
+                        PressedFill: =Self.Fill
+                        PressedColor: =Self.Color
+                        PressedBorderColor: =Self.BorderColor
+                        PaddingLeft: =8
+                        PaddingRight: =8
+                        X: =Parent.TemplateWidth - 20 - Self.Width
+                        Y: =42
+                        Width: =Len(Self.Text) * 11 + 36
+                        Height: =38
       - btnRefresh:
           Control: Classic/Button@2.2.0
           Properties:
             Text: ="รีเฟรช"
-            OnSelect: =Refresh(Tickets)
+            OnSelect: |-
+              =Refresh(Tickets);
+              Set(varNewT, Filter(Tickets, AssigneeEmail = varMe, IsOpen = true, Status.Value = "New"));
+              If(CountRows(varNewT) > Coalesce(varNewShown, 0), Notify("📌 มีงานใหม่จาก CEO " & CountRows(varNewT) & " งาน · แตะเมนูงานจาก CEO", NotificationType.Information, 6000));
+              Set(varNewShown, CountRows(varNewT))
             Font: =Font.'Open Sans'
             Size: =16
             FontWeight: =FontWeight.Bold
@@ -268,3 +290,34 @@ Screens:
             Y: =Parent.Height - 96 + 14
             Width: =34
             Height: =34
+      - btnTabBadgeListT:
+          Control: Classic/Button@2.2.0
+          Properties:
+            Text: =If(CountRows(varNewT) > 9, "9+", Text(CountRows(varNewT)))
+            OnSelect: =Navigate(scrTickets)
+            Font: =Font.'Open Sans'
+            Size: =10
+            FontWeight: =FontWeight.Bold
+            Fill: =clrAccent
+            Color: =Color.White
+            BorderColor: =clrAccent
+            BorderThickness: =0
+            RadiusTopLeft: =16
+            RadiusTopRight: =16
+            RadiusBottomLeft: =16
+            RadiusBottomRight: =16
+            HoverFill: =ColorFade(Self.Fill, -10%)
+            HoverColor: =Self.Color
+            HoverBorderColor: =Self.BorderColor
+            PressedFill: =ColorFade(Self.Fill, -20%)
+            PressedColor: =Self.Color
+            PressedBorderColor: =Self.BorderColor
+            X: =Parent.Width * 1 / 2 + Parent.Width / 2 / 2 + 6
+            Y: =Parent.Height - 96 + 6
+            Width: =32
+            Height: =32
+            PaddingTop: =0
+            PaddingBottom: =0
+            PaddingLeft: =0
+            PaddingRight: =0
+            Visible: =CountRows(varNewT) > 0

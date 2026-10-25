@@ -7,7 +7,10 @@ Screens:
         Set(varMine, Filter(Tickets, AssigneeEmail = varMe));
         Set(varOpen, Filter(varMine, IsOpen = true));
         Set(varLate, Filter(varOpen, Status.Value <> "Done", DueDate < Today()));
-        Set(varDone30, Filter(varMine, !IsBlank(DoneAt), DoneAt >= DateAdd(Today(), -30, TimeUnit.Days)))
+        Set(varDone30, Filter(varMine, !IsBlank(DoneAt), DoneAt >= DateAdd(Today(), -30, TimeUnit.Days)));
+        Set(varNewT, Filter(varOpen, Status.Value = "New"));
+        If(CountRows(varNewT) > Coalesce(varNewShown, 0), Notify("📌 มีงานใหม่จาก CEO " & CountRows(varNewT) & " งาน · แตะเมนูงานจาก CEO", NotificationType.Information, 6000));
+        Set(varNewShown, CountRows(varNewT))
     Children:
       - recTopH:
           Control: Rectangle@2.3.0
@@ -693,3 +696,34 @@ Screens:
             Y: =Parent.Height - 96 + 14
             Width: =34
             Height: =34
+      - btnTabBadgeListH:
+          Control: Classic/Button@2.2.0
+          Properties:
+            Text: =If(CountRows(varNewT) > 9, "9+", Text(CountRows(varNewT)))
+            OnSelect: =Navigate(scrTickets)
+            Font: =Font.'Open Sans'
+            Size: =10
+            FontWeight: =FontWeight.Bold
+            Fill: =clrAccent
+            Color: =Color.White
+            BorderColor: =clrAccent
+            BorderThickness: =0
+            RadiusTopLeft: =16
+            RadiusTopRight: =16
+            RadiusBottomLeft: =16
+            RadiusBottomRight: =16
+            HoverFill: =ColorFade(Self.Fill, -10%)
+            HoverColor: =Self.Color
+            HoverBorderColor: =Self.BorderColor
+            PressedFill: =ColorFade(Self.Fill, -20%)
+            PressedColor: =Self.Color
+            PressedBorderColor: =Self.BorderColor
+            X: =Parent.Width * 1 / 2 + Parent.Width / 2 / 2 + 6
+            Y: =Parent.Height - 96 + 6
+            Width: =32
+            Height: =32
+            PaddingTop: =0
+            PaddingBottom: =0
+            PaddingLeft: =0
+            PaddingRight: =0
+            Visible: =CountRows(varNewT) > 0
