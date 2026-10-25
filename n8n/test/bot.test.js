@@ -965,3 +965,22 @@ test('"สั่งหัวหน้าทุกคน" first, or a department,
   await send(w, textEv('ฝ่ายขายทุกคน'));
   assert.match(lastReply(w).text, /👤 คุณเอ\nส่งเมื่อไร\?/);
 });
+
+test('replay of the 25 Oct chat: "แนบงานร่าง MOU NT" after a photo attaches it to T-x instead of making a new task', async () => {
+  const w = fakeWorld();
+  const mou = await makeTicket(w, 'ร่าง MOU NT', 'mkt@df.co.th');
+  await makeTicket(w, 'งานอื่น', 'pm@df.co.th'); // the newest ticket is not the MOU
+  // photo, bot asks about the newest ticket; CEO names the MOU instead
+  await send(w, ev('message', { message: { type: 'image', id: 'mou1' } }));
+  await send(w, textEv('แนบงานร่าง MOU NT'));
+  assert.match(lastReply(w).text, new RegExp(`T-${mou} สั่งงานคุณมะลิ\n📝 เรื่อง "ร่าง MOU NT"`));
+  await send(w, textEv('ใช่'));
+  assert.match(w.calls.uploads[w.calls.uploads.length - 1].path, new RegExp(`^T-${mou}/photo-`));
+  // photos with no recent ticket offered: "แนบกับ T-x" still works; plain "แนบ" confirms the offered ticket
+  w.now.value = new Date(w.now.value.getTime() + 3 * 3600000);
+  await send(w, ev('message', { message: { type: 'image', id: 'mou2' } }));
+  await send(w, textEv(`แนบกับ T-${mou}`));
+  await send(w, postbackEv(actionData(quick(lastReply(w)).find((a) => actionData(a).a === 'addyes'))));
+  assert.match(w.calls.uploads[w.calls.uploads.length - 1].path, new RegExp(`^T-${mou}/photo-`));
+  assert.equal(w.items.Tickets.length, 2);
+});

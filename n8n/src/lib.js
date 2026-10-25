@@ -566,6 +566,10 @@ async function onMessage(ctx, ev, cfg) {
       const handled = await onAddText(ctx, ev, cfg, add, t);
       if (handled) return handled;
     }
+    if (!dr && ATTACH_PREFIX.test(t) && hasPendingImages(ctx, userId, nowMs)) {
+      // "แนบงานร่าง MOU" after a photo: the photo is for that existing task, not a new one.
+      return attachByText(ctx, ev, cfg, newAdd({ images: takePendingImages(ctx, userId, nowMs), fromPhoto: true }), t);
+    }
     const asked = await answerQuestion(ctx, ev, t);
     if (asked) return asked;
     if (!dr && EXTRA_PREFIX.test(t)) {
@@ -1876,22 +1880,56 @@ async function afterWho(ctx, ev, dr, emp) {
   return askWhen(ctx, ev, dr, emp);
 }
 
+const ATTACH_PREFIX = /^(แนบ|ใส่)\s*(รูป(นี้)?)?\s*(ไว้)?\s*(กับ|ให้|ใน|เข้า)?\s*(งาน)?\s*/;
+
+function hasPendingImages(ctx, userId, nowMs) {
+  const p = (ctx.store.pendingImages || {})[userId];
+  return !!(p && p.ids.length && nowMs - p.at < PENDING_IMAGES_TTL_MS);
+}
+
+// The open ticket named by number, "ล่าสุด" or words of its title; null when not exactly one.
+async function ticketByWords(ctx, words) {
+  const n = ticketNumber(words);
+  if (n) return n;
+  const key = lower(words).replace(/\s+/g, '');
+  const open = await recentOpenTicketsAll(ctx);
+  if (LATEST_WORDS.test(key)) return open.length ? open[0].id : null;
+  if (chars(key).length < 3) return null;
+  const hits = open.filter((t) => {
+    const title = lower(t.title).replace(/\s+/g, '');
+    return title.includes(key) || (chars(title).length >= 3 && key.includes(title));
+  });
+  return hits.length === 1 ? hits[0].id : null;
+}
+
+// "แนบ", "แนบกับ T-20", "แนบงานร่าง MOU NT" while photos wait for a ticket.
+async function attachByText(ctx, ev, cfg, add, t) {
+  const rest = t.replace(ATTACH_PREFIX, '').trim();
+  if (!rest && add.stage === 'confirm') return onAddYes(ctx, ev, cfg, add);
+  const id = rest ? await ticketByWords(ctx, rest) : null;
+  if (id && id === add.ticketId && add.stage === 'confirm') return onAddYes(ctx, ev, cfg, add);
+  if (id) return pickAddTicket(ctx, ev, add, id);
+  return askAddPick(ctx, ev, add, rest ? `ไม่พบงานที่ชื่อมี "${truncate(rest, 30)}" เพียงงานเดียว\n\n` : '');
+}
+
 function ticketNumber(t) {
   const m = String(t).replace(/\s+/g, '').match(/^(?:ticket|ทิกเก็ต|ทิคเก็ต|งาน|เลขที่|เลข|ที่|t)?(?:ที่)?-?(\d{1,6})$/i);
   return m ? Number(m[1]) : null;
 }
 
 // Newest open tickets, one entry per group (labelled with the group's first ticket).
-async function recentOpenTickets(ctx) {
+async function recentOpenTicketsAll(ctx) {
   const out = [];
   const seen = new Set();
   for (const t of (await getTickets(ctx)).filter((x) => x.isOpen).sort((a, b) => b.id - a.id)) {
     if (t.groupId && seen.has(t.groupId)) continue;
     if (t.groupId) seen.add(t.groupId);
     out.push(t);
-    if (out.length >= RECENT_FOR_ADD) break;
   }
   return out;
+}
+async function recentOpenTickets(ctx) {
+  return (await recentOpenTicketsAll(ctx)).slice(0, RECENT_FOR_ADD);
 }
 
 async function startAdd(ctx, ev, fields) {
@@ -1983,6 +2021,7 @@ async function onAddText(ctx, ev, cfg, add, t) {
   }
   const id = ticketNumber(t);
   if (id) return pickAddTicket(ctx, ev, add, id);
+  if (add.fromPhoto && ATTACH_PREFIX.test(t)) return attachByText(ctx, ev, cfg, add, t);
   if (add.fromPhoto) {
     // Photos first, then the name of a new task: the photos go with the new task.
     restorePendingImages(ctx, ev.source.userId, add.images);
