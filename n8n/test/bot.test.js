@@ -17,6 +17,7 @@ const SETTINGS = {
   SP_HOSTNAME: 'digitalfocusth.sharepoint.com',
   SP_SITE_PATH: '/sites/CEO-Tickets',
   SP_WEBHOOK_CLIENT_STATE: 'sp-state-secret',
+  APP_URL: 'https://apps.powerapps.com/play/e/default-t/a/app1?tenantId=t',
 };
 
 // ---------- fakes ----------
@@ -1024,4 +1025,28 @@ test('date picker on a Buddhist-calendar phone ("2569-10-27") is read as 27 Oct 
   assert.match(lastReply(w).text, /^T-201 ปิดงบเดือน/);
   assert.equal(w.items.Tickets.find((x) => x.id === '201').fields.CEOExtra, undefined);
   assert.equal(w.items.Tickets.find((x) => x.id === '202').fields.CEOExtra, undefined);
+});
+
+test('several LINE accounts in CEO_LINE_USER_ID: each commands the bot with their own conversation, both get pushes', async () => {
+  const HELPER = 'Uhelper00000000000000000000000002';
+  const w = fakeWorld({ ceoId: `${CEO}, ${HELPER}` });
+  // an account not in the list is still ignored
+  const out = await send(w, textEv('งานจากคนอื่น', 'Ustranger000000000000000000000003'));
+  assert.equal(out.results[0].ignored, 'not-ceo');
+  // the helper starts adding a detail; the CEO meanwhile starts a new task: neither answers the other's question
+  await send(w, textEv('เพิ่มเติม ใส่เงื่อนไขชำระเงินด้วย', HELPER));
+  const helperAsk = lastReply(w).text;
+  await send(w, textEv('เตรียมสไลด์ประชุมบอร์ด'));
+  assert.match(lastReply(w).text, /สั่งใคร/);
+  assert.equal(w.ctx.store.users[HELPER].addTo.text, 'ใส่เงื่อนไขชำระเงินด้วย');
+  assert.equal((w.ctx.store.users[CEO] || {}).addTo, undefined);
+  assert.notEqual(helperAsk, lastReply(w).text);
+  // the helper cancels only their own addition
+  await send(w, textEv('ยกเลิก', HELPER));
+  assert.equal(w.ctx.store.users[HELPER], undefined);
+  // summaries go to everyone listed
+  w.calls.pushes.length = 0;
+  w.now.value = new Date('2026-10-19T00:00:00Z');
+  await lib.dailySummary(w.ctx);
+  assert.deepEqual(w.calls.pushes.map((p) => p.to), [CEO, HELPER]);
 });

@@ -445,15 +445,61 @@ async function handleEvent(ctx, ev) {
     }
     return { setup: true, userId };
   }
-  if (userId !== cfg.CEO_LINE_USER_ID) return { ignored: 'not-ceo', userId };
+  const ceos = ceoLineIds(cfg);
+  if (!ceos.includes(userId)) return { ignored: 'not-ceo', userId };
 
-  if (ev.type === 'message') return onMessage(ctx, ev, cfg);
-  if (ev.type === 'postback') return onPostback(ctx, ev, cfg);
-  if (ev.type === 'follow') {
-    await lineReply(ctx, ev, textMsg(helpText()));
-    return { follow: true };
+  loadUserState(ctx, userId, ceos[0]);
+  try {
+    if (ev.type === 'message') return await onMessage(ctx, ev, cfg);
+    if (ev.type === 'postback') return await onPostback(ctx, ev, cfg);
+    if (ev.type === 'follow') {
+      await lineReply(ctx, ev, textMsg(helpText()));
+      return { follow: true };
+    }
+    return { skipped: ev.type };
+  } finally {
+    saveUserState(ctx, userId);
   }
-  return { skipped: ev.type };
+}
+
+// CEO_LINE_USER_ID may list several LINE accounts (comma or space separated), e.g. the CEO and an assistant
+// while they learn the bot. Everyone listed can command the bot and gets the summaries and staff updates.
+function ceoLineIds(cfg) {
+  return String(cfg.CEO_LINE_USER_ID || '').split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
+}
+
+// What each person is in the middle of (adding a detail, answering, following up, moving a date, transferring)
+// is kept per LINE account, so two people using the bot at once do not answer each other's questions.
+// Handlers keep using ctx.store.<key>; it is swapped in before an event and put back after it.
+const PER_USER_KEYS = ['addTo', 'replyTo', 'transfer', 'followUp', 'dueChange', 'lastCreated'];
+
+function loadUserState(ctx, userId, firstCeo) {
+  if (!ctx.store.users) {
+    // First run with per-person state: what was in progress belonged to the one CEO account there was.
+    ctx.store.users = {};
+    const old = {};
+    for (const k of PER_USER_KEYS) if (ctx.store[k] !== undefined) old[k] = ctx.store[k];
+    if (Object.keys(old).length) ctx.store.users[firstCeo] = old;
+  }
+  const mine = ctx.store.users[userId] || {};
+  for (const k of PER_USER_KEYS) {
+    if (mine[k] !== undefined) ctx.store[k] = mine[k];
+    else delete ctx.store[k];
+  }
+}
+
+function saveUserState(ctx, userId) {
+  const mine = {};
+  for (const k of PER_USER_KEYS) {
+    if (ctx.store[k] !== undefined) mine[k] = ctx.store[k];
+    delete ctx.store[k];
+  }
+  if (Object.keys(mine).length) ctx.store.users[userId] = mine;
+  else delete ctx.store.users[userId];
+}
+
+async function pushToCeos(ctx, cfg, messages) {
+  for (const id of ceoLineIds(cfg)) await linePush(ctx, id, messages);
 }
 
 function helpText() {
@@ -2284,7 +2330,7 @@ async function notifyCeoOfStaffUpdates(ctx) {
   for (const h of pending) {
     const ticket = await getItem(ctx, 'Tickets', h.fields.TicketID);
     const emp = employees.find((e) => e.email === lower(ticket.fields.AssigneeEmail));
-    await linePush(ctx, cfg.CEO_LINE_USER_ID, [staffUpdateMessage(h, ticket, emp, ticketFilesUrl(ctx, h.fields.TicketID), ticketAppUrl(ctx, h.fields.TicketID))]);
+    await pushToCeos(ctx, cfg, [staffUpdateMessage(h, ticket, emp, ticketFilesUrl(ctx, h.fields.TicketID), ticketAppUrl(ctx, h.fields.TicketID))]);
     await updateFields(ctx, 'TicketHistory', h.id, { CEOPending: false });
     sent++;
   }
@@ -2297,7 +2343,7 @@ async function dailySummary(ctx) {
   const today = bkkYmd(ctx.now());
   if ((await getHolidays(ctx)).includes(today)) return { skipped: 'holiday', today };
   const s = await loadStats(ctx, cfg);
-  await linePush(ctx, cfg.CEO_LINE_USER_ID, [summaryMessage(s, `☀️ สรุปงาน ${thaiDate(today)}`)]);
+  await pushToCeos(ctx, cfg, [summaryMessage(s, `☀️ สรุปงาน ${thaiDate(today)}`)]);
   return { sent: true, open: s.open.length };
 }
 
@@ -2354,7 +2400,7 @@ async function weeklySummary(ctx) {
   const { header, lines } = weeklyLines(tickets, await getEmployees(ctx), ctx.now());
   const body = lines.length ? lines : ['ไม่มีงานในสัปดาห์นี้'];
   const chunks = chunkMessages(header, body, 4900).slice(0, 5);
-  await linePush(ctx, cfg.CEO_LINE_USER_ID, chunks.map((c) => textMsg(c)));
+  await pushToCeos(ctx, cfg, chunks.map((c) => textMsg(c)));
   return { sent: true, people: lines.length };
 }
 

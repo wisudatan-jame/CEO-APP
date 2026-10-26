@@ -40,7 +40,7 @@ URL ต้องเป็น `https://digitalfocusth.sharepoint.com/sites/CEO-Ti
 | `OWNER_EMAIL` | อีเมลของคุณ |
 | `BACKUP_EMAIL` | อีเมลของคุณ Suchada |
 | `NOACK_HOURS` | `24` (ปล่อยไว้) |
-| `CEO_LINE_USER_ID` | **เว้นว่างไว้ก่อน** บอทจะบอกค่าให้ตอนตั้งค่า ([../../n8n/README.md](../../n8n/README.md)) |
+| `CEO_LINE_USER_ID` | **เว้นว่างไว้ก่อน** บอทจะบอกค่าให้ตอนตั้งค่า ([../../n8n/README.md](../../n8n/README.md)) · ใส่หลายบัญชีได้ คั่นด้วยจุลภาค (เช่น CEO กับผู้ดูแลระบบช่วงสอนใช้งาน) |
 | `QUICK_ASSIGNEES` | อีเมลของ PM, การตลาด, Presales, Sales ที่ CEO สั่งบ่อย คั่นด้วยจุลภาค ไม่เว้นวรรค |
 
 ## 4. รายชื่อพนักงาน (HR)
