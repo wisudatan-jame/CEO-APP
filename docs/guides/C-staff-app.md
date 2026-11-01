@@ -105,7 +105,7 @@ or(not(equals(outputs('Current'), outputs('In_expected'))), empty(outputs('NewSt
 - **ฝั่ง False:** ว่าง
 
 **h) Update item** ชื่อ `Save ticket` · List `Tickets` · Id: `outputs('In_ticketId')`
-- ช่องบังคับใช้ค่าเดิม (Expression): Title `body('Get_ticket')?['Title']` · AssigneeEmail `body('Get_ticket')?['AssigneeEmail']` · DueDate `body('Get_ticket')?['DueDate']` · Priority Value `body('Get_ticket')?['Priority']?['Value']` · Source Value `body('Get_ticket')?['Source']?['Value']`
+- ช่องบังคับใช้ค่าเดิม (Expression): Title `body('Get_ticket')?['Title']` · AssigneeEmail `body('Get_ticket')?['AssigneeEmail']` · Priority Value `body('Get_ticket')?['Priority']?['Value']` · Source Value `body('Get_ticket')?['Source']?['Value']`
 - **Status Value:** `outputs('NewStatus')`
 - **IsOpen:** `not(equals(outputs('NewStatus'), 'Closed'))`
 - **AckedAt:** `if(and(equals(outputs('Current'), 'New'), contains(createArray('ack', 'start', 'wait', 'done'), outputs('In_action'))), utcNow(), body('Get_ticket')?['AckedAt'])`

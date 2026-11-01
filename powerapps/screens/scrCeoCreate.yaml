@@ -5,6 +5,7 @@ Screens:
       OnVisible: |-
         =ClearCollect(colEmp, Filter(Employees, Active = true));
         If(IsBlank(varNDue), Set(varNDue, DateAdd(Today(), 1, TimeUnit.Days)));
+        Set(varNNoDue, false);
         Set(varNPickAll, false);
         Set(varNCal, false);
         Set(varRecentT, Filter(Tickets, Created >= DateAdd(Today(), -60, TimeUnit.Days)));
@@ -290,12 +291,12 @@ Screens:
           Control: Classic/Button@2.2.0
           Properties:
             Text: ="วันนี้"
-            OnSelect: =Set(varNDue, Today())
+            OnSelect: =Set(varNDue, Today()); Set(varNNoDue, false)
             Font: =Font.'Open Sans'
-            Size: =14
+            Size: =13
             FontWeight: =FontWeight.Semibold
-            Fill: =If(varNDue = Today(), clrPrimary, Color.White)
-            Color: =If(varNDue = Today(), Color.White, clrPrimary)
+            Fill: =If(!varNNoDue && varNDue = Today(), clrPrimary, Color.White)
+            Color: =If(!varNNoDue && varNDue = Today(), Color.White, clrPrimary)
             BorderColor: =clrLine
             BorderThickness: =2
             RadiusTopLeft: =26
@@ -309,19 +310,19 @@ Screens:
             PressedColor: =Self.Color
             PressedBorderColor: =Self.BorderColor
             Height: =52
-            X: =24 + 0 * ((Parent.Width - 48 - 36) / 4 + 12)
+            X: =24 + 0 * ((Parent.Width - 48 - 48) / 5 + 12)
             Y: =lblNWhenHead.Y + 38
-            Width: =(Parent.Width - 48 - 36) / 4
+            Width: =(Parent.Width - 48 - 48) / 5
       - btnNDayTmr:
           Control: Classic/Button@2.2.0
           Properties:
             Text: ="พรุ่งนี้"
-            OnSelect: =Set(varNDue, DateAdd(Today(), 1, TimeUnit.Days))
+            OnSelect: =Set(varNDue, DateAdd(Today(), 1, TimeUnit.Days)); Set(varNNoDue, false)
             Font: =Font.'Open Sans'
-            Size: =14
+            Size: =13
             FontWeight: =FontWeight.Semibold
-            Fill: =If(varNDue = DateAdd(Today(), 1, TimeUnit.Days), clrPrimary, Color.White)
-            Color: =If(varNDue = DateAdd(Today(), 1, TimeUnit.Days), Color.White, clrPrimary)
+            Fill: =If(!varNNoDue && varNDue = DateAdd(Today(), 1, TimeUnit.Days), clrPrimary, Color.White)
+            Color: =If(!varNNoDue && varNDue = DateAdd(Today(), 1, TimeUnit.Days), Color.White, clrPrimary)
             BorderColor: =clrLine
             BorderThickness: =2
             RadiusTopLeft: =26
@@ -335,19 +336,19 @@ Screens:
             PressedColor: =Self.Color
             PressedBorderColor: =Self.BorderColor
             Height: =52
-            X: =24 + 1 * ((Parent.Width - 48 - 36) / 4 + 12)
+            X: =24 + 1 * ((Parent.Width - 48 - 48) / 5 + 12)
             Y: =lblNWhenHead.Y + 38
-            Width: =(Parent.Width - 48 - 36) / 4
+            Width: =(Parent.Width - 48 - 48) / 5
       - btnNDayFri:
           Control: Classic/Button@2.2.0
           Properties:
             Text: ="ศุกร์นี้"
-            OnSelect: =Set(varNDue, DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days))
+            OnSelect: =Set(varNDue, DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days)); Set(varNNoDue, false)
             Font: =Font.'Open Sans'
-            Size: =14
+            Size: =13
             FontWeight: =FontWeight.Semibold
-            Fill: =If(varNDue = DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days), clrPrimary, Color.White)
-            Color: =If(varNDue = DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days), Color.White, clrPrimary)
+            Fill: =If(!varNNoDue && varNDue = DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days), clrPrimary, Color.White)
+            Color: =If(!varNNoDue && varNDue = DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days), Color.White, clrPrimary)
             BorderColor: =clrLine
             BorderThickness: =2
             RadiusTopLeft: =26
@@ -361,19 +362,19 @@ Screens:
             PressedColor: =Self.Color
             PressedBorderColor: =Self.BorderColor
             Height: =52
-            X: =24 + 2 * ((Parent.Width - 48 - 36) / 4 + 12)
+            X: =24 + 2 * ((Parent.Width - 48 - 48) / 5 + 12)
             Y: =lblNWhenHead.Y + 38
-            Width: =(Parent.Width - 48 - 36) / 4
+            Width: =(Parent.Width - 48 - 48) / 5
       - btnNDayPick:
           Control: Classic/Button@2.2.0
           Properties:
-            Text: =If(!(varNDue in [Today(), DateAdd(Today(), 1, TimeUnit.Days), DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days)]), (Text(varNDue, "ddd", "th-TH") & " " & Day(varNDue) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(varNDue)).Value), "เลือกวัน…")
+            Text: =If(!varNNoDue && !(varNDue in [Today(), DateAdd(Today(), 1, TimeUnit.Days), DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days)]), (Text(varNDue, "ddd", "th-TH") & " " & Day(varNDue) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(varNDue)).Value), "เลือกวัน…")
             OnSelect: =Set(varNPickAll, false); Set(varCalMonth, Date(Year(varNDue), Month(varNDue), 1)); Set(varNCal, true)
             Font: =Font.'Open Sans'
-            Size: =14
+            Size: =13
             FontWeight: =FontWeight.Semibold
-            Fill: =If(!(varNDue in [Today(), DateAdd(Today(), 1, TimeUnit.Days), DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days)]), clrPrimary, Color.White)
-            Color: =If(!(varNDue in [Today(), DateAdd(Today(), 1, TimeUnit.Days), DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days)]), Color.White, clrPrimary)
+            Fill: =If(!varNNoDue && !(varNDue in [Today(), DateAdd(Today(), 1, TimeUnit.Days), DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days)]), clrPrimary, Color.White)
+            Color: =If(!varNNoDue && !(varNDue in [Today(), DateAdd(Today(), 1, TimeUnit.Days), DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days)]), Color.White, clrPrimary)
             BorderColor: =clrLine
             BorderThickness: =2
             RadiusTopLeft: =26
@@ -387,9 +388,35 @@ Screens:
             PressedColor: =Self.Color
             PressedBorderColor: =Self.BorderColor
             Height: =52
-            X: =24 + 3 * ((Parent.Width - 48 - 36) / 4 + 12)
+            X: =24 + 3 * ((Parent.Width - 48 - 48) / 5 + 12)
             Y: =lblNWhenHead.Y + 38
-            Width: =(Parent.Width - 48 - 36) / 4
+            Width: =(Parent.Width - 48 - 48) / 5
+      - btnNDayNone:
+          Control: Classic/Button@2.2.0
+          Properties:
+            Text: ="ไม่กำหนด"
+            OnSelect: =Set(varNNoDue, true)
+            Font: =Font.'Open Sans'
+            Size: =13
+            FontWeight: =FontWeight.Semibold
+            Fill: =If(varNNoDue, clrPrimary, Color.White)
+            Color: =If(varNNoDue, Color.White, clrPrimary)
+            BorderColor: =clrLine
+            BorderThickness: =2
+            RadiusTopLeft: =26
+            RadiusTopRight: =26
+            RadiusBottomLeft: =26
+            RadiusBottomRight: =26
+            HoverFill: =ColorFade(Self.Fill, -10%)
+            HoverColor: =Self.Color
+            HoverBorderColor: =Self.BorderColor
+            PressedFill: =ColorFade(Self.Fill, -20%)
+            PressedColor: =Self.Color
+            PressedBorderColor: =Self.BorderColor
+            Height: =52
+            X: =24 + 4 * ((Parent.Width - 48 - 48) / 5 + 12)
+            Y: =lblNWhenHead.Y + 38
+            Width: =(Parent.Width - 48 - 48) / 5
       - conNAtt:
           Control: GroupContainer@1.3.0
           Variant: AutoLayout
@@ -447,7 +474,7 @@ Screens:
       - lblNSummary:
           Control: Label@2.5.1
           Properties:
-            Text: =If(varNMgr, "สั่งหัวหน้า/ผู้จัดการทุกคน " & CountRows(Filter(colEmp, IsManager = true)) & " คน", IsEmpty(colPick), "ยังไม่ได้เลือกคน", "สั่งคุณ" & Concat(colPick, Coalesce(Nickname, FirstName), ", คุณ")) & " · ส่ง " & Text(varNDue, "dddd d mmmm", "th-TH")
+            Text: =If(varNMgr, "สั่งหัวหน้า/ผู้จัดการทุกคน " & CountRows(Filter(colEmp, IsManager = true)) & " คน", IsEmpty(colPick), "ยังไม่ได้เลือกคน", "สั่งคุณ" & Concat(colPick, Coalesce(Nickname, FirstName), ", คุณ")) & " · " & If(varNNoDue, "ไม่กำหนดวันส่ง", "ส่ง " & Text(varNDue, "dddd d mmmm", "th-TH"))
             Font: =Font.'Open Sans'
             Size: =13
             Color: =clrPrimary
@@ -463,7 +490,7 @@ Screens:
             OnSelect: |-
               =Set(varBusy, true);
               Set(varWho, If(varNMgr, Filter(colEmp, IsManager = true), colPick));
-              Set(varBase, {Title: Trim(txtNTitle.Text), Details: Trim(txtNDetails.Text), DueDate: varNDue,
+              Set(varBase, {Title: Trim(txtNTitle.Text), Details: Trim(txtNDetails.Text), DueDate: If(varNNoDue, Blank(), varNDue),
                   Priority: {Value: "Normal"}, Status: {Value: "New"}, IsOpen: true, OverdueNotified: false, NoAckNotified: false,
                   Source: {Value: "App"}, PermsSet: false, HasFiles: false});
               Set(varFirst, Patch(Tickets, Defaults(Tickets), varBase, {AssigneeEmail: Lower(First(varWho).Email)}));
@@ -479,7 +506,7 @@ Screens:
               ForAll(attNew.Attachments As f, ForAll(colMade As t, AttachTicketFile.Run(t.ID, {contentBytes: f.Value, name: f.Name})));
               Set(varBusy, false);
               Notify("สั่งงานแล้ว " & Concat(colMade, "T-" & ID, ", "), NotificationType.Success);
-              Reset(txtNTitle); Reset(txtNDetails); Reset(attNew); Clear(colPick); Set(varNMgr, false)
+              Reset(txtNTitle); Reset(txtNDetails); Reset(attNew); Clear(colPick); Set(varNMgr, false); Set(varNNoDue, false)
             Font: =Font.'Open Sans'
             Size: =16
             FontWeight: =FontWeight.Bold
@@ -501,7 +528,7 @@ Screens:
             Y: =Parent.Height - 96 - 84
             Width: =Parent.Width - 48
             Height: =72
-            DisplayMode: =If(varBusy || IsBlank(Trim(txtNTitle.Text)) || (!varNMgr && IsEmpty(colPick)) || varNDue < Today(), DisplayMode.Disabled, DisplayMode.Edit)
+            DisplayMode: =If(varBusy || IsBlank(Trim(txtNTitle.Text)) || (!varNMgr && IsEmpty(colPick)) || (!varNNoDue && varNDue < Today()), DisplayMode.Disabled, DisplayMode.Edit)
             DisabledFill: =ColorFade(clrAccent, 60%)
             DisabledColor: =Color.White
       - conNPicker:
@@ -951,7 +978,7 @@ Screens:
                       Control: Classic/Button@2.2.0
                       Properties:
                         Text: =Day(ThisItem.Value)
-                        OnSelect: =Set(varNDue, ThisItem.Value); Set(varNCal, false)
+                        OnSelect: =Set(varNDue, ThisItem.Value); Set(varNNoDue, false); Set(varNCal, false)
                         Font: =Font.'Open Sans'
                         Size: =14
                         FontWeight: =If(ThisItem.Value = Today(), FontWeight.Bold, FontWeight.Normal)

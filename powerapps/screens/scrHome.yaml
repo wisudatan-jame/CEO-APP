@@ -6,7 +6,7 @@ Screens:
         =Set(varMeEmp, LookUp(Employees, Email = varMe || Email = User().Email));
         Set(varMine, Filter(Tickets, AssigneeEmail = varMe));
         Set(varOpen, Filter(varMine, IsOpen = true));
-        Set(varLate, Filter(varOpen, Status.Value <> "Done", DueDate < Today()));
+        Set(varLate, Filter(varOpen, Status.Value <> "Done", !IsBlank(DueDate), DueDate < Today()));
         Set(varDone30, Filter(varMine, !IsBlank(DoneAt), DoneAt >= DateAdd(Today(), -30, TimeUnit.Days)));
         Set(varNewT, Filter(varOpen, Status.Value = "New"));
         If(CountRows(varNewT) > Coalesce(varNewShown, 0), Notify("📌 มีงานใหม่จาก CEO " & CountRows(varNewT) & " งาน · แตะเมนูงานจาก CEO", NotificationType.Information, 6000));
@@ -374,7 +374,7 @@ Screens:
                 Control: Gallery@2.15.0
                 Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
                 Properties:
-                  Items: =FirstN(SortByColumns(Filter(varOpen, Status.Value <> "Done"), "DueDate", SortOrder.Ascending), 4)
+                  Items: =FirstN(SortByColumns(AddColumns(Filter(varOpen, Status.Value <> "Done"), SortDue, Coalesce(DueDate, Date(2099, 12, 31))), "SortDue", SortOrder.Ascending), 4)
                   TemplateSize: =72
                   ShowScrollbar: =false
                   OnSelect: =Set(varTicket, ThisItem); Navigate(scrDetail)
@@ -392,7 +392,7 @@ Screens:
                         Y: =16
                         Width: =8
                         Height: =Parent.TemplateHeight - 32
-                        Fill: =If(ThisItem.DueDate < Today(), clrAccent, clrPrimary)
+                        Fill: =If((!IsBlank(ThisItem.DueDate) && ThisItem.DueDate < Today()), clrAccent, clrPrimary)
                         OnSelect: =Select(Parent)
                   - lblTodo:
                       Control: Label@2.5.1
@@ -411,11 +411,11 @@ Screens:
                       Control: Label@2.5.1
                       Properties:
                         Text: |-
-                          =If(ThisItem.DueDate < Today(), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & (Text(ThisItem.DueDate, "ddd", "th-TH") & " " & Day(ThisItem.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(ThisItem.DueDate)).Value)) &
+                          =If(IsBlank(ThisItem.DueDate), "ไม่กำหนดวันส่ง", If((!IsBlank(ThisItem.DueDate) && ThisItem.DueDate < Today()), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & (Text(ThisItem.DueDate, "ddd", "th-TH") & " " & Day(ThisItem.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(ThisItem.DueDate)).Value))) &
                           " · " & Switch(ThisItem.Status.Value, "New", "ใหม่ ยังไม่รับทราบ", "Acknowledged", "รับทราบ", "InProgress", "กำลังทำ", "WaitingCEO", "รอ CEO ตอบ", ThisItem.Status.Value)
                         Font: =Font.'Open Sans'
                         Size: =12
-                        Color: =If(ThisItem.DueDate < Today(), clrDanger, clrMuted)
+                        Color: =If((!IsBlank(ThisItem.DueDate) && ThisItem.DueDate < Today()), clrDanger, clrMuted)
                         X: =22
                         Y: =38
                         Width: =Parent.TemplateWidth - 22
@@ -549,7 +549,7 @@ Screens:
                         - lblSOnTimeN:
                             Control: Label@2.5.1
                             Properties:
-                              Text: =CountIf(varDone30, DoneAt < DateAdd(DueDate, 1, TimeUnit.Days)) & "/" & CountRows(varDone30)
+                              Text: =CountIf(varDone30, IsBlank(DueDate) || DoneAt < DateAdd(DueDate, 1, TimeUnit.Days)) & "/" & CountRows(varDone30)
                               Font: =Font.'Open Sans'
                               Size: =22
                               Color: =clrSuccess

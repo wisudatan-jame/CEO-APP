@@ -14,13 +14,13 @@ def scr_home():
     on_visible = """Set(varMeEmp, LookUp(Employees, Email = varMe || Email = User().Email));
 Set(varMine, Filter(Tickets, AssigneeEmail = varMe));
 Set(varOpen, Filter(varMine, IsOpen = true));
-Set(varLate, Filter(varOpen, Status.Value <> "Done", DueDate < Today()));
+Set(varLate, Filter(varOpen, Status.Value <> "Done", !IsBlank(DueDate), DueDate < Today()));
 Set(varDone30, Filter(varMine, !IsBlank(DoneAt), DoneAt >= DateAdd(Today(), -30, TimeUnit.Days)));
 Set(varNewT, Filter(varOpen, Status.Value = "New"));
 """ + NEW_NOTIFY
-    todo_sub = """If(ThisItem.DueDate < Today(), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & (Text(ThisItem.DueDate, "ddd", "th-TH") & " " & Day(ThisItem.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(ThisItem.DueDate)).Value)) &
+    todo_sub = """If(IsBlank(ThisItem.DueDate), "ไม่กำหนดวันส่ง", If((!IsBlank(ThisItem.DueDate) && ThisItem.DueDate < Today()), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & (Text(ThisItem.DueDate, "ddd", "th-TH") & " " & Day(ThisItem.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(ThisItem.DueDate)).Value))) &
 " · " & Switch(ThisItem.Status.Value, "New", "ใหม่ ยังไม่รับทราบ", "Acknowledged", "รับทราบ", "InProgress", "กำลังทำ", "WaitingCEO", "รอ CEO ตอบ", ThisItem.Status.Value)"""
-    late = 'ThisItem.DueDate < Today()'
+    late = '(!IsBlank(ThisItem.DueDate) && ThisItem.DueDate < Today())'
     to_list = 'Navigate(scrTickets)'
     stat = lambda key, num, cap, color: (f'conS{key}', in_box(vbox([
         (f'lblS{key}N', in_box(label(num, Height=44, Size=22, FontWeight='FontWeight.Bold', Color=color, Align='Align.Center'))),
@@ -41,7 +41,7 @@ Set(varNewT, Filter(varOpen, Status.Value = "New"));
         ('conTodo', panel([
             ('lblTodoHead', in_box(label('"ต้องทำก่อน"', Height=34, Size=15, FontWeight='FontWeight.Bold'))),
             ('lblTodoEmpty', in_box(label('"ไม่มีงานค้าง"', Height=40, Size=13, Color='clrMuted', Visible='IsEmpty(galTodo.AllItems)'))),
-            ('galTodo', list_in(gallery('FirstN(SortByColumns(Filter(varOpen, Status.Value <> "Done"), "DueDate", SortOrder.Ascending), 4)', [
+            ('galTodo', list_in(gallery('FirstN(SortByColumns(AddColumns(Filter(varOpen, Status.Value <> "Done"), SortDue, Coalesce(DueDate, Date(2099, 12, 31))), "SortDue", SortOrder.Ascending), 4)', [
                 ('recTodoBar', rect(X=0, Y=16, Width=8, Height='Parent.TemplateHeight - 32',
                                     Fill=f'If({late}, clrAccent, clrPrimary)', OnSelect='Select(Parent)')),
                 ('lblTodo', label('"T-" & ThisItem.ID & " " & ThisItem.Title', X=22, Y=6, Width='Parent.TemplateWidth - 22', Height=34,
@@ -55,7 +55,7 @@ Set(varNewT, Filter(varOpen, Status.Value = "New"));
             ('lblStatsHead', in_box(label('"ผลงาน 30 วันที่ผ่านมา"', Height=30, Size=15, FontWeight='FontWeight.Bold'))),
             ('conStatsRow', in_box(hbox([
                 stat('Got', 'CountRows(Filter(varMine, Created >= DateAdd(Today(), -30, TimeUnit.Days)))', '"ได้รับ"', 'clrPrimary'),
-                stat('OnTime', 'CountIf(varDone30, DoneAt < DateAdd(DueDate, 1, TimeUnit.Days)) & "/" & CountRows(varDone30)', '"เสร็จทันกำหนด"', 'clrSuccess'),
+                stat('OnTime', 'CountIf(varDone30, IsBlank(DueDate) || DoneAt < DateAdd(DueDate, 1, TimeUnit.Days)) & "/" & CountRows(varDone30)', '"เสร็จทันกำหนด"', 'clrSuccess'),
                 stat('Avg', 'If(CountRows(varDone30) > 0, Text(Average(varDone30, DateDiff(Created, DoneAt, TimeUnit.Hours)) / 24, "0.0"), "-")',
                      '"วันเฉลี่ย/งาน"', 'clrPrimary'),
             ], Height=70, LayoutGap=8))),
@@ -65,19 +65,19 @@ Set(varNewT, Filter(varOpen, Status.Value = "New"));
 
 def scr_tickets():
     status = 'Switch(ThisItem.Status.Value, "New", "ใหม่", "Acknowledged", "รับทราบ", "InProgress", "กำลังทำ", "WaitingCEO", "รอ CEO ตอบ", "Done", "รอ CEO ตรวจ", ThisItem.Status.Value)'
-    meta = ('If(ThisItem.DueDate < Today(), "เลยกำหนด " & DateDiff(ThisItem.DueDate, Today()) & " วัน", '
-            '"ส่ง " & (Text(ThisItem.DueDate, "ddd", "th-TH") & " " & Day(ThisItem.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(ThisItem.DueDate)).Value))')
+    meta = ('If(IsBlank(ThisItem.DueDate), "ไม่กำหนดวันส่ง", If((!IsBlank(ThisItem.DueDate) && ThisItem.DueDate < Today()), "เลยกำหนด " & DateDiff(ThisItem.DueDate, Today()) & " วัน", '
+            '"ส่ง " & (Text(ThisItem.DueDate, "ddd", "th-TH") & " " & Day(ThisItem.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(ThisItem.DueDate)).Value)))')
     children = header('') + [
         ('lblHeader', label('"งานจาก CEO"', X=24, Y=104, Width='Parent.Width - 48', Height=52, Size=20, FontWeight='FontWeight.Bold', Color='clrPrimary')),
         ('conTickets', area([
             ('lblEmpty', in_box(label('"ไม่มีงานค้าง"', Height=50, Color='clrMuted', Visible='IsEmpty(galTickets.AllItems)'))),
-            ('galTickets', list_in(gallery('SortByColumns(Filter(Tickets, IsOpen = true, AssigneeEmail = varMe), "DueDate", SortOrder.Ascending)', [
+            ('galTickets', list_in(gallery('SortByColumns(AddColumns(Filter(Tickets, IsOpen = true, AssigneeEmail = varMe), SortDue, Coalesce(DueDate, Date(2099, 12, 31))), "SortDue", SortOrder.Ascending)', [
                 row_bg('btnTicketRow'),
                 ('lblTitle', label('"T-" & ThisItem.ID & " " & ThisItem.Title', X=20, Y=10, Width='Parent.TemplateWidth - 40', Height=36, Size=15,
                                    FontWeight='FontWeight.Semibold', OnSelect='Select(Parent)')),
                 ('lblMeta', label(meta, X=20, Y=48, Width='Parent.TemplateWidth - 230', Height=30, Size=12, FontWeight='FontWeight.Semibold',
-                                  Color='If(ThisItem.DueDate < Today(), clrDanger, clrMuted)', OnSelect='Select(Parent)')),
-                ('btnStatusPill', pill(status, 'ThisItem.Status.Value', 'ThisItem.Status.Value = "New" || (ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today())',
+                                  Color='If((!IsBlank(ThisItem.DueDate) && ThisItem.DueDate < Today()), clrDanger, clrMuted)', OnSelect='Select(Parent)')),
+                ('btnStatusPill', pill(status, 'ThisItem.Status.Value', 'ThisItem.Status.Value = "New" || (ThisItem.Status.Value <> "Done" && (!IsBlank(ThisItem.DueDate) && ThisItem.DueDate < Today()))',
                                        X='Parent.TemplateWidth - 20 - Self.Width', Y=42, Width='Len(Self.Text) * 11 + 36', Height=38)),
             ], TemplateSize=102, OnSelect='Set(varTicket, ThisItem); Navigate(scrDetail)'))),
         ], 24, 160, 'Parent.Width - 48', f'Parent.Height - {TAB_H} - 104 - Self.Y')),
@@ -169,14 +169,14 @@ STAFF_STATUS = 'Switch({s}, "New", "ใหม่", "Acknowledged", "รับท
 
 def due_text(t):
     """"ส่ง อังคาร 27 ต.ค. · อีก 1 วัน" (or "· เลย 2 วัน" / "· วันนี้"; finished work: "· ทันกำหนด" / "· ช้า n วัน")."""
-    return (f'"ส่ง " & (Text({t}.DueDate, "dddd", "th-TH") & " " & Day({t}.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month({t}.DueDate)).Value) & If({t}.Status.Value in ["Done", "Closed"], '
+    return (f'If(IsBlank({t}.DueDate), "ไม่กำหนดวันส่ง", "ส่ง " & (Text({t}.DueDate, "dddd", "th-TH") & " " & Day({t}.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month({t}.DueDate)).Value) & If({t}.Status.Value in ["Done", "Closed"], '
             f'If(IsBlank({t}.DoneAt) || {t}.DoneAt < DateAdd({t}.DueDate, 1, TimeUnit.Days), " · ทันกำหนด", " · ช้า " & DateDiff({t}.DueDate, {t}.DoneAt) & " วัน"), '
             f'!{t}.IsOpen, "", {t}.DueDate < Today(), " · เลย " & DateDiff({t}.DueDate, Today()) & " วัน", '
-            f'{t}.DueDate = Today(), " · วันนี้", " · อีก " & DateDiff(Today(), {t}.DueDate) & " วัน")')
+            f'{t}.DueDate = Today(), " · วันนี้", " · อีก " & DateDiff(Today(), {t}.DueDate) & " วัน"))')
 
 def status_row(name, status_text):
     """Status pill followed by the due date, as at the top of the mockup's detail pages."""
-    late = 'varTicket.IsOpen && varTicket.Status.Value <> "Done" && varTicket.DueDate < Today()'
+    late = 'varTicket.IsOpen && varTicket.Status.Value <> "Done" && (!IsBlank(varTicket.DueDate) && varTicket.DueDate < Today())'
     return (f'con{name}', in_box(hbox([
         (f'btn{name}Pill', in_box(pill(status_text, 'varTicket.Status.Value', late, OnSelect='false', Width='Len(Self.Text) * 11 + 40', Height=40, Size=13),
                                    0, AlignInContainer='AlignInContainer.Center')),

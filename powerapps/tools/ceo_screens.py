@@ -20,11 +20,11 @@ def scr_ceo_home():
 ClearCollect(colEmp, Filter(Employees, Active = true));
 ClearCollect(colGroupTickets, Filter(Tickets, GroupID > 0));
 Set(varClosed30, Filter(Tickets, IsOpen = false, ClosedAt >= DateAdd(Today(), -30, TimeUnit.Days)));
-Set(varCLate, Filter(colAll, Status.Value <> "Done", DueDate < Today()))'''
+Set(varCLate, Filter(colAll, Status.Value <> "Done", !IsBlank(DueDate), DueDate < Today()))'''
     people = '''SortByColumns(
     AddColumns(GroupBy(colAll, AssigneeEmail, Rows),
         OpenCount, CountRows(Rows),
-        LateCount, CountRows(Filter(Rows, Status.Value <> "Done", DueDate < Today())),
+        LateCount, CountRows(Filter(Rows, Status.Value <> "Done", !IsBlank(DueDate), DueDate < Today())),
         AvgDays, With({who: AssigneeEmail},
             With({d: Filter(varClosed30, AssigneeEmail = who, !IsBlank(DoneAt))},
                 If(CountRows(d) > 0, Average(d, DateDiff(Created, DoneAt, TimeUnit.Hours)) / 24, 0)))),
@@ -35,7 +35,7 @@ Set(varCLate, Filter(colAll, Status.Value <> "Done", DueDate < Today()))'''
         GCount, CountRows(Rows),
         GOpen, CountRows(Filter(Rows, IsOpen = true)),
         GDone, CountRows(Filter(Rows, Status.Value in ["Done", "Closed"])),
-        GLate, CountRows(Filter(Rows, IsOpen = true, Status.Value <> "Done", DueDate < Today()))),
+        GLate, CountRows(Filter(Rows, IsOpen = true, Status.Value <> "Done", !IsBlank(DueDate), DueDate < Today()))),
     GOpen > 0)'''
     emp = 'LookUp(colEmp, Lower(Email) = ThisItem.AssigneeEmail)'
     pname = NAME.format(e='ThisItem.AssigneeEmail')
@@ -98,9 +98,9 @@ Set(varCLate, Filter(colAll, Status.Value <> "Done", DueDate < Today()))'''
 
 def scr_ceo_tickets():
     items = """SortByColumns(
-    Filter(
+    AddColumns(Filter(
         Switch(varFilter,
-            "late", Filter(colAll, Status.Value <> "Done", DueDate < Today()),
+            "late", Filter(colAll, Status.Value <> "Done", !IsBlank(DueDate), DueDate < Today()),
             "wait", Filter(colAll, Status.Value = "WaitingCEO"),
             "done", Filter(colAll, Status.Value = "Done"),
             "noack", Filter(colAll, Status.Value = "New"),
@@ -109,9 +109,10 @@ def scr_ceo_tickets():
             colAll),
         !varCSearch || IsBlank(Trim(txtCSearch.Text)) || Trim(txtCSearch.Text) in Title || Trim(txtCSearch.Text) in AssigneeEmail ||
             Trim(txtCSearch.Text) in LookUp(colEmp, Lower(Email) = AssigneeEmail).Nickname),
-    "DueDate", SortOrder.Ascending)"""
-    row_sub = (NAME.format(e='ThisItem.AssigneeEmail') + ' & " · " & If(ThisItem.DueDate < Today(), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & (Text(ThisItem.DueDate, "ddd", "th-TH") & " " & Day(ThisItem.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(ThisItem.DueDate)).Value))')
-    late = 'ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today()'
+        SortDue, Coalesce(DueDate, Date(2099, 12, 31))),
+    "SortDue", SortOrder.Ascending)"""
+    row_sub = (NAME.format(e='ThisItem.AssigneeEmail') + ' & " · " & If(IsBlank(ThisItem.DueDate), "ไม่กำหนดวันส่ง", If((!IsBlank(ThisItem.DueDate) && ThisItem.DueDate < Today()), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & (Text(ThisItem.DueDate, "ddd", "th-TH") & " " & Day(ThisItem.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(ThisItem.DueDate)).Value)))')
+    late = 'ThisItem.Status.Value <> "Done" && (!IsBlank(ThisItem.DueDate) && ThisItem.DueDate < Today())'
     status = f'If({late}, "เลยกำหนด", ' + CEO_STATUS.format(s='ThisItem.Status.Value') + ')'
     bar = (f'Switch(true, {late}, clrAccent, ThisItem.Status.Value = "WaitingCEO", clrPrimary, '
            'ThisItem.Status.Value = "Done", clrSuccess, ThisItem.Status.Value = "New", ColorValue("#8A94A6"), ColorValue("#C9CEDA"))')
@@ -198,7 +199,7 @@ Refresh(TicketHistory);
     If(d < Today() || d = varTicket.DueDate,
         Notify("เลือกวันส่งใหม่ที่ยังไม่ผ่านมา", NotificationType.Warning),
         Patch(Tickets, LookUp(Tickets, ID = varTicket.ID), {{DueDate: d, OverdueNotified: false}});
-        {hist('"comment"', 'varTicket.Status.Value', 'varTicket.Status.Value', '"📅 CEO เลื่อนวันส่งจาก " & (Text(varTicket.DueDate, "ddd", "th-TH") & " " & Day(varTicket.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(varTicket.DueDate)).Value) & " เป็น " & (Text(d, "ddd", "th-TH") & " " & Day(d) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(d)).Value)')};
+        {hist('"comment"', 'varTicket.Status.Value', 'varTicket.Status.Value', '"📅 CEO เลื่อนวันส่งจาก " & If(IsBlank(varTicket.DueDate), "ไม่กำหนด", Text(varTicket.DueDate, "ddd", "th-TH") & " " & Day(varTicket.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(varTicket.DueDate)).Value) & " เป็น " & (Text(d, "ddd", "th-TH") & " " & Day(d) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(d)).Value)')};
         Notify("เลื่อนวันส่งแล้ว", NotificationType.Success)));
 Set(varPickDue, false);
 {tail}'''
@@ -239,7 +240,7 @@ Set(varPickDue, false);
             ('conCDDue', in_box(hbox([
                 ('btnCDue1', in_box(button('"พรุ่งนี้"', due('DateAdd(Today(), 1, TimeUnit.Days)'), **small), 1)),
                 ('btnCDue2', in_box(button('"ศุกร์นี้"', due(friday), **small), 1)),
-                ('btnCDue3', in_box(button('"+7 วัน"', due('DateAdd(varTicket.DueDate, 7, TimeUnit.Days)'), **small), 1)),
+                ('btnCDue3', in_box(button('"+7 วัน"', due('DateAdd(Coalesce(varTicket.DueDate, Today()), 7, TimeUnit.Days)'), **small), 1)),
             ], Height=50, Visible='varPickDue'))),
             ('conCDBig', in_box(hbox([
                 ('btnCPass', in_box(button('"ผ่าน ปิดงาน"', pass_, Fill='clrSuccess', BorderColor='clrSuccess', **big), 1)),
@@ -260,13 +261,14 @@ Set(varPickDue, false);
 def scr_ceo_create():
     on_visible = """ClearCollect(colEmp, Filter(Employees, Active = true));
 If(IsBlank(varNDue), Set(varNDue, DateAdd(Today(), 1, TimeUnit.Days)));
+Set(varNNoDue, false);
 Set(varNPickAll, false);
 Set(varNCal, false);
 Set(varRecentT, Filter(Tickets, Created >= DateAdd(Today(), -60, TimeUnit.Days)));
 Set(varFreq, FirstN(SortByColumns(AddColumns(GroupBy(varRecentT, AssigneeEmail, Rows), Cnt, CountRows(Rows)), "Cnt", SortOrder.Descending), 4))"""
     create = f'''Set(varBusy, true);
 Set(varWho, If(varNMgr, Filter(colEmp, IsManager = true), colPick));
-Set(varBase, {{Title: Trim(txtNTitle.Text), Details: Trim(txtNDetails.Text), DueDate: varNDue,
+Set(varBase, {{Title: Trim(txtNTitle.Text), Details: Trim(txtNDetails.Text), DueDate: If(varNNoDue, Blank(), varNDue),
     Priority: {{Value: "Normal"}}, Status: {{Value: "New"}}, IsOpen: true, OverdueNotified: false, NoAckNotified: false,
     Source: {{Value: "App"}}, PermsSet: false, HasFiles: false}});
 Set(varFirst, Patch(Tickets, Defaults(Tickets), varBase, {{AssigneeEmail: Lower(First(varWho).Email)}}));
@@ -282,14 +284,14 @@ Collect(TicketHistory, ForAll(colMade As t,
 ForAll(attNew.Attachments As f, ForAll(colMade As t, AttachTicketFile.Run(t.ID, {{contentBytes: f.Value, name: f.Name}})));
 Set(varBusy, false);
 Notify("สั่งงานแล้ว " & Concat(colMade, "T-" & ID, ", "), NotificationType.Success);
-Reset(txtNTitle); Reset(txtNDetails); Reset(attNew); Clear(colPick); Set(varNMgr, false)'''
+Reset(txtNTitle); Reset(txtNDetails); Reset(attNew); Clear(colPick); Set(varNMgr, false); Set(varNNoDue, false)'''
     picked = '!IsBlank(LookUp(colPick, Email = ThisItem.Email))'
     toggle = f'If({picked}, Remove(colPick, LookUp(colPick, Email = ThisItem.Email)), Collect(colPick, ThisItem))'
     summary = ('If(varNMgr, "สั่งหัวหน้า/ผู้จัดการทุกคน " & CountRows(Filter(colEmp, IsManager = true)) & " คน", '
                'IsEmpty(colPick), "ยังไม่ได้เลือกคน", "สั่งคุณ" & Concat(colPick, Coalesce(Nickname, FirstName), ", คุณ")) & '
-               '" · ส่ง " & Text(varNDue, "dddd d mmmm", "th-TH")')
+               '" · " & If(varNNoDue, "ไม่กำหนดวันส่ง", "ส่ง " & Text(varNDue, "dddd d mmmm", "th-TH"))')
     friday = 'DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days)'
-    w4 = CHIP_W.format(g=36, n=4)
+    w4 = CHIP_W.format(g=48, n=5)
     chip_label = 'Coalesce(ThisItem.Nickname, ThisItem.FirstName) & If(IsBlank(ThisItem.Department), "", " (" & ThisItem.Department & ")")'
     # "สั่งใคร": frequent people (+ anyone already picked) as chips, then "หัวหน้า/ผู้จัดการ" and "คนอื่น…" continuing the same 3-column flow
     WHO_Y, ROW, COLS = 498, 62, 3
@@ -300,12 +302,14 @@ Reset(txtNTitle); Reset(txtNDetails); Reset(attNew); Clear(colPick); Set(varNMgr
                            Width=f'{col_w} - 8', Height=ROW - 8, Size=12)
     after_who = f'{WHO_Y} + {who_rows} * {ROW}'
     days = [('Today', '"วันนี้"', 'Today()'), ('Tmr', '"พรุ่งนี้"', 'DateAdd(Today(), 1, TimeUnit.Days)'), ('Fri', '"ศุกร์นี้"', friday)]
-    day_ctrls = [(f'btnNDay{k}', chip(t, f'varNDue = {d}', f'Set(varNDue, {d})', X=f'24 + {i} * ({w4} + 12)', Y='lblNWhenHead.Y + 38', Width=w4))
+    day_ctrls = [(f'btnNDay{k}', chip(t, f'!varNNoDue && varNDue = {d}', f'Set(varNDue, {d}); Set(varNNoDue, false)', X=f'24 + {i} * ({w4} + 12)', Y='lblNWhenHead.Y + 38', Width=w4, Size=13))
                  for i, (k, t, d) in enumerate(days)]
     custom = '!(varNDue in [' + ', '.join(d for _, _, d in days) + '])'
-    day_ctrls.append(('btnNDayPick', chip(f'If({custom}, (Text(varNDue, "ddd", "th-TH") & " " & Day(varNDue) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(varNDue)).Value), "เลือกวัน…")', custom,
+    day_ctrls.append(('btnNDayPick', chip(f'If(!varNNoDue && {custom}, (Text(varNDue, "ddd", "th-TH") & " " & Day(varNDue) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(varNDue)).Value), "เลือกวัน…")', f'!varNNoDue && {custom}',
                                           'Set(varNPickAll, false); Set(varCalMonth, Date(Year(varNDue), Month(varNDue), 1)); Set(varNCal, true)',
-                                          X=f'24 + 3 * ({w4} + 12)', Y='lblNWhenHead.Y + 38', Width=w4)))
+                                          X=f'24 + 3 * ({w4} + 12)', Y='lblNWhenHead.Y + 38', Width=w4, Size=13)))
+    day_ctrls.append(('btnNDayNone', chip('"ไม่กำหนด"', 'varNNoDue', 'Set(varNNoDue, true)',
+                                          X=f'24 + 4 * ({w4} + 12)', Y='lblNWhenHead.Y + 38', Width=w4, Size=13)))
     tin = lambda hint, h: {'type': 'Classic/TextInput@2.3.2', 'props': {
         'Default': '""', 'HintText': hint, 'Height': h, 'Font': FONT, 'Size': 15, 'BorderColor': 'clrLine', 'BorderThickness': 2,
         'Fill': 'Color.White', 'HoverFill': 'Color.White', 'X': 24, 'Width': 'Parent.Width - 48',
@@ -362,7 +366,7 @@ Reset(txtNTitle); Reset(txtNDetails); Reset(attNew); Clear(colPick); Set(varNMgr
         ('conNCalWeek', in_box(hbox([(f'lblNCalW{i}', in_box(label(f'"{w}"', Height=30, Size=12, Color='clrMuted', Align='Align.Center'), 1))
                                      for i, w in enumerate(week)], Height=30, LayoutGap=0))),
         ('galNCal', list_in(gallery('ForAll(Sequence(42), DateAdd(varCalMonth, Value - Weekday(varCalMonth), TimeUnit.Days))', [
-            ('btnNCalDay', button(f'Day({day})', f'Set(varNDue, {day}); Set(varNCal, false)', X=6, Y=4, Width='Parent.TemplateWidth - 12',
+            ('btnNCalDay', button(f'Day({day})', f'Set(varNDue, {day}); Set(varNNoDue, false); Set(varNCal, false)', X=6, Y=4, Width='Parent.TemplateWidth - 12',
                                   Height='Parent.TemplateHeight - 8', Size=14, FontWeight=f'If({day} = Today(), FontWeight.Bold, FontWeight.Normal)',
                                   Fill=f'If({day} = varNDue, clrPrimary, Color.White)',
                                   Color=f'If({day} = varNDue, Color.White, Month({day}) <> Month(varCalMonth), clrMuted, clrText)',
@@ -403,7 +407,7 @@ Reset(txtNTitle); Reset(txtNDetails); Reset(attNew); Clear(colPick); Set(varNMgr
                               FontWeight='FontWeight.Semibold')),
         ('btnNCreate', button('"สั่งงาน"', create, X=24, Y=f'Parent.Height - {TAB_H} - 84', Width='Parent.Width - 48', Height=72, Size=16, FontWeight='FontWeight.Bold',
                               RadiusTopLeft=16, RadiusTopRight=16, RadiusBottomLeft=16, RadiusBottomRight=16,
-                              DisplayMode='If(varBusy || IsBlank(Trim(txtNTitle.Text)) || (!varNMgr && IsEmpty(colPick)) || varNDue < Today(), DisplayMode.Disabled, DisplayMode.Edit)',
+                              DisplayMode='If(varBusy || IsBlank(Trim(txtNTitle.Text)) || (!varNMgr && IsEmpty(colPick)) || (!varNNoDue && varNDue < Today()), DisplayMode.Disabled, DisplayMode.Edit)',
                               DisabledFill='ColorFade(clrAccent, 60%)', DisabledColor='Color.White')),
         ('conNPicker', picker),
         ('conNCal', calendar),
