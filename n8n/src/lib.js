@@ -1335,7 +1335,7 @@ async function replyList(ctx, ev, kind, page) {
 
 // "Kชา K เนส K แม้ว" and the task on the next lines: how the CEO dictates one task for several people.
 // "K" is "คุณ". Returns null unless the first line is only names; {unknown} when a name is not in Employees.
-const NAME_MARK = /(?:^|\s)(?:[Kk]\.?|คุณ|พี่|น้อง)\s*(?=[ก-๙])/;
+const NAME_MARK = /(?:[Kk]\.?|(?:^|\s)(?:คุณ|พี่|น้อง))\s*(?=[ก-๙])/;
 function parseNamedOrder(employees, text) {
   const lines = String(text).trim().split(/\r?\n/);
   const head = lines[0].trim().replace(ASSIGN_PREFIX, '');

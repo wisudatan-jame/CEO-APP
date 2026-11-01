@@ -1100,3 +1100,9 @@ test('at "สั่งใคร?" several K-names in one message pick all of the
   await send(w, textEv('Kเอ K ปิ'));
   assert.match(lastReply(w).text, /👥 ตามที่ระบุ 2 คน\nเอ \(Sales\), ปิ \(PM\)\nส่งเมื่อไร\?/);
 });
+
+test('K-names work with or without spaces: "KเอKปิKมะลิ"', async () => {
+  const w = fakeWorld();
+  await send(w, textEv('KเอKปิKมะลิ\nส่งแผนงบ'));
+  assert.match(lastReply(w).text, /👥 ตามที่ระบุ 3 คน\nเอ \(Sales\), ปิ \(PM\), มะลิ \(Marketing\)\nส่งเมื่อไร\?/);
+});
