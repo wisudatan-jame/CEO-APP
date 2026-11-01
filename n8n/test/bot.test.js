@@ -1050,3 +1050,53 @@ test('several LINE accounts in CEO_LINE_USER_ID: each commands the bot with thei
   await lib.dailySummary(w.ctx);
   assert.deepEqual(w.calls.pushes.map((p) => p.to), [CEO, HELPER]);
 });
+
+// ---------- "Kเอ K ปิ" + task on the next lines: the CEO's dictating style ----------
+const DICTATED = 'ท่านวิชาญโทรมาให้เร่งปิดงานติดตั้งระบบ Smart Traffic ของ Hikvision\nได้แจ้งรายละเอียดให้คุณเอกชัยแล้ว\nแจ้งท่านคณบดีโดยส่งโครงการให้ท่านพิจารณา';
+
+test('"Kเอ K ปิ K มะลิ" + task lines: one ticket each, title is the first line, full text in details', async () => {
+  const w = fakeWorld();
+  await send(w, textEv(`Kเอ K ปิ K มะลิ\n${DICTATED}`));
+  let msg = lastReply(w);
+  assert.match(msg.text, /^📝 "ท่านวิชาญโทรมาให้เร่งปิดงานติดตั้งระบบ Smart Traffic ของ Hikvision"\n👥 ตามที่ระบุ 3 คน\nเอ \(Sales\), ปิ \(PM\), มะลิ \(Marketing\)\nส่งเมื่อไร\?/);
+  await send(w, textEv('ศุกร์นี้'));
+  const tickets = w.items.Tickets;
+  assert.deepEqual(tickets.map((t) => t.fields.AssigneeEmail), ['a@df.co.th', 'pm@df.co.th', 'mkt@df.co.th']);
+  assert.equal(tickets[0].fields.Title, 'ท่านวิชาญโทรมาให้เร่งปิดงานติดตั้งระบบ Smart Traffic ของ Hikvision');
+  assert.equal(tickets[0].fields.Details, DICTATED);
+  assert.equal(tickets[1].fields.GroupID, Number(tickets[0].id));
+});
+
+test('"คุณเอ คุณปิ" and "K.เอ" also name people; one person goes the single-ticket way', async () => {
+  const w = fakeWorld();
+  await send(w, textEv(`คุณเอ คุณปิ\nส่งแผนงบ`));
+  assert.match(lastReply(w).text, /👥 ตามที่ระบุ 2 คน\nเอ \(Sales\), ปิ \(PM\)\nส่งเมื่อไร\?/);
+  await send(w, textEv('ยกเลิก'));
+  await send(w, textEv(`K.เอ\nส่งแผนงบ`));
+  assert.match(lastReply(w).text, /^📝 "ส่งแผนงบ"\n👤 คุณเอ\nส่งเมื่อไร\?/);
+  await send(w, textEv('พรุ่งนี้'));
+  assert.equal(w.items.Tickets.length, 1);
+  assert.equal(w.items.Tickets[0].fields.AssigneeEmail, 'a@df.co.th');
+  assert.equal(w.items.Tickets[0].fields.Details, undefined);
+});
+
+test('names only ("Kเอ K ปิ") ask for the task; an unknown K-name is reported; a plain sentence is untouched', async () => {
+  const w = fakeWorld();
+  await send(w, textEv('Kเอ K ปิ'));
+  assert.match(lastReply(w).text, /สั่งงานใหม่ ให้ตามที่ระบุ 2 คน ใช่ไหม\?\nพิมพ์หรือพูดชื่องานได้เลย/);
+  await send(w, textEv('เตรียมสไลด์'));
+  assert.match(lastReply(w).text, /^📝 "เตรียมสไลด์"\n👥 ตามที่ระบุ 2 คน/);
+  await send(w, textEv('ยกเลิก'));
+  await send(w, textEv('Kซูซู\nเตรียมสไลด์'));
+  assert.match(lastReply(w).text, /^ไม่พบชื่อ "ซูซู" ในรายชื่อพนักงาน\n📝 "เตรียมสไลด์"\nสั่งใคร\?/);
+  await send(w, textEv('ยกเลิก'));
+  await send(w, textEv('คุณเอ ส่งรายงานวันนี้'));
+  assert.match(lastReply(w).text, /^📝 "คุณเอ ส่งรายงานวันนี้"\nสั่งใคร\?/);
+});
+
+test('at "สั่งใคร?" several K-names in one message pick all of them', async () => {
+  const w = fakeWorld();
+  await send(w, textEv('เตรียมสไลด์'));
+  await send(w, textEv('Kเอ K ปิ'));
+  assert.match(lastReply(w).text, /👥 ตามที่ระบุ 2 คน\nเอ \(Sales\), ปิ \(PM\)\nส่งเมื่อไร\?/);
+});

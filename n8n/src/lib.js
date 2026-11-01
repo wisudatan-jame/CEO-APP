@@ -515,6 +515,7 @@ function helpText() {
     'พิมพ์ "เพิ่มเติม" ตามด้วยรายละเอียด เพื่อเพิ่มให้งานที่สั่งไปแล้ว',
     'ถาม "งานคุณแตนถึงไหน" หรือ "T-19 ถึงไหน" เพื่อดูความคืบหน้า ติดตาม หรือเลื่อนวันส่ง',
     'สั่งหลายคน: ที่ "สั่งใคร?" แตะ 👥 หัวหน้าทุกคน หรือพูด "หัวหน้าฝ่ายขาย" "ฝ่ายบัญชีทุกคน"',
+    'สั่งทีเดียวหลายคน: บรรทัดแรกพิมพ์ชื่อ เช่น "Kชา K เนส K แม้ว" แล้วขึ้นบรรทัดใหม่ตามด้วยเนื้องาน',
     'ส่งรูปหลังสร้างงาน บอทจะถามว่าแนบกับงานไหน',
     'พิมพ์ "โอนงาน" เพื่อโอนงานของคนที่ลาออกให้คนอื่น',
   ].join('\n');
@@ -539,14 +540,16 @@ function currentDraft(ctx, userId) {
   return d || null;
 }
 
-async function startDraft(ctx, ev, t, notice) {
+async function startDraft(ctx, ev, t, notice, people) {
   const userId = ev.source.userId;
   const nowMs = ctx.now().getTime();
-  const title = truncate(t.replace(/\s+/g, ' '), 255);
+  const firstLine = (t.split(/\r?\n/).find((l) => l.trim()) || t).trim();
+  const title = truncate((people ? firstLine : t).replace(/\s+/g, ' '), 255);
   const dr = {
     id: newId(),
     title,
-    details: chars(t).length > 255 ? [t] : [],
+    // Several lines (or a long text) keep their full wording in the details, the title is the first line.
+    details: chars(t).length > 255 || (people && t.trim() !== firstLine) ? [t] : [],
     images: takePendingImages(ctx, userId, nowMs),
     assignee: null,
     stage: 'who',
@@ -558,6 +561,8 @@ async function startDraft(ctx, ev, t, notice) {
   delete ctx.store.addTo;
   let note = notice || '';
   if (dr.images.length) note += `📎 แนบรูปที่ส่งไว้ ${dr.images.length} รูป\n`;
+  if (people && people.length === 1) return afterWhoNoted(ctx, ev, dr, people[0], note);
+  if (people && people.length > 1) return afterGroupNoted(ctx, ev, dr, people, note);
   if (ev.moreText && !note) return { draft: dr.id, stage: 'who' };
   return askWho(ctx, ev, dr, note);
 }
@@ -628,6 +633,18 @@ async function onMessage(ctx, ev, cfg) {
     if (asked) return asked;
     if (!dr && EXTRA_PREFIX.test(t)) {
       return startAdd(ctx, ev, { text: t.replace(EXTRA_PREFIX, '').trim(), raw: t, images: [] });
+    }
+    const named = parseNamedOrder(await getEmployees(ctx), t);
+    if (named && dr && (dr.stage === 'who' || dr.stage === 'search') && !named.body && !named.unknown.length) {
+      // Names only, while the bot asks "สั่งใคร?": they answer that question.
+      if (named.people.length > 1) return afterGroup(ctx, ev, dr, namedGroup(named.people));
+    } else if (named && !(dr && dr.stage === 'what' && !named.body) && !(dr && dr.stage !== 'what' && !named.body)) {
+      const old = dr ? `ยกเลิกงานก่อนหน้า: "${truncate(dr.title, 60)}"\n\n` : '';
+      if (named.unknown.length) {
+        return startDraft(ctx, ev, named.body || t, `${old}ไม่พบชื่อ "${truncate(named.unknown.join(', '), 40)}" ในรายชื่อพนักงาน\n`);
+      }
+      if (named.body) return startDraft(ctx, ev, named.body, old, named.people);
+      return startFromHint(ctx, ev, t, named.people);
     }
     if (!dr || dr.stage === 'what') {
       // Only a person or a due date: a new task is starting, so ask for its name.
@@ -773,7 +790,7 @@ async function askWho(ctx, ev, dr, notice) {
 }
 
 const ASSIGN_PREFIX = /^(สั่งงาน|สั่ง|มอบหมายให้|มอบให้|ให้)\s*/;
-const HONORIFIC = /^(คุณ|พี่|น้อง|นางสาว|นาย|นาง)\s*/;
+const HONORIFIC = /^(คุณ|พี่|น้อง|นางสาว|นาย|นาง|k\.?(?=\s*[ก-๙]))\s*/i;
 const DEPT_WORDS = [
   ['บัญชี', 'account'], ['การเงิน', 'finance'], ['การตลาด', 'marketing', 'มาร์เก็ตติ้ง'],
   ['hr', 'เอชอาร์', 'บุคคล'], ['pm', 'พีเอ็ม'], ['product', 'โปรดักส์', 'โปรดักท์', 'โปรดัก'],
@@ -1314,6 +1331,30 @@ async function replyList(ctx, ev, kind, page) {
   const header = `${titles[kind]} (${page * size + 1}–${page * size + rows.length} จาก ${sorted.length})`;
   await lineReply(ctx, ev, textMsg(`${header}\n${lines.join('\n')}`, items));
   return { list: kind, count: rows.length };
+}
+
+// "Kชา K เนส K แม้ว" and the task on the next lines: how the CEO dictates one task for several people.
+// "K" is "คุณ". Returns null unless the first line is only names; {unknown} when a name is not in Employees.
+const NAME_MARK = /(?:^|\s)(?:[Kk]\.?|คุณ|พี่|น้อง)\s*(?=[ก-๙])/;
+function parseNamedOrder(employees, text) {
+  const lines = String(text).trim().split(/\r?\n/);
+  const head = lines[0].trim().replace(ASSIGN_PREFIX, '');
+  if (!/^(?:[Kk]\.?|คุณ)\s*[ก-๙]/.test(head)) return null;
+  const names = head.split(NAME_MARK).map((x) => x.trim()).filter(Boolean);
+  const body = lines.slice(1).join('\n').trim();
+  const people = [];
+  const unknown = [];
+  for (const n of names) {
+    const r = findAssignee(employees, n);
+    if (r.people.length === 1 && r.exact) {
+      if (!people.some((e) => e.email === r.people[0].email)) people.push(r.people[0]);
+    } else {
+      unknown.push(n);
+    }
+  }
+  // "คุณแตน ส่งรายงานวันนี้" on one line is an ordinary sentence, not a list of names.
+  if (unknown.length && (!/^[Kk]/.test(head) || !body)) return null;
+  return { people, unknown, body };
 }
 
 // ---------- One order to a group: all managers, managers or everyone of a department ----------
@@ -1891,12 +1932,12 @@ function draftName(dr) {
 }
 
 // "สั่งแตน" or "พรุ่งนี้" with no task in progress: start a task that already knows the person or the date.
-async function startFromHint(ctx, ev, t) {
-  if (chars(t).length > 30) return null;
+async function startFromHint(ctx, ev, t, known) {
+  if (!known && chars(t).length > 30) return null;
   const nowMs = ctx.now().getTime();
-  const due = parseDueText(t, bkkYmd(ctx.now()));
-  const group = due ? null : parseGroup(await getEmployees(ctx), t);
-  const r = due || group ? null : findAssignee(await getEmployees(ctx), t);
+  const due = known ? null : parseDueText(t, bkkYmd(ctx.now()));
+  const group = known ? (known.length > 1 ? namedGroup(known) : null) : due ? null : parseGroup(await getEmployees(ctx), t);
+  const r = known ? { people: known.length === 1 ? known : [], exact: true } : due || group ? null : findAssignee(await getEmployees(ctx), t);
   if (!due && !group && !(r.people.length && r.exact)) return null;
   const emp = r && r.people.length === 1 ? r.people[0] : null;
   const userId = ev.source.userId;
@@ -1925,6 +1966,25 @@ async function startFromHint(ctx, ev, t) {
     qrPostback('❌ ไม่ใช่', { a: 'cancel', d: dr.id }, 'ไม่ใช่'),
   ]));
   return { draft: dr.id, stage: 'what', assignee: dr.assignee, due: dr.due };
+}
+
+// People named in the CEO's message ("Kชา K เนส"): one ticket each, linked as a group when more than one.
+function namedGroup(people) {
+  return { label: 'ตามที่ระบุ', emails: people.map((e) => e.email) };
+}
+async function afterWhoNoted(ctx, ev, dr, emp, note) {
+  dr.assignee = emp.email;
+  dr.group = null;
+  if (dr.due) return createTicketFromDraft(ctx, ev, await getConfig(ctx), dr, dr.due);
+  dr.stage = 'when';
+  return askWhen(ctx, ev, dr, emp, `${note}📝 "${truncate(dr.title, 120)}"\n`);
+}
+async function afterGroupNoted(ctx, ev, dr, people, note) {
+  dr.group = Object.assign(namedGroup(people), { names: truncate(people.map(personLabel).join(', '), 600) });
+  dr.assignee = null;
+  if (dr.due) return createTicketFromDraft(ctx, ev, await getConfig(ctx), dr, dr.due);
+  dr.stage = 'when';
+  return askWhen(ctx, ev, dr, null, `${note}📝 "${truncate(dr.title, 120)}"\n`);
 }
 
 // The person is known: ask the due date, or create the task when the CEO already said it.
