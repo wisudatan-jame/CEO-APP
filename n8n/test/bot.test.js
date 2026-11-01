@@ -1088,7 +1088,7 @@ test('names only ("Kเอ K ปิ") ask for the task; an unknown K-name is rep
   assert.match(lastReply(w).text, /^📝 "เตรียมสไลด์"\n👥 ตามที่ระบุ 2 คน/);
   await send(w, textEv('ยกเลิก'));
   await send(w, textEv('Kซูซู\nเตรียมสไลด์'));
-  assert.match(lastReply(w).text, /^ไม่พบชื่อ "ซูซู" ในรายชื่อพนักงาน\n📝 "เตรียมสไลด์"\nสั่งใคร\?/);
+  assert.match(lastReply(w).text, /^ไม่พบชื่อ "ซูซู" ในรายชื่อพนักงาน\n\(ชื่อเล่นภาษาอังกฤษ[^\n]*\n📝 "เตรียมสไลด์"\nสั่งใคร\?/);
   await send(w, textEv('ยกเลิก'));
   await send(w, textEv('คุณเอ ส่งรายงานวันนี้'));
   assert.match(lastReply(w).text, /^📝 "คุณเอ ส่งรายงานวันนี้"\nสั่งใคร\?/);
@@ -1105,4 +1105,56 @@ test('K-names work with or without spaces: "KเอKปิKมะลิ"', async
   const w = fakeWorld();
   await send(w, textEv('KเอKปิKมะลิ\nส่งแผนงบ'));
   assert.match(lastReply(w).text, /👥 ตามที่ระบุ 3 คน\nเอ \(Sales\), ปิ \(PM\), มะลิ \(Marketing\)\nส่งเมื่อไร\?/);
+});
+
+// ---------- the CEO's real dictation: several orders in one message ----------
+const MULTI = [
+  'K เอ ปิ',
+  'KPI ประจำสัปดาห์ ของ Sales ทุกคน',
+  ' ตรวจสอบ ทุก อาทิตย์',
+  '',
+  '@All มีลูกค้าใส่ ซอง ผิด ทำให้ sensor เสียหาย',
+  ' K มะลิ K เอก',
+  ' ทำ page วิธี การใส่ซอง',
+  ' เตือนว่า ให้ระวัง sensor',
+  '',
+  '@All K เอ K มะลิ',
+  ' ตรวจ Spec ใหม่ พร้อม ราคา กลาง',
+].join('\n');
+
+test('one message with several orders: names without a second K, context before the names, "@All"', async () => {
+  const w = fakeWorld();
+  await send(w, textEv(MULTI));
+  const msg = lastReply(w);
+  assert.match(msg.text, /^📝 สั่ง 3 งาน\n1\) คุณเอ, คุณปิ\n {4}KPI ประจำสัปดาห์ ของ Sales ทุกคน\n2\) คุณมะลิ, คุณเอก\n {4}ทำ page วิธี การใส่ซอง\n3\) คุณเอ, คุณมะลิ\n {4}ตรวจ Spec ใหม่ พร้อม ราคา กลาง\nใช้วันส่งเดียวกันทุกงาน\nส่งเมื่อไร\?/);
+  await send(w, textEv('ศุกร์นี้'));
+  const t = w.items.Tickets;
+  assert.equal(t.length, 6);
+  assert.deepEqual(t.map((x) => x.fields.AssigneeEmail), ['a@df.co.th', 'pm@df.co.th', 'mkt@df.co.th', 'ek@df.co.th', 'a@df.co.th', 'mkt@df.co.th']);
+  assert.deepEqual(t.map((x) => x.fields.Title), [
+    'KPI ประจำสัปดาห์ ของ Sales ทุกคน', 'KPI ประจำสัปดาห์ ของ Sales ทุกคน',
+    'ทำ page วิธี การใส่ซอง', 'ทำ page วิธี การใส่ซอง', 'ตรวจ Spec ใหม่ พร้อม ราคา กลาง', 'ตรวจ Spec ใหม่ พร้อม ราคา กลาง']);
+  // each order is its own group; the text before the names line stays in the details
+  assert.equal(t[1].fields.GroupID, Number(t[0].id));
+  assert.equal(t[3].fields.GroupID, Number(t[2].id));
+  assert.equal(t[2].fields.Details, 'มีลูกค้าใส่ ซอง ผิด ทำให้ sensor เสียหาย\nทำ page วิธี การใส่ซอง\nเตือนว่า ให้ระวัง sensor');
+  assert.equal(t[0].fields.Details, 'KPI ประจำสัปดาห์ ของ Sales ทุกคน\nตรวจสอบ ทุก อาทิตย์');
+  assert.match(lastReply(w).text, /^✅ สั่ง 3 งานแล้ว\n1\) KPI ประจำสัปดาห์ ของ Sales ทุกคน\n {3}T-\d+ คุณเอ · T-\d+ คุณปิ\n2\) ทำ page/);
+  assert.equal(w.items.TicketHistory.length, 6);
+});
+
+test('several orders: an unknown name stops everything and says which name', async () => {
+  const w = fakeWorld();
+  await send(w, textEv(MULTI.replace('K เอ K มะลิ', 'K เอ K Nes')));
+  assert.match(lastReply(w).text, /^ไม่พบชื่อ "Nes" ในรายชื่อพนักงาน/);
+  assert.equal(w.items.Tickets.length, 0);
+});
+
+test('a task on the same line as "K name" and a plain context paragraph stay together', async () => {
+  const w = fakeWorld();
+  await send(w, textEv('K เอ ส่งรายงานยอดขาย\nรวมทุกสาขา\n\nและเทียบกับปีที่แล้ว'));
+  assert.match(lastReply(w).text, /^📝 "ส่งรายงานยอดขาย"\n👤 คุณเอ\nส่งเมื่อไร\?/);
+  await send(w, textEv('พรุ่งนี้'));
+  assert.equal(w.items.Tickets.length, 1);
+  assert.equal(w.items.Tickets[0].fields.Details, 'ส่งรายงานยอดขาย\nรวมทุกสาขา\nและเทียบกับปีที่แล้ว');
 });

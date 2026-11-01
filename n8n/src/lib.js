@@ -515,7 +515,7 @@ function helpText() {
     'พิมพ์ "เพิ่มเติม" ตามด้วยรายละเอียด เพื่อเพิ่มให้งานที่สั่งไปแล้ว',
     'ถาม "งานคุณแตนถึงไหน" หรือ "T-19 ถึงไหน" เพื่อดูความคืบหน้า ติดตาม หรือเลื่อนวันส่ง',
     'สั่งหลายคน: ที่ "สั่งใคร?" แตะ 👥 หัวหน้าทุกคน หรือพูด "หัวหน้าฝ่ายขาย" "ฝ่ายบัญชีทุกคน"',
-    'สั่งทีเดียวหลายคน: บรรทัดแรกพิมพ์ชื่อ เช่น "Kชา K เนส K แม้ว" แล้วขึ้นบรรทัดใหม่ตามด้วยเนื้องาน',
+    'สั่งทีเดียวหลายคน/หลายงาน: บรรทัดหนึ่งพิมพ์ชื่อ เช่น "Kชา K เนส K แม้ว" แล้วขึ้นบรรทัดใหม่ตามด้วยเนื้องาน ข้อความเดียวมีได้หลายงาน (บอทถามวันส่งครั้งเดียว)',
     'ส่งรูปหลังสร้างงาน บอทจะถามว่าแนบกับงานไหน',
     'พิมพ์ "โอนงาน" เพื่อโอนงานของคนที่ลาออกให้คนอื่น',
   ].join('\n');
@@ -540,16 +540,14 @@ function currentDraft(ctx, userId) {
   return d || null;
 }
 
-async function startDraft(ctx, ev, t, notice, people) {
+async function startDraft(ctx, ev, t, notice, people, order) {
   const userId = ev.source.userId;
   const nowMs = ctx.now().getTime();
-  const firstLine = (t.split(/\r?\n/).find((l) => l.trim()) || t).trim();
-  const title = truncate((people ? firstLine : t).replace(/\s+/g, ' '), 255);
+  const title = order ? order.title : truncate(t.replace(/\s+/g, ' '), 255);
   const dr = {
     id: newId(),
     title,
-    // Several lines (or a long text) keep their full wording in the details, the title is the first line.
-    details: chars(t).length > 255 || (people && t.trim() !== firstLine) ? [t] : [],
+    details: order ? order.details : chars(t).length > 255 ? [t] : [],
     images: takePendingImages(ctx, userId, nowMs),
     assignee: null,
     stage: 'who',
@@ -565,6 +563,35 @@ async function startDraft(ctx, ev, t, notice, people) {
   if (people && people.length > 1) return afterGroupNoted(ctx, ev, dr, people, note);
   if (ev.moreText && !note) return { draft: dr.id, stage: 'who' };
   return askWho(ctx, ev, dr, note);
+}
+
+// Several orders in one message: one due date for all of them, then one ticket (or group) per order.
+async function startBatch(ctx, ev, orders, notice) {
+  const userId = ev.source.userId;
+  const nowMs = ctx.now().getTime();
+  const dr = {
+    id: newId(),
+    title: `${orders.length} งาน`,
+    details: [],
+    images: takePendingImages(ctx, userId, nowMs),
+    assignee: null,
+    batch: orders.map((o) => ({
+      emails: o.people.map((e) => e.email),
+      names: o.people.map((e) => personName(e)).join(', '),
+      title: o.title,
+      details: o.details,
+    })),
+    stage: 'when',
+    createdAt: nowMs,
+    lastTextAt: nowMs,
+  };
+  drafts(ctx)[userId] = dr;
+  delete ctx.store.transfer;
+  delete ctx.store.addTo;
+  let note = `${notice || ''}📝 สั่ง ${orders.length} งาน\n`;
+  dr.batch.forEach((b, i) => { note += `${i + 1}) ${truncate(b.names, 60)}\n    ${truncate(b.title, 50)}\n`; });
+  if (dr.images.length) note += `📎 แนบรูปที่ส่งไว้ ${dr.images.length} รูป (ให้งานที่ 1)\n`;
+  return askWhen(ctx, ev, dr, null, note);
 }
 
 async function onMessage(ctx, ev, cfg) {
@@ -634,17 +661,22 @@ async function onMessage(ctx, ev, cfg) {
     if (!dr && EXTRA_PREFIX.test(t)) {
       return startAdd(ctx, ev, { text: t.replace(EXTRA_PREFIX, '').trim(), raw: t, images: [] });
     }
-    const named = parseNamedOrder(await getEmployees(ctx), t);
-    if (named && dr && (dr.stage === 'who' || dr.stage === 'search') && !named.body && !named.unknown.length) {
-      // Names only, while the bot asks "สั่งใคร?": they answer that question.
-      if (named.people.length > 1) return afterGroup(ctx, ev, dr, namedGroup(named.people));
-    } else if (named && !(dr && dr.stage === 'what' && !named.body) && !(dr && dr.stage !== 'what' && !named.body)) {
-      const old = dr ? `ยกเลิกงานก่อนหน้า: "${truncate(dr.title, 60)}"\n\n` : '';
-      if (named.unknown.length) {
-        return startDraft(ctx, ev, named.body || t, `${old}ไม่พบชื่อ "${truncate(named.unknown.join(', '), 40)}" ในรายชื่อพนักงาน\n`);
+    const named = parseNamedOrders(await getEmployees(ctx), t);
+    if (named) {
+      const only = !named.unknown && named.orders.length === 1 && !named.orders[0].title; // names and nothing else
+      if (only && dr && (dr.stage === 'who' || dr.stage === 'search')) {
+        // Names only, while the bot asks "สั่งใคร?": they answer that question.
+        if (named.orders[0].people.length > 1) return afterGroup(ctx, ev, dr, namedGroup(named.orders[0].people));
+      } else if (!(only && dr)) {
+        const old = dr ? `ยกเลิกงานก่อนหน้า: "${truncate(dr.title, 60)}"\n\n` : '';
+        if (named.unknown) {
+          return startDraft(ctx, ev, named.body || t, `${old}ไม่พบชื่อ "${truncate(named.unknown.join(', '), 40)}" ในรายชื่อพนักงาน\n(ชื่อเล่นภาษาอังกฤษ เพิ่มในคอลัมน์ Aliases ของ Employees ได้)\n`);
+        }
+        if (named.orders.length > 1) return startBatch(ctx, ev, named.orders, old);
+        const o = named.orders[0];
+        if (o.title) return startDraft(ctx, ev, t, old, o.people, o);
+        return startFromHint(ctx, ev, t, o.people);
       }
-      if (named.body) return startDraft(ctx, ev, named.body, old, named.people);
-      return startFromHint(ctx, ev, t, named.people);
     }
     if (!dr || dr.stage === 'what') {
       // Only a person or a due date: a new task is starting, so ask for its name.
@@ -910,7 +942,7 @@ async function askWhen(ctx, ev, dr, emp, notice) {
   if (friday !== today && friday !== tomorrow) items.push(qrPostback('ศุกร์นี้', { a: 'when', d: dr.id, v: friday }, 'ส่งศุกร์นี้'));
   items.push(qrDatePicker('📅 เลือกวัน', { a: 'date', d: dr.id }, tomorrow, today));
   items.push(qrPostback('❌ ยกเลิก', { a: 'cancel', d: dr.id }, 'ยกเลิก'));
-  const who = dr.group ? groupLine(dr.group) : `👤 ${personName(emp, dr.assignee)}`;
+  const who = dr.batch ? 'ใช้วันส่งเดียวกันทุกงาน' : dr.group ? groupLine(dr.group) : `👤 ${personName(emp, dr.assignee)}`;
   await lineReply(ctx, ev, textMsg(`${notice || ''}${who}\nส่งเมื่อไร?`, items));
   return { draft: dr.id, stage: 'when' };
 }
@@ -1026,8 +1058,9 @@ async function onPostback(ctx, ev, cfg) {
   return { expired: p.d };
 }
 
-async function createTicketFromDraft(ctx, ev, cfg, dr, date) {
-  if (dr.group) return createGroupTickets(ctx, ev, cfg, dr, date);
+async function createTicketFromDraft(ctx, ev, cfg, dr, date, quiet) {
+  if (dr.batch) return createBatchTickets(ctx, ev, cfg, dr, date);
+  if (dr.group) return createGroupTickets(ctx, ev, cfg, dr, date, quiet);
   const userId = ev.source.userId;
   const emp = (await getEmployees(ctx)).find((e) => e.email === dr.assignee);
   const fields = {
@@ -1070,6 +1103,10 @@ async function createTicketFromDraft(ctx, ev, cfg, dr, date) {
     historyError = e;
   }
 
+  if (quiet) {
+    return { ids: [{ id: ticketId, email: dr.assignee }], images: uploaded, historyError,
+      warn: failedImages ? [`⚠️ แนบรูปไม่สำเร็จ ${failedImages} รูป (รูปเก่าเกินไปหรือระบบขัดข้อง)`] : [] };
+  }
   const lines = [`✅ สั่ง${personName(emp, dr.assignee)}แล้ว · T-${ticketId}`, `📅 ส่ง ${thaiDate(date)}`];
   if (uploaded) lines.push(`📎 แนบรูป ${uploaded} รูป`);
   if (failedImages) lines.push(`⚠️ แนบรูปไม่สำเร็จ ${failedImages} รูป (รูปเก่าเกินไปหรือระบบขัดข้อง)`);
@@ -1077,6 +1114,50 @@ async function createTicketFromDraft(ctx, ev, cfg, dr, date) {
   await lineReply(ctx, ev, textMsg(lines.join('\n')));
   if (historyError) throw new Error(`T-${ticketId} created but history event failed: ${historyError.message}`);
   return { created: ticketId, images: uploaded, failedImages };
+}
+
+async function createBatchTickets(ctx, ev, cfg, dr, date) {
+  const employees = await getEmployees(ctx);
+  const nameOf = (email) => personName(employees.find((e) => e.email === email), email);
+  const done = [];
+  const warn = [];
+  let failed = null;
+  let historyError = null;
+  for (let i = 0; i < dr.batch.length; i++) {
+    const b = dr.batch[i];
+    const sub = {
+      id: dr.id, title: b.title, details: b.details, images: i === 0 ? dr.images : [],
+      assignee: b.emails.length === 1 ? b.emails[0] : null,
+      group: b.emails.length > 1 ? { label: 'ตามที่ระบุ', emails: b.emails } : null,
+    };
+    try {
+      const r = await createTicketFromDraft(ctx, ev, cfg, sub, date, true);
+      done.push({ b, r });
+      historyError = historyError || r.historyError;
+      warn.push(...r.warn);
+      if (r.createError) { failed = r.createError; break; }
+    } catch (e) {
+      if (!done.length) throw e; // nothing created yet: the draft is still there, the CEO can pick the date again
+      failed = e;
+      break;
+    }
+  }
+  const lines = [`✅ สั่ง ${done.length} งานแล้ว`];
+  done.forEach(({ b, r }, i) => {
+    lines.push(`${i + 1}) ${truncate(b.title, 40)}`, `   ${r.ids.map((m) => `T-${m.id} ${nameOf(m.email)}`).join(' · ')}`);
+  });
+  lines.push(`📅 ส่ง ${thaiDate(date)}`);
+  if (dr.images.length) lines.push(`📎 แนบรูป ${dr.images.length} รูปให้งานที่ 1`);
+  lines.push(...warn);
+  if (failed) {
+    const rest = dr.batch.slice(done.length).map((b, i) => `${done.length + i + 1}) ${truncate(b.title, 40)}`);
+    lines.push(`⚠️ ยังไม่ได้สั่ง ${rest.length} งาน กรุณาสั่งใหม่:`, ...rest);
+  }
+  lines.push(historyError ? '⚠️ ระบบแจ้งเตือนพนักงานขัดข้อง ผู้ดูแลจะได้รับแจ้ง กรุณาบอกพนักงานโดยตรงไปก่อน' : 'พนักงานจะได้รับแจ้งเตือนภายในไม่กี่นาที');
+  await lineReply(ctx, ev, textMsg(lines.join('\n')));
+  if (historyError) throw new Error(`batch created but a history event failed: ${historyError.message}`);
+  if (failed) throw new Error(`batch: ${done.length} of ${dr.batch.length} orders created: ${failed.message}`);
+  return { created: done.map(({ r }) => (r.groupId || r.ids[0].id)), batch: done.length };
 }
 
 async function changeStatus(ctx, ev, cfg, action, ticketId, expected) {
@@ -1333,28 +1414,103 @@ async function replyList(ctx, ev, kind, page) {
   return { list: kind, count: rows.length };
 }
 
-// "Kชา K เนส K แม้ว" and the task on the next lines: how the CEO dictates one task for several people.
-// "K" is "คุณ". Returns null unless the first line is only names; {unknown} when a name is not in Employees.
-const NAME_MARK = /(?:[Kk]\.?|(?:^|\s)(?:คุณ|พี่|น้อง))\s*(?=[ก-๙])/;
-function parseNamedOrder(employees, text) {
-  const lines = String(text).trim().split(/\r?\n/);
-  const head = lines[0].trim().replace(ASSIGN_PREFIX, '');
-  if (!/^(?:[Kk]\.?|คุณ)\s*[ก-๙]/.test(head)) return null;
-  const names = head.split(NAME_MARK).map((x) => x.trim()).filter(Boolean);
-  const body = lines.slice(1).join('\n').trim();
+// How the CEO dictates: "Kชา K เนส K แม้ว" (K = คุณ, "@All" in front is ignored) on a line of its own, then the task.
+// One message can hold several orders: each line made only of names starts the next one.
+//   [context lines]            <- belong to the order whose names line follows
+//   K ชา K เนส                 <- names line
+//   task lines
+const NAME_START = /^(?:[Kk]\.?\s+\S|[Kk]\.?[ก-๙]|(?:คุณ|พี่|น้อง)\s*[ก-๙A-Za-z])/;
+const NAME_MARK = /[Kk]\.?(?=[ก-๙])|(?:^|\s)[Kk]\.?\s+(?=\S)|(?:^|\s)(?:คุณ|พี่|น้อง)\s*(?=[ก-๙A-Za-z])/;
+function exactPerson(employees, name) {
+  const r = findAssignee(employees, name);
+  return r.people.length === 1 && r.exact ? r.people[0] : null;
+}
+// A line made of names: {people, unknown, inline}. null when it is not one.
+// With "K" the line may go on with the task ("K ชา ส่งรายงาน"); "คุณ" lines must be names only, they are ordinary words too.
+function namesLine(employees, line) {
+  const l = line.trim().replace(/^@all\b\s*/i, '').replace(ASSIGN_PREFIX, '');
+  if (!l || !NAME_START.test(l)) return null;
+  const strict = !/^[Kk]/.test(l);
+  const tokens = l.split(NAME_MARK).map((x) => x.trim()).filter(Boolean);
   const people = [];
   const unknown = [];
-  for (const n of names) {
-    const r = findAssignee(employees, n);
-    if (r.people.length === 1 && r.exact) {
-      if (!people.some((e) => e.email === r.people[0].email)) people.push(r.people[0]);
-    } else {
-      unknown.push(n);
+  let inline = '';
+  for (let t = 0; t < tokens.length && !inline; t++) {
+    const pieces = tokens[t].split(/\s+/);
+    for (let i = 0; i < pieces.length; i++) {
+      let e = exactPerson(employees, pieces[i]);
+      // Two people with the same nickname: the next word may be the department ("K เอ Sales").
+      if (!e && i + 1 < pieces.length && findAssignee(employees, pieces[i]).people.length > 1) {
+        e = exactPerson(employees, `${pieces[i]} ${pieces[i + 1]}`);
+        if (e) i++;
+      }
+      if (e) {
+        if (!people.some((x) => x.email === e.email)) people.push(e);
+      } else if (i > 0 && !strict) {
+        inline = pieces.slice(i).concat(tokens.slice(t + 1)).join(' ');
+        break;
+      } else {
+        if (strict) return null;
+        unknown.push(pieces[i]);
+      }
     }
   }
-  // "คุณแตน ส่งรายงานวันนี้" on one line is an ordinary sentence, not a list of names.
-  if (unknown.length && (!/^[Kk]/.test(head) || !body)) return null;
-  return { people, unknown, body };
+  return { people, unknown, inline };
+}
+
+// null: no names line. {unknown, body}: a name is not in Employees (nothing is created). {orders}: [{people, title, details}]
+// (title '' = names only).
+function parseNamedOrders(employees, text) {
+  const lines = String(text).replace(/\r/g, '').split('\n').map((l) => l.replace(/^\s*@all\b[ \t]*/i, ''));
+  const info = lines.map((l) => namesLine(employees, l));
+  if (!info.some(Boolean)) return null;
+  const unknown = [];
+  info.forEach((x) => x && unknown.push(...x.unknown));
+  const firstNames = info.findIndex(Boolean);
+  if (unknown.length) {
+    const rest = lines.filter((l, i) => !info[i] && l.trim());
+    if (!rest.length) return null;
+    return { unknown: [...new Set(unknown)], body: lines.slice(firstNames + 1).join('\n').trim() };
+  }
+  const blocks = [];
+  let cur = [];
+  lines.forEach((l, i) => {
+    if (l.trim()) cur.push(i);
+    else if (cur.length) { blocks.push(cur); cur = []; }
+  });
+  if (cur.length) blocks.push(cur);
+  const orders = [];
+  let carry = [];
+  for (const b of blocks) {
+    const starts = b.filter((i) => info[i] && info[i].people.length);
+    if (!starts.length) {
+      const ls = b.map((i) => lines[i].trim());
+      if (orders.length) orders[orders.length - 1].instr.push(...ls);
+      else carry = carry.concat(ls);
+      continue;
+    }
+    starts.forEach((si, k) => {
+      const end = k + 1 < starts.length ? starts[k + 1] : b[b.length - 1] + 1;
+      const o = { people: info[si].people, ctx: [], instr: [] };
+      if (k === 0) o.ctx = carry.splice(0).concat(b.filter((i) => i < si).map((i) => lines[i].trim()));
+      if (info[si].inline) o.instr.push(info[si].inline);
+      o.instr.push(...b.filter((i) => i > si && i < end).map((i) => lines[i].trim()));
+      orders.push(o);
+    });
+  }
+  if (!orders.length) return null;
+  const done = orders.map((o) => {
+    const all = o.ctx.concat(o.instr);
+    const first = (o.instr[0] || o.ctx[0] || '');
+    return {
+      people: o.people,
+      title: truncate(first.replace(/\s+/g, ' '), 255),
+      // Several lines (or a long text) keep their full wording in the details, the title is one line of it.
+      details: all.length > 1 || chars(first) > 255 ? [all.join('\n')] : [],
+    };
+  });
+  if (done.length > 1 && done.some((o) => !o.title)) return null;
+  return { orders: done };
 }
 
 // ---------- One order to a group: all managers, managers or everyone of a department ----------
@@ -1411,7 +1567,7 @@ async function afterGroup(ctx, ev, dr, group) {
   return askWhen(ctx, ev, dr, null);
 }
 
-async function createGroupTickets(ctx, ev, cfg, dr, date) {
+async function createGroupTickets(ctx, ev, cfg, dr, date, quiet) {
   const userId = ev.source.userId;
   const employees = await getEmployees(ctx);
   const base = {
@@ -1478,6 +1634,13 @@ async function createGroupTickets(ctx, ev, cfg, dr, date) {
   }
 
   const nameOf = (email) => personName(employees.find((e) => e.email === email), email);
+  if (quiet) {
+    const warn = [];
+    if (failedImages) warn.push(`⚠️ แนบรูปไม่สำเร็จ ${failedImages} รูป (รูปเก่าเกินไปหรือระบบขัดข้อง)`);
+    if (createError) warn.push(`⚠️ สร้างงานไม่สำเร็จ ${dr.group.emails.length - made.length} คน: ${dr.group.emails.slice(made.length).map(nameOf).join(', ')}`);
+    if (!groupField) warn.push('⚠️ ยังผูกเป็นกลุ่มไม่ได้ (ผู้ดูแลต้องเพิ่มคอลัมน์ GroupID)');
+    return { ids: made, groupId, images: buffers.length, historyError, createError, warn };
+  }
   const lines = [`✅ สั่ง${dr.group.label} ${made.length} คนแล้ว`];
   for (const m of made) lines.push(`T-${m.id} ${nameOf(m.email)}`);
   lines.push(`📅 ส่ง ${thaiDate(date)}`);
@@ -2467,7 +2630,7 @@ async function weeklySummary(ctx) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     sha256, hmacSha256, verifyLineSignature, bkkYmd, addDays, fridayOf, mondayOf, spDate, thaiDate,
-    encodeData, decodeData, matchEmployees, findAssignee, findPersonInQuestion, personStats, leaverGroups, parseDueText, computeStats, weeklyLines, chunkMessages, truncate,
+    encodeData, decodeData, matchEmployees, findAssignee, parseNamedOrders, findPersonInQuestion, personStats, leaverGroups, parseDueText, computeStats, weeklyLines, chunkMessages, truncate,
     handleWebhook, dailySummary, weeklySummary, checkSharePointCall, notifyCeoOfStaffUpdates,
   };
 }
