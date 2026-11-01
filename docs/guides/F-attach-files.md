@@ -56,7 +56,7 @@
 (ทำทุกครั้งที่แนบ โฟลเดอร์จึงเห็นได้เฉพาะ Owner กับผู้รับงานปัจจุบันเสมอ แม้เป็นโฟลเดอร์ใหม่)
 
 **f) SharePoint Update item** ชื่อ `Mark has files` · List `Tickets` · Id `outputs('In_ticketId')`
-- ช่องบังคับใช้ค่าเดิม (Expression): Title `body('Get_ticket')?['Title']` · AssigneeEmail `body('Get_ticket')?['AssigneeEmail']` · Priority Value `body('Get_ticket')?['Priority']?['Value']` · Status Value `body('Get_ticket')?['Status']?['Value']` · Source Value `body('Get_ticket')?['Source']?['Value']`
+- ช่องบังคับใช้ค่าเดิม (Expression): Title `body('Get_ticket')?['Title']` · AssigneeEmail `body('Get_ticket')?['AssigneeEmail']` · DueDate `body('Get_ticket')?['DueDate']` · Priority Value `body('Get_ticket')?['Priority']?['Value']` · Status Value `body('Get_ticket')?['Status']?['Value']` · Source Value `body('Get_ticket')?['Source']?['Value']`
 - **HasFiles:** `Yes`
 
 **g) SharePoint Create item** ชื่อ `Create history` · List `TicketHistory`

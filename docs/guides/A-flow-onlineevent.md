@@ -72,7 +72,7 @@ Control → **Condition**
 - Recipient (Expression): `body('Get_ticket')?['AssigneeEmail']`
 - Message (Expression):
   ```
-  concat('📌 งานใหม่จาก CEO: T-', triggerBody()?['TicketID'], ' (', if(empty(body('Get_ticket')?['DueDate']), 'ไม่กำหนดวันส่ง', concat('ส่ง ', formatDateTime(addHours(body('Get_ticket')?['DueDate'], 7), 'dd/MM/yyyy'))), ') <a href="https://apps.powerapps.com/play/e/default-9070e17c-15e0-49fd-acef-7e1f07a4952b/a/c5f95180-fe46-4693-84e9-4fa61118040e?tenantId=9070e17c-15e0-49fd-acef-7e1f07a4952b&ticketId=', triggerBody()?['TicketID'], '">เปิดในแอป</a>')
+  concat('📌 งานใหม่จาก CEO: T-', triggerBody()?['TicketID'], ' (ส่ง ', formatDateTime(addHours(body('Get_ticket')?['DueDate'], 7), 'dd/MM/yyyy'), ') <a href="https://apps.powerapps.com/play/e/default-9070e17c-15e0-49fd-acef-7e1f07a4952b/a/c5f95180-fe46-4693-84e9-4fa61118040e?tenantId=9070e17c-15e0-49fd-acef-7e1f07a4952b&ticketId=', triggerBody()?['TicketID'], '">เปิดในแอป</a>')
   ```
   ข้อความมีแค่เลขงาน วันส่ง และลิงก์ **ไม่ใส่ชื่องาน** เพราะแจ้งเตือนแสดงบนหน้าจอล็อก ลิงก์เปิดรายการใน SharePoint ซึ่งพนักงานดูได้เพราะ b) ให้สิทธิ์ Can view ไว้แล้ว (เปิดหน้าแรกของ Site ไม่ได้ ต้องเปิดผ่านลิงก์นี้) เมื่อมีแอปพนักงานแล้วให้เปลี่ยนเป็นลิงก์แอปตาม[คู่มือ ค](C-staff-app.md) ⚠️ ตรวจในการทดสอบว่าวันที่ตรง ถ้าเลื่อน 1 วัน ให้ลบ `addHours(..., 7)` ออก
 
@@ -81,6 +81,7 @@ Control → **Condition**
 - ช่องบังคับ (ใช้ค่าเดิม ทุกช่องเป็น Expression):
   - Title: `body('Get_ticket')?['Title']`
   - AssigneeEmail: `body('Get_ticket')?['AssigneeEmail']`
+  - DueDate: `body('Get_ticket')?['DueDate']`
   - Priority Value: `body('Get_ticket')?['Priority']?['Value']`
   - Status Value: `body('Get_ticket')?['Status']?['Value']`
   - Source Value: `body('Get_ticket')?['Source']?['Value']`
@@ -169,7 +170,7 @@ List `TicketHistory` → คลิกหัวคอลัมน์ **Action** �
    คนใหม่จึงเห็นประวัติเดิมทั้งหมดของงาน และคนเดิมเห็นไม่ได้อีก
 3. **d) Notify new task** เปลี่ยน Message (Expression) เป็น
    ```
-   concat(if(equals(triggerBody()?['Action']?['Value'], 'reassign'), '🔁 CEO โอนงานให้คุณ: T-', '📌 งานใหม่จาก CEO: T-'), triggerBody()?['TicketID'], ' (', if(empty(body('Get_ticket')?['DueDate']), 'ไม่กำหนดวันส่ง', concat('ส่ง ', formatDateTime(addHours(body('Get_ticket')?['DueDate'], 7), 'dd/MM/yyyy'))), ') <a href="https://apps.powerapps.com/play/e/default-9070e17c-15e0-49fd-acef-7e1f07a4952b/a/c5f95180-fe46-4693-84e9-4fa61118040e?tenantId=9070e17c-15e0-49fd-acef-7e1f07a4952b&ticketId=', triggerBody()?['TicketID'], '">เปิดในแอป</a>')
+   concat(if(equals(triggerBody()?['Action']?['Value'], 'reassign'), '🔁 CEO โอนงานให้คุณ: T-', '📌 งานใหม่จาก CEO: T-'), triggerBody()?['TicketID'], ' (ส่ง ', formatDateTime(addHours(body('Get_ticket')?['DueDate'], 7), 'dd/MM/yyyy'), ') <a href="https://apps.powerapps.com/play/e/default-9070e17c-15e0-49fd-acef-7e1f07a4952b/a/c5f95180-fe46-4693-84e9-4fa61118040e?tenantId=9070e17c-15e0-49fd-acef-7e1f07a4952b&ticketId=', triggerBody()?['TicketID'], '">เปิดในแอป</a>')
    ```
 4. **Save**
 
@@ -243,7 +244,7 @@ Flow ไม่ต้องแก้เพิ่มสำหรับงานก
 - **Recipients** (Items · Expression): `body('Get_ticket')?['AssigneeEmail']`
 - **Message** (Expression):
   ```
-  concat(if(equals(triggerBody()?['Action']?['Value'], 'reassign'), '🔁 CEO โอนงานให้คุณ: T-', '📌 งานใหม่จาก CEO: T-'), triggerBody()?['TicketID'], ' · ', if(empty(body('Get_ticket')?['DueDate']), 'ไม่กำหนดวันส่ง', concat('ส่ง ', formatDateTime(addHours(body('Get_ticket')?['DueDate'], 7), 'dd/MM/yyyy'))))
+  concat(if(equals(triggerBody()?['Action']?['Value'], 'reassign'), '🔁 CEO โอนงานให้คุณ: T-', '📌 งานใหม่จาก CEO: T-'), triggerBody()?['TicketID'], ' · ส่ง ', formatDateTime(addHours(body('Get_ticket')?['DueDate'], 7), 'dd/MM/yyyy'))
   ```
 - **Open app:** `Yes`
 - **Parameters:** เพิ่ม 1 คู่ · Key: `ticketId` · Value (Expression): `triggerBody()?['TicketID']`

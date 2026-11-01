@@ -12,7 +12,7 @@ Site: `CEO-Tickets` เป็น Communication site (ไม่ผูก Microsof
 | `Title` | Single line text | ใช่ | ชื่องาน |
 | `Assignee` | Person (เลือกได้ 1 คน) | ไม่ | ผู้รับผิดชอบ 1 คนต่อ 1 ใบ Flow ตั้งค่าจาก `AssigneeEmail` (Graph ตั้งคอลัมน์ Person ด้วยอีเมลไม่ได้ จึงห้ามตั้งเป็นบังคับ) |
 | `AssigneeEmail` | Single line text | ใช่ | อีเมลผู้รับผิดชอบ (ตัวพิมพ์เล็ก) **เป็นค่าหลัก** ที่ทุกช่องทางเขียน ตั้ง Index ด้วย |
-| `DueDate` | Date only | ไม่ | **ต้องเป็น Date only** เพื่อเลี่ยงบั๊กวันที่เลื่อนข้ามวันจากโซนเวลา · ว่าง = ไม่กำหนดวันส่ง (ไม่นับเลยกำหนด ไม่เตือนเกินกำหนด) |
+| `DueDate` | Date only | ใช่ | **ต้องเป็น Date only** เพื่อเลี่ยงบั๊กวันที่เลื่อนข้ามวันจากโซนเวลา |
 | `Priority` | Choice: `Low`, `Normal`, `High` | ใช่ | ค่าเริ่มต้น `Normal` แสดงผลเป็น ต่ำ/ปกติ/สูง |
 | `Status` | Choice (ดูตารางด้านล่าง) | ใช่ | ค่าเริ่มต้น `New` |
 | `Details` | Multiple lines (Plain text) | ไม่ | ห้ามเปิด Rich text เพื่อลดความเสี่ยงและความซับซ้อน |

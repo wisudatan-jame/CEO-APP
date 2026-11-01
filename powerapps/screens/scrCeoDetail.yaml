@@ -150,8 +150,8 @@ Screens:
                         Font: =Font.'Open Sans'
                         Size: =13
                         FontWeight: =FontWeight.Bold
-                        Fill: =Switch(true, varTicket.IsOpen && varTicket.Status.Value <> "Done" && (!IsBlank(varTicket.DueDate) && varTicket.DueDate < Today()), ColorValue("#FDE8E8"), varTicket.Status.Value = "WaitingCEO", ColorValue("#E9E9F5"), varTicket.Status.Value = "Done", ColorValue("#E3F4EA"), varTicket.Status.Value = "New", ColorValue("#EEF0F4"), ColorValue("#F1F2F6"))
-                        Color: =Switch(true, varTicket.IsOpen && varTicket.Status.Value <> "Done" && (!IsBlank(varTicket.DueDate) && varTicket.DueDate < Today()), clrDanger, varTicket.Status.Value = "WaitingCEO", clrPrimary, varTicket.Status.Value = "Done", ColorValue("#17703A"), varTicket.Status.Value = "New", ColorValue("#3F4A5C"), ColorValue("#3F4A5C"))
+                        Fill: =Switch(true, varTicket.IsOpen && varTicket.Status.Value <> "Done" && varTicket.DueDate < Today(), ColorValue("#FDE8E8"), varTicket.Status.Value = "WaitingCEO", ColorValue("#E9E9F5"), varTicket.Status.Value = "Done", ColorValue("#E3F4EA"), varTicket.Status.Value = "New", ColorValue("#EEF0F4"), ColorValue("#F1F2F6"))
+                        Color: =Switch(true, varTicket.IsOpen && varTicket.Status.Value <> "Done" && varTicket.DueDate < Today(), clrDanger, varTicket.Status.Value = "WaitingCEO", clrPrimary, varTicket.Status.Value = "Done", ColorValue("#17703A"), varTicket.Status.Value = "New", ColorValue("#3F4A5C"), ColorValue("#3F4A5C"))
                         BorderColor: =clrAccent
                         BorderThickness: =0
                         RadiusTopLeft: =20
@@ -174,10 +174,10 @@ Screens:
                   - lblCDStatusDue:
                       Control: Label@2.5.1
                       Properties:
-                        Text: =If(IsBlank(varTicket.DueDate), "ไม่กำหนดวันส่ง", "ส่ง " & (Text(varTicket.DueDate, "dddd", "th-TH") & " " & Day(varTicket.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(varTicket.DueDate)).Value) & If(varTicket.Status.Value in ["Done", "Closed"], If(IsBlank(varTicket.DoneAt) || varTicket.DoneAt < DateAdd(varTicket.DueDate, 1, TimeUnit.Days), " · ทันกำหนด", " · ช้า " & DateDiff(varTicket.DueDate, varTicket.DoneAt) & " วัน"), !varTicket.IsOpen, "", varTicket.DueDate < Today(), " · เลย " & DateDiff(varTicket.DueDate, Today()) & " วัน", varTicket.DueDate = Today(), " · วันนี้", " · อีก " & DateDiff(Today(), varTicket.DueDate) & " วัน"))
+                        Text: ="ส่ง " & (Text(varTicket.DueDate, "dddd", "th-TH") & " " & Day(varTicket.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(varTicket.DueDate)).Value) & If(varTicket.Status.Value in ["Done", "Closed"], If(IsBlank(varTicket.DoneAt) || varTicket.DoneAt < DateAdd(varTicket.DueDate, 1, TimeUnit.Days), " · ทันกำหนด", " · ช้า " & DateDiff(varTicket.DueDate, varTicket.DoneAt) & " วัน"), !varTicket.IsOpen, "", varTicket.DueDate < Today(), " · เลย " & DateDiff(varTicket.DueDate, Today()) & " วัน", varTicket.DueDate = Today(), " · วันนี้", " · อีก " & DateDiff(Today(), varTicket.DueDate) & " วัน")
                         Font: =Font.'Open Sans'
                         Size: =13
-                        Color: =If(varTicket.IsOpen && varTicket.Status.Value <> "Done" && (!IsBlank(varTicket.DueDate) && varTicket.DueDate < Today()), clrDanger, clrMuted)
+                        Color: =If(varTicket.IsOpen && varTicket.Status.Value <> "Done" && varTicket.DueDate < Today(), clrDanger, clrMuted)
                         Height: =40
                         FillPortions: =1
                         AlignInContainer: =AlignInContainer.Center
@@ -806,7 +806,7 @@ Screens:
                                     If(d < Today() || d = varTicket.DueDate,
                                         Notify("เลือกวันส่งใหม่ที่ยังไม่ผ่านมา", NotificationType.Warning),
                                         Patch(Tickets, LookUp(Tickets, ID = varTicket.ID), {DueDate: d, OverdueNotified: false});
-                                        Patch(TicketHistory, Defaults(TicketHistory), {Source: {Value: "App"}, Processed: false, CEOPending: false}, {Title: "T-" & varTicket.ID, TicketID: varTicket.ID, Action: {Value: "comment"}, FromStatus: varTicket.Status.Value, ToStatus: varTicket.Status.Value, Comment: "📅 CEO เลื่อนวันส่งจาก " & If(IsBlank(varTicket.DueDate), "ไม่กำหนด", Text(varTicket.DueDate, "ddd", "th-TH") & " " & Day(varTicket.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(varTicket.DueDate)).Value) & " เป็น " & (Text(d, "ddd", "th-TH") & " " & Day(d) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(d)).Value), ActorEmail: Lower(User().Email)});
+                                        Patch(TicketHistory, Defaults(TicketHistory), {Source: {Value: "App"}, Processed: false, CEOPending: false}, {Title: "T-" & varTicket.ID, TicketID: varTicket.ID, Action: {Value: "comment"}, FromStatus: varTicket.Status.Value, ToStatus: varTicket.Status.Value, Comment: "📅 CEO เลื่อนวันส่งจาก " & (Text(varTicket.DueDate, "ddd", "th-TH") & " " & Day(varTicket.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(varTicket.DueDate)).Value) & " เป็น " & (Text(d, "ddd", "th-TH") & " " & Day(d) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(d)).Value), ActorEmail: Lower(User().Email)});
                                         Notify("เลื่อนวันส่งแล้ว", NotificationType.Success)));
                                 Set(varPickDue, false);
                                 Set(varTicket, LookUp(Tickets, ID = varTicket.ID));
@@ -846,7 +846,7 @@ Screens:
                                     If(d < Today() || d = varTicket.DueDate,
                                         Notify("เลือกวันส่งใหม่ที่ยังไม่ผ่านมา", NotificationType.Warning),
                                         Patch(Tickets, LookUp(Tickets, ID = varTicket.ID), {DueDate: d, OverdueNotified: false});
-                                        Patch(TicketHistory, Defaults(TicketHistory), {Source: {Value: "App"}, Processed: false, CEOPending: false}, {Title: "T-" & varTicket.ID, TicketID: varTicket.ID, Action: {Value: "comment"}, FromStatus: varTicket.Status.Value, ToStatus: varTicket.Status.Value, Comment: "📅 CEO เลื่อนวันส่งจาก " & If(IsBlank(varTicket.DueDate), "ไม่กำหนด", Text(varTicket.DueDate, "ddd", "th-TH") & " " & Day(varTicket.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(varTicket.DueDate)).Value) & " เป็น " & (Text(d, "ddd", "th-TH") & " " & Day(d) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(d)).Value), ActorEmail: Lower(User().Email)});
+                                        Patch(TicketHistory, Defaults(TicketHistory), {Source: {Value: "App"}, Processed: false, CEOPending: false}, {Title: "T-" & varTicket.ID, TicketID: varTicket.ID, Action: {Value: "comment"}, FromStatus: varTicket.Status.Value, ToStatus: varTicket.Status.Value, Comment: "📅 CEO เลื่อนวันส่งจาก " & (Text(varTicket.DueDate, "ddd", "th-TH") & " " & Day(varTicket.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(varTicket.DueDate)).Value) & " เป็น " & (Text(d, "ddd", "th-TH") & " " & Day(d) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(d)).Value), ActorEmail: Lower(User().Email)});
                                         Notify("เลื่อนวันส่งแล้ว", NotificationType.Success)));
                                 Set(varPickDue, false);
                                 Set(varTicket, LookUp(Tickets, ID = varTicket.ID));
@@ -882,11 +882,11 @@ Screens:
                             Properties:
                               Text: ="+7 วัน"
                               OnSelect: |-
-                                =With({d: DateAdd(Coalesce(varTicket.DueDate, Today()), 7, TimeUnit.Days)},
+                                =With({d: DateAdd(varTicket.DueDate, 7, TimeUnit.Days)},
                                     If(d < Today() || d = varTicket.DueDate,
                                         Notify("เลือกวันส่งใหม่ที่ยังไม่ผ่านมา", NotificationType.Warning),
                                         Patch(Tickets, LookUp(Tickets, ID = varTicket.ID), {DueDate: d, OverdueNotified: false});
-                                        Patch(TicketHistory, Defaults(TicketHistory), {Source: {Value: "App"}, Processed: false, CEOPending: false}, {Title: "T-" & varTicket.ID, TicketID: varTicket.ID, Action: {Value: "comment"}, FromStatus: varTicket.Status.Value, ToStatus: varTicket.Status.Value, Comment: "📅 CEO เลื่อนวันส่งจาก " & If(IsBlank(varTicket.DueDate), "ไม่กำหนด", Text(varTicket.DueDate, "ddd", "th-TH") & " " & Day(varTicket.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(varTicket.DueDate)).Value) & " เป็น " & (Text(d, "ddd", "th-TH") & " " & Day(d) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(d)).Value), ActorEmail: Lower(User().Email)});
+                                        Patch(TicketHistory, Defaults(TicketHistory), {Source: {Value: "App"}, Processed: false, CEOPending: false}, {Title: "T-" & varTicket.ID, TicketID: varTicket.ID, Action: {Value: "comment"}, FromStatus: varTicket.Status.Value, ToStatus: varTicket.Status.Value, Comment: "📅 CEO เลื่อนวันส่งจาก " & (Text(varTicket.DueDate, "ddd", "th-TH") & " " & Day(varTicket.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(varTicket.DueDate)).Value) & " เป็น " & (Text(d, "ddd", "th-TH") & " " & Day(d) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(d)).Value), ActorEmail: Lower(User().Email)});
                                         Notify("เลื่อนวันส่งแล้ว", NotificationType.Success)));
                                 Set(varPickDue, false);
                                 Set(varTicket, LookUp(Tickets, ID = varTicket.ID));

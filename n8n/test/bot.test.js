@@ -208,7 +208,7 @@ test('text -> who -> when -> ticket created with history', async () => {
   msg = lastReply(w);
   assert.match(msg.text, /คุณปิ/);
   const when = quick(msg);
-  assert.deepEqual(when.map((a) => a.label), ['วันนี้', 'พรุ่งนี้', 'ศุกร์นี้', '📅 เลือกวัน', 'ไม่กำหนดวัน', '❌ ยกเลิก']);
+  assert.deepEqual(when.map((a) => a.label), ['วันนี้', 'พรุ่งนี้', 'ศุกร์นี้', '📅 เลือกวัน', '❌ ยกเลิก']);
   assert.equal(actionData(when[1]).v, '2026-10-20');
   assert.equal(when[3].type, 'datetimepicker');
   assert.equal(when[3].min, '2026-10-19');
@@ -1105,33 +1105,4 @@ test('K-names work with or without spaces: "KเอKปิKมะลิ"', async
   const w = fakeWorld();
   await send(w, textEv('KเอKปิKมะลิ\nส่งแผนงบ'));
   assert.match(lastReply(w).text, /👥 ตามที่ระบุ 3 คน\nเอ \(Sales\), ปิ \(PM\), มะลิ \(Marketing\)\nส่งเมื่อไร\?/);
-});
-
-// ---------- no due date ----------
-test('"ไม่กำหนดวัน" button creates the ticket without a DueDate', async () => {
-  const w = fakeWorld();
-  await send(w, textEv('งานศึกษาตลาด'));
-  await send(w, textEv('สั่งคุณมะลิ'));
-  const btn = quick(lastReply(w)).find((a) => a.label === 'ไม่กำหนดวัน');
-  assert.ok(btn, 'button is offered');
-  await send(w, postbackEv(actionData(btn)));
-  assert.equal(w.items.Tickets.length, 1);
-  assert.equal('DueDate' in w.items.Tickets[0].fields, false);
-  assert.match(lastReply(w).text, /^✅ สั่งคุณมะลิแล้ว · T-\d+\n📅 ไม่กำหนดวันส่ง/);
-});
-
-test('typing "ไม่กำหนด" works at "ส่งเมื่อไร?", for a group, and before the person is chosen', async () => {
-  const w = fakeWorld();
-  await send(w, textEv('Kเอ K ปิ\nวางแผนงบ'));
-  await send(w, textEv('ไม่กำหนด'));
-  assert.equal(w.items.Tickets.length, 2);
-  assert.ok(w.items.Tickets.every((t) => !('DueDate' in t.fields)));
-  assert.match(lastReply(w).text, /📅 ไม่กำหนดวันส่ง/);
-
-  await send(w, textEv('งานสำรวจ'));
-  await send(w, textEv('ไม่ระบุวันส่ง'));
-  assert.match(lastReply(w).text, /^📅 ไม่กำหนดวันส่ง\n\n📝 "งานสำรวจ"\nสั่งใคร\?/);
-  await send(w, textEv('สั่งคุณมะลิ'));
-  assert.equal(w.items.Tickets.length, 3);
-  assert.equal('DueDate' in w.items.Tickets[2].fields, false);
 });

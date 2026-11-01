@@ -6,6 +6,7 @@ Screens:
         =If(IsBlank(varFilter), Set(varFilter, "all"));
         Set(varCSearch, false);
         ClearCollect(colAll, Filter(Tickets, IsOpen = true));
+        ClearCollect(colGroupTickets, Filter(Tickets, GroupID > 0));
         ClearCollect(colEmp, Filter(Employees, Active = true))
     Children:
       - recTopCT:
@@ -291,9 +292,9 @@ Screens:
                 Properties:
                   Items: |-
                     =SortByColumns(
-                        AddColumns(Filter(
+                        With({rows: Filter(
                             Switch(varFilter,
-                                "late", Filter(colAll, Status.Value <> "Done", !IsBlank(DueDate), DueDate < Today()),
+                                "late", Filter(colAll, Status.Value <> "Done", DueDate < Today()),
                                 "wait", Filter(colAll, Status.Value = "WaitingCEO"),
                                 "done", Filter(colAll, Status.Value = "Done"),
                                 "noack", Filter(colAll, Status.Value = "New"),
@@ -301,12 +302,13 @@ Screens:
                                 "group", Filter(colAll, GroupID = varGroup),
                                 colAll),
                             !varCSearch || IsBlank(Trim(txtCSearch.Text)) || Trim(txtCSearch.Text) in Title || Trim(txtCSearch.Text) in AssigneeEmail ||
-                                Trim(txtCSearch.Text) in LookUp(colEmp, Lower(Email) = AssigneeEmail).Nickname),
-                            SortDue, Coalesce(DueDate, Date(2099, 12, 31))),
-                        "SortDue", SortOrder.Ascending)
+                                Trim(txtCSearch.Text) in LookUp(colEmp, Lower(Email) = AssigneeEmail).Nickname)},
+                            If(varFilter in ["person", "group"], rows,
+                                Filter(rows, Coalesce(GroupID, 0) = 0 || With({g: GroupID}, ID = Min(Filter(rows, GroupID = g), ID))))),
+                        "DueDate", SortOrder.Ascending)
                   TemplateSize: =104
                   ShowScrollbar: =false
-                  OnSelect: =Set(varTicket, ThisItem); Navigate(scrCeoDetail)
+                  OnSelect: =If((Coalesce(ThisItem.GroupID, 0) > 0 && !(varFilter in ["person", "group"]) && CountRows(Filter(colAll, GroupID = ThisItem.GroupID)) > 1), Set(varFilter, "group"); Set(varGroup, ThisItem.GroupID), Set(varTicket, ThisItem); Navigate(scrCeoDetail))
                   Fill: =Color.Transparent
                   BorderThickness: =0
                   FillPortions: =1
@@ -347,12 +349,12 @@ Screens:
                         Y: =18
                         Width: =8
                         Height: =Parent.TemplateHeight - 12 - 36
-                        Fill: =Switch(true, ThisItem.Status.Value <> "Done" && (!IsBlank(ThisItem.DueDate) && ThisItem.DueDate < Today()), clrAccent, ThisItem.Status.Value = "WaitingCEO", clrPrimary, ThisItem.Status.Value = "Done", clrSuccess, ThisItem.Status.Value = "New", ColorValue("#8A94A6"), ColorValue("#C9CEDA"))
+                        Fill: =Switch(true, If((Coalesce(ThisItem.GroupID, 0) > 0 && !(varFilter in ["person", "group"]) && CountRows(Filter(colAll, GroupID = ThisItem.GroupID)) > 1), CountRows(Filter(colAll, GroupID = ThisItem.GroupID, Status.Value <> "Done", DueDate < Today())) > 0, ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today()), clrAccent, If((Coalesce(ThisItem.GroupID, 0) > 0 && !(varFilter in ["person", "group"]) && CountRows(Filter(colAll, GroupID = ThisItem.GroupID)) > 1), If(CountRows(Filter(colAll, GroupID = ThisItem.GroupID, Status.Value = "WaitingCEO")) > 0, "WaitingCEO", If(CountRows(Filter(colAll, GroupID = ThisItem.GroupID, Status.Value <> "Done")) = 0, "Done", "InProgress")), ThisItem.Status.Value) = "WaitingCEO", clrPrimary, If((Coalesce(ThisItem.GroupID, 0) > 0 && !(varFilter in ["person", "group"]) && CountRows(Filter(colAll, GroupID = ThisItem.GroupID)) > 1), If(CountRows(Filter(colAll, GroupID = ThisItem.GroupID, Status.Value = "WaitingCEO")) > 0, "WaitingCEO", If(CountRows(Filter(colAll, GroupID = ThisItem.GroupID, Status.Value <> "Done")) = 0, "Done", "InProgress")), ThisItem.Status.Value) = "Done", clrSuccess, If((Coalesce(ThisItem.GroupID, 0) > 0 && !(varFilter in ["person", "group"]) && CountRows(Filter(colAll, GroupID = ThisItem.GroupID)) > 1), If(CountRows(Filter(colAll, GroupID = ThisItem.GroupID, Status.Value = "WaitingCEO")) > 0, "WaitingCEO", If(CountRows(Filter(colAll, GroupID = ThisItem.GroupID, Status.Value <> "Done")) = 0, "Done", "InProgress")), ThisItem.Status.Value) = "New", ColorValue("#8A94A6"), ColorValue("#C9CEDA"))
                         OnSelect: =Select(Parent)
                   - lblCRow:
                       Control: Label@2.5.1
                       Properties:
-                        Text: ="T-" & ThisItem.ID & " " & ThisItem.Title
+                        Text: =If((Coalesce(ThisItem.GroupID, 0) > 0 && !(varFilter in ["person", "group"]) && CountRows(Filter(colAll, GroupID = ThisItem.GroupID)) > 1), "T-" & Min(Filter(colAll, GroupID = ThisItem.GroupID), ID) & "–" & Max(Filter(colAll, GroupID = ThisItem.GroupID), ID) & " " & ThisItem.Title, "T-" & ThisItem.ID & " " & ThisItem.Title)
                         Font: =Font.'Open Sans'
                         Size: =14
                         Color: =clrText
@@ -367,7 +369,7 @@ Screens:
                       Control: Label@2.5.1
                       Properties:
                         Text: |-
-                          =With({n: LookUp(colEmp, Lower(Email) = ThisItem.AssigneeEmail).Nickname}, If(IsBlank(n), First(Split(ThisItem.AssigneeEmail, "@")).Value, "คุณ" & n)) & " · " & If(IsBlank(ThisItem.DueDate), "ไม่กำหนดวันส่ง", If((!IsBlank(ThisItem.DueDate) && ThisItem.DueDate < Today()), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & (Text(ThisItem.DueDate, "ddd", "th-TH") & " " & Day(ThisItem.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(ThisItem.DueDate)).Value)))
+                          =If((Coalesce(ThisItem.GroupID, 0) > 0 && !(varFilter in ["person", "group"]) && CountRows(Filter(colAll, GroupID = ThisItem.GroupID)) > 1), Concat(Filter(colAll, GroupID = ThisItem.GroupID), With({n: LookUp(colEmp, Lower(Email) = AssigneeEmail).Nickname}, If(IsBlank(n), First(Split(AssigneeEmail, "@")).Value, "คุณ" & n)), ", ") & " · " & If(ThisItem.DueDate < Today(), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & (Text(ThisItem.DueDate, "ddd", "th-TH") & " " & Day(ThisItem.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(ThisItem.DueDate)).Value)), With({n: LookUp(colEmp, Lower(Email) = ThisItem.AssigneeEmail).Nickname}, If(IsBlank(n), First(Split(ThisItem.AssigneeEmail, "@")).Value, "คุณ" & n)) & " · " & If(ThisItem.DueDate < Today(), "เลย " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & (Text(ThisItem.DueDate, "ddd", "th-TH") & " " & Day(ThisItem.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(ThisItem.DueDate)).Value)))
                         Font: =Font.'Open Sans'
                         Size: =12
                         Color: =clrMuted
@@ -380,13 +382,13 @@ Screens:
                   - btnCRowPill:
                       Control: Classic/Button@2.2.0
                       Properties:
-                        Text: =If(ThisItem.Status.Value <> "Done" && (!IsBlank(ThisItem.DueDate) && ThisItem.DueDate < Today()), "เลยกำหนด", Switch(ThisItem.Status.Value, "New", "ยังไม่รับทราบ", "Acknowledged", "รับทราบแล้ว", "InProgress", "กำลังทำ", "WaitingCEO", "รอคุณตอบ", "Done", "รอคุณตรวจ", "Closed", "ปิดแล้ว", ThisItem.Status.Value))
+                        Text: =If((Coalesce(ThisItem.GroupID, 0) > 0 && !(varFilter in ["person", "group"]) && CountRows(Filter(colAll, GroupID = ThisItem.GroupID)) > 1), "เสร็จ " & CountRows(Filter(colGroupTickets, GroupID = ThisItem.GroupID, Status.Value in ["Done", "Closed"])) & "/" & CountRows(Filter(colGroupTickets, GroupID = ThisItem.GroupID)), If(ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today(), "เลยกำหนด", Switch(ThisItem.Status.Value, "New", "ยังไม่รับทราบ", "Acknowledged", "รับทราบแล้ว", "InProgress", "กำลังทำ", "WaitingCEO", "รอคุณตอบ", "Done", "รอคุณตรวจ", "Closed", "ปิดแล้ว", ThisItem.Status.Value)))
                         OnSelect: =Select(Parent)
                         Font: =Font.'Open Sans'
                         Size: =12
                         FontWeight: =FontWeight.Bold
-                        Fill: =Switch(true, ThisItem.Status.Value <> "Done" && (!IsBlank(ThisItem.DueDate) && ThisItem.DueDate < Today()), ColorValue("#FDE8E8"), ThisItem.Status.Value = "WaitingCEO", ColorValue("#E9E9F5"), ThisItem.Status.Value = "Done", ColorValue("#E3F4EA"), ThisItem.Status.Value = "New", ColorValue("#EEF0F4"), ColorValue("#F1F2F6"))
-                        Color: =Switch(true, ThisItem.Status.Value <> "Done" && (!IsBlank(ThisItem.DueDate) && ThisItem.DueDate < Today()), clrDanger, ThisItem.Status.Value = "WaitingCEO", clrPrimary, ThisItem.Status.Value = "Done", ColorValue("#17703A"), ThisItem.Status.Value = "New", ColorValue("#3F4A5C"), ColorValue("#3F4A5C"))
+                        Fill: =Switch(true, If((Coalesce(ThisItem.GroupID, 0) > 0 && !(varFilter in ["person", "group"]) && CountRows(Filter(colAll, GroupID = ThisItem.GroupID)) > 1), CountRows(Filter(colAll, GroupID = ThisItem.GroupID, Status.Value <> "Done", DueDate < Today())) > 0, ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today()), ColorValue("#FDE8E8"), If((Coalesce(ThisItem.GroupID, 0) > 0 && !(varFilter in ["person", "group"]) && CountRows(Filter(colAll, GroupID = ThisItem.GroupID)) > 1), If(CountRows(Filter(colAll, GroupID = ThisItem.GroupID, Status.Value = "WaitingCEO")) > 0, "WaitingCEO", If(CountRows(Filter(colAll, GroupID = ThisItem.GroupID, Status.Value <> "Done")) = 0, "Done", "InProgress")), ThisItem.Status.Value) = "WaitingCEO", ColorValue("#E9E9F5"), If((Coalesce(ThisItem.GroupID, 0) > 0 && !(varFilter in ["person", "group"]) && CountRows(Filter(colAll, GroupID = ThisItem.GroupID)) > 1), If(CountRows(Filter(colAll, GroupID = ThisItem.GroupID, Status.Value = "WaitingCEO")) > 0, "WaitingCEO", If(CountRows(Filter(colAll, GroupID = ThisItem.GroupID, Status.Value <> "Done")) = 0, "Done", "InProgress")), ThisItem.Status.Value) = "Done", ColorValue("#E3F4EA"), If((Coalesce(ThisItem.GroupID, 0) > 0 && !(varFilter in ["person", "group"]) && CountRows(Filter(colAll, GroupID = ThisItem.GroupID)) > 1), If(CountRows(Filter(colAll, GroupID = ThisItem.GroupID, Status.Value = "WaitingCEO")) > 0, "WaitingCEO", If(CountRows(Filter(colAll, GroupID = ThisItem.GroupID, Status.Value <> "Done")) = 0, "Done", "InProgress")), ThisItem.Status.Value) = "New", ColorValue("#EEF0F4"), ColorValue("#F1F2F6"))
+                        Color: =Switch(true, If((Coalesce(ThisItem.GroupID, 0) > 0 && !(varFilter in ["person", "group"]) && CountRows(Filter(colAll, GroupID = ThisItem.GroupID)) > 1), CountRows(Filter(colAll, GroupID = ThisItem.GroupID, Status.Value <> "Done", DueDate < Today())) > 0, ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today()), clrDanger, If((Coalesce(ThisItem.GroupID, 0) > 0 && !(varFilter in ["person", "group"]) && CountRows(Filter(colAll, GroupID = ThisItem.GroupID)) > 1), If(CountRows(Filter(colAll, GroupID = ThisItem.GroupID, Status.Value = "WaitingCEO")) > 0, "WaitingCEO", If(CountRows(Filter(colAll, GroupID = ThisItem.GroupID, Status.Value <> "Done")) = 0, "Done", "InProgress")), ThisItem.Status.Value) = "WaitingCEO", clrPrimary, If((Coalesce(ThisItem.GroupID, 0) > 0 && !(varFilter in ["person", "group"]) && CountRows(Filter(colAll, GroupID = ThisItem.GroupID)) > 1), If(CountRows(Filter(colAll, GroupID = ThisItem.GroupID, Status.Value = "WaitingCEO")) > 0, "WaitingCEO", If(CountRows(Filter(colAll, GroupID = ThisItem.GroupID, Status.Value <> "Done")) = 0, "Done", "InProgress")), ThisItem.Status.Value) = "Done", ColorValue("#17703A"), If((Coalesce(ThisItem.GroupID, 0) > 0 && !(varFilter in ["person", "group"]) && CountRows(Filter(colAll, GroupID = ThisItem.GroupID)) > 1), If(CountRows(Filter(colAll, GroupID = ThisItem.GroupID, Status.Value = "WaitingCEO")) > 0, "WaitingCEO", If(CountRows(Filter(colAll, GroupID = ThisItem.GroupID, Status.Value <> "Done")) = 0, "Done", "InProgress")), ThisItem.Status.Value) = "New", ColorValue("#3F4A5C"), ColorValue("#3F4A5C"))
                         BorderColor: =clrAccent
                         BorderThickness: =0
                         RadiusTopLeft: =20

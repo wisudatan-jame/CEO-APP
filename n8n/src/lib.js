@@ -144,16 +144,6 @@ function thaiDate(ymd) {
   const { m, d } = ymdParts(ymd);
   return `${TH_DAYS[dayOfWeek(ymd)]} ${d} ${TH_MONTHS[m - 1]}`;
 }
-// A task can also have no due date: the draft carries NO_DUE where it carries a YYYY-MM-DD.
-const NO_DUE = 'none';
-const NO_DUE_WORDS = /^(ส่ง)?(ไม่กำหนด|ไม่มีกำหนด|ไม่ระบุ|ยังไม่กำหนด|ไม่ต้องกำหนด|ไม่มีวันส่ง)(วัน|วันส่ง)?$/;
-function isNoDueText(text) {
-  return NO_DUE_WORDS.test(String(text).replace(/\s+/g, ''));
-}
-// "ส่ง ศุกร์ 23 ต.ค." or "ไม่กำหนดวันส่ง"; sep is the space after "ส่ง".
-function dueLabel(d, sep) {
-  return d === NO_DUE || !d ? 'ไม่กำหนดวันส่ง' : `ส่ง${sep || ''}${thaiDate(d)}`;
-}
 function daysBetween(fromYmd, toYmd) {
   const a = ymdParts(fromYmd);
   const b = ymdParts(toYmd);
@@ -672,7 +662,7 @@ async function onMessage(ctx, ev, cfg) {
         return askWhen(ctx, ev, dr, emp, note);
       }
       dr.stage = 'who';
-      return askWho(ctx, ev, dr, dr.due ? `📅 ${dueLabel(dr.due)}\n\n` : '');
+      return askWho(ctx, ev, dr, dr.due ? `📅 ส่ง${thaiDate(dr.due)}\n\n` : '');
     }
     if (dr && (dr.stage === 'who' || dr.stage === 'search')) {
       const group = parseGroup(await getEmployees(ctx), t);
@@ -682,11 +672,11 @@ async function onMessage(ctx, ev, cfg) {
     if (dr && dr.stage === 'who') {
       const picked = await onTypedWho(ctx, ev, dr, t);
       if (picked) return picked;
-      const due = isNoDueText(t) ? NO_DUE : parseDueText(t, bkkYmd(ctx.now()));
+      const due = parseDueText(t, bkkYmd(ctx.now()));
       if (due) {
         // Date said before the person: remember it and create the task as soon as the person is picked.
         dr.due = due;
-        return askWho(ctx, ev, dr, `📅 ${dueLabel(due)}\n\n`);
+        return askWho(ctx, ev, dr, `📅 ส่ง${thaiDate(due)}\n\n`);
       }
       if (nowMs - dr.lastTextAt < APPEND_WINDOW_MS) {
         dr.details.push(t);
@@ -697,7 +687,7 @@ async function onMessage(ctx, ev, cfg) {
       }
     }
     if (dr && dr.stage === 'when') {
-      const date = isNoDueText(t) ? NO_DUE : parseDueText(t, bkkYmd(ctx.now()));
+      const date = parseDueText(t, bkkYmd(ctx.now()));
       if (date) return createTicketFromDraft(ctx, ev, cfg, dr, date);
       if (/^ส่ง/.test(t) && chars(t).length <= 20) {
         const emp = (await getEmployees(ctx)).find((e) => e.email === dr.assignee);
@@ -919,7 +909,6 @@ async function askWhen(ctx, ev, dr, emp, notice) {
   ];
   if (friday !== today && friday !== tomorrow) items.push(qrPostback('ศุกร์นี้', { a: 'when', d: dr.id, v: friday }, 'ส่งศุกร์นี้'));
   items.push(qrDatePicker('📅 เลือกวัน', { a: 'date', d: dr.id }, tomorrow, today));
-  items.push(qrPostback('ไม่กำหนดวัน', { a: 'when', d: dr.id, v: NO_DUE }, 'ไม่กำหนดวันส่ง'));
   items.push(qrPostback('❌ ยกเลิก', { a: 'cancel', d: dr.id }, 'ยกเลิก'));
   const who = dr.group ? groupLine(dr.group) : `👤 ${personName(emp, dr.assignee)}`;
   await lineReply(ctx, ev, textMsg(`${notice || ''}${who}\nส่งเมื่อไร?`, items));
@@ -1026,7 +1015,6 @@ async function onPostback(ctx, ev, cfg) {
   if ((p.a === 'when' || p.a === 'date') && dr.stage === 'when') {
     const date = p.a === 'date' ? pickerDate(ev.postback.params && ev.postback.params.date) : p.v;
     const today = bkkYmd(ctx.now());
-    if (date === NO_DUE) return createTicketFromDraft(ctx, ev, cfg, dr, NO_DUE);
     if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date < today || date > addDays(today, MAX_DUE_DAYS)) {
       await lineReply(ctx, ev, textMsg(date > today ? 'วันส่งไกลเกิน 2 ปี เลือกใหม่อีกครั้ง' : 'เลือกวันที่ผ่านมาแล้วไม่ได้'));
       const emp = (await getEmployees(ctx)).find((e) => e.email === dr.assignee);
@@ -1045,6 +1033,7 @@ async function createTicketFromDraft(ctx, ev, cfg, dr, date) {
   const fields = {
     Title: dr.title,
     AssigneeEmail: dr.assignee,
+    DueDate: `${date}T00:00:00Z`,
     Priority: 'Normal',
     Status: 'New',
     IsOpen: true,
@@ -1054,7 +1043,6 @@ async function createTicketFromDraft(ctx, ev, cfg, dr, date) {
     PermsSet: false,
     HasFiles: dr.images.length > 0,
   };
-  if (date !== NO_DUE) fields.DueDate = `${date}T00:00:00Z`;
   if (dr.details.length) fields.Details = dr.details.join('\n\n');
   const ticketId = await createItem(ctx, 'Tickets', fields);
   // From here on the ticket exists: never let a later failure hide its number from the CEO.
@@ -1082,7 +1070,7 @@ async function createTicketFromDraft(ctx, ev, cfg, dr, date) {
     historyError = e;
   }
 
-  const lines = [`✅ สั่ง${personName(emp, dr.assignee)}แล้ว · T-${ticketId}`, `📅 ${dueLabel(date, ' ')}`];
+  const lines = [`✅ สั่ง${personName(emp, dr.assignee)}แล้ว · T-${ticketId}`, `📅 ส่ง ${thaiDate(date)}`];
   if (uploaded) lines.push(`📎 แนบรูป ${uploaded} รูป`);
   if (failedImages) lines.push(`⚠️ แนบรูปไม่สำเร็จ ${failedImages} รูป (รูปเก่าเกินไปหรือระบบขัดข้อง)`);
   lines.push(historyError ? '⚠️ ระบบแจ้งเตือนพนักงานขัดข้อง ผู้ดูแลจะได้รับแจ้ง กรุณาบอกพนักงานโดยตรงไปก่อน' : 'พนักงานจะได้รับแจ้งเตือนภายในไม่กี่นาที');
@@ -1427,10 +1415,9 @@ async function createGroupTickets(ctx, ev, cfg, dr, date) {
   const userId = ev.source.userId;
   const employees = await getEmployees(ctx);
   const base = {
-    Title: dr.title, Priority: 'Normal', Status: 'New', IsOpen: true,
+    Title: dr.title, DueDate: `${date}T00:00:00Z`, Priority: 'Normal', Status: 'New', IsOpen: true,
     OverdueNotified: false, NoAckNotified: false, Source: 'LINE', PermsSet: false, HasFiles: dr.images.length > 0,
   };
-  if (date !== NO_DUE) base.DueDate = `${date}T00:00:00Z`;
   if (dr.details.length) base.Details = dr.details.join('\n\n');
   const made = [];
   let groupId = null;
@@ -1493,7 +1480,7 @@ async function createGroupTickets(ctx, ev, cfg, dr, date) {
   const nameOf = (email) => personName(employees.find((e) => e.email === email), email);
   const lines = [`✅ สั่ง${dr.group.label} ${made.length} คนแล้ว`];
   for (const m of made) lines.push(`T-${m.id} ${nameOf(m.email)}`);
-  lines.push(`📅 ${dueLabel(date, ' ')}`);
+  lines.push(`📅 ส่ง ${thaiDate(date)}`);
   if (buffers.length) lines.push(`📎 แนบรูป ${buffers.length} รูปให้ทุกคน`);
   if (failedImages) lines.push(`⚠️ แนบรูปไม่สำเร็จ ${failedImages} รูป (รูปเก่าเกินไปหรือระบบขัดข้อง)`);
   if (made.some((m) => m.uploaded < buffers.length)) lines.push('⚠️ บางคนได้รูปไม่ครบ');
@@ -1521,7 +1508,7 @@ async function groupReport(ctx, ev, groupId) {
   const first = members[0];
   const lines = [
     `👥 ${truncate(first.title, 80)}`,
-    `กลุ่ม T-${groupId} · ${members.length} คน · ${first.due ? `ส่ง ${thaiDate(first.due)}` : 'ไม่กำหนดวันส่ง'}`,
+    `กลุ่ม T-${groupId} · ${members.length} คน · ส่ง ${first.due ? thaiDate(first.due) : '-'}`,
     `ทำเสร็จ ${finished}/${members.length}${late.length ? ` · ช้า ${late.length}` : ''}`,
   ];
   for (const t of members) {
@@ -1727,7 +1714,7 @@ async function ticketReport(ctx, ev, id) {
   const lines = [
     `T-${id} ${truncate(f.Title, 100)}`,
     `👤 ${personName(emp, f.AssigneeEmail)} · ${STATUS_ICON[f.Status] || ''} ${STATUS_TH[f.Status] || f.Status}`,
-    `📅 ${due ? `ส่ง ${thaiDate(due)}` : 'ไม่กำหนดวันส่ง'}${isLate ? ` (เลย ${daysBetween(due, today)} วัน)` : ''}`,
+    `📅 ส่ง ${due ? thaiDate(due) : '-'}${isLate ? ` (เลย ${daysBetween(due, today)} วัน)` : ''}`,
   ];
   if (f.Details) lines.push(`📝 ${truncate(f.Details, 300)}`);
   if (f.CEOExtra) lines.push(`➕ ${truncate(f.CEOExtra, 300)}`);
@@ -1948,7 +1935,7 @@ function draftName(dr) {
 async function startFromHint(ctx, ev, t, known) {
   if (!known && chars(t).length > 30) return null;
   const nowMs = ctx.now().getTime();
-  const due = known ? null : isNoDueText(t) ? NO_DUE : parseDueText(t, bkkYmd(ctx.now()));
+  const due = known ? null : parseDueText(t, bkkYmd(ctx.now()));
   const group = known ? (known.length > 1 ? namedGroup(known) : null) : due ? null : parseGroup(await getEmployees(ctx), t);
   const r = known ? { people: known.length === 1 ? known : [], exact: true } : due || group ? null : findAssignee(await getEmployees(ctx), t);
   if (!due && !group && !(r.people.length && r.exact)) return null;
@@ -1973,7 +1960,7 @@ async function startFromHint(ctx, ev, t, known) {
   const parts = [];
   if (dr.assignee) parts.push(`ให้${personName(emp || (await getEmployees(ctx)).find((e) => e.email === dr.assignee), dr.assignee)}`);
   if (dr.group) parts.push(`ให้${dr.group.label} ${dr.group.emails.length} คน`);
-  if (dr.due) parts.push(dueLabel(dr.due));
+  if (dr.due) parts.push(`ส่ง${thaiDate(dr.due)}`);
   const photos = dr.images.length ? `\n📎 แนบรูปที่ส่งไว้ ${dr.images.length} รูป` : '';
   await lineReply(ctx, ev, textMsg(`📝 สั่งงานใหม่${parts.length ? ' ' + parts.join(' ') : ''} ใช่ไหม?\nพิมพ์หรือพูดชื่องานได้เลย${photos}`, [
     qrPostback('❌ ไม่ใช่', { a: 'cancel', d: dr.id }, 'ไม่ใช่'),

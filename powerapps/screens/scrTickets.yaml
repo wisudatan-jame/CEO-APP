@@ -86,7 +86,7 @@ Screens:
                 Control: Gallery@2.15.0
                 Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
                 Properties:
-                  Items: =SortByColumns(AddColumns(Filter(Tickets, IsOpen = true, AssigneeEmail = varMe), SortDue, Coalesce(DueDate, Date(2099, 12, 31))), "SortDue", SortOrder.Ascending)
+                  Items: =SortByColumns(Filter(Tickets, IsOpen = true, AssigneeEmail = varMe), "DueDate", SortOrder.Ascending)
                   TemplateSize: =102
                   OnSelect: =Set(varTicket, ThisItem); Navigate(scrDetail)
                   Fill: =Color.Transparent
@@ -138,10 +138,10 @@ Screens:
                   - lblMeta:
                       Control: Label@2.5.1
                       Properties:
-                        Text: =If(IsBlank(ThisItem.DueDate), "ไม่กำหนดวันส่ง", If((!IsBlank(ThisItem.DueDate) && ThisItem.DueDate < Today()), "เลยกำหนด " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & (Text(ThisItem.DueDate, "ddd", "th-TH") & " " & Day(ThisItem.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(ThisItem.DueDate)).Value)))
+                        Text: =If(ThisItem.DueDate < Today(), "เลยกำหนด " & DateDiff(ThisItem.DueDate, Today()) & " วัน", "ส่ง " & (Text(ThisItem.DueDate, "ddd", "th-TH") & " " & Day(ThisItem.DueDate) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(ThisItem.DueDate)).Value))
                         Font: =Font.'Open Sans'
                         Size: =12
-                        Color: =If((!IsBlank(ThisItem.DueDate) && ThisItem.DueDate < Today()), clrDanger, clrMuted)
+                        Color: =If(ThisItem.DueDate < Today(), clrDanger, clrMuted)
                         X: =20
                         Y: =48
                         Width: =Parent.TemplateWidth - 230
@@ -156,8 +156,8 @@ Screens:
                         Font: =Font.'Open Sans'
                         Size: =12
                         FontWeight: =FontWeight.Bold
-                        Fill: =Switch(true, ThisItem.Status.Value = "New" || (ThisItem.Status.Value <> "Done" && (!IsBlank(ThisItem.DueDate) && ThisItem.DueDate < Today())), ColorValue("#FDE8E8"), ThisItem.Status.Value = "WaitingCEO", ColorValue("#E9E9F5"), ThisItem.Status.Value = "Done", ColorValue("#E3F4EA"), ThisItem.Status.Value = "New", ColorValue("#EEF0F4"), ColorValue("#F1F2F6"))
-                        Color: =Switch(true, ThisItem.Status.Value = "New" || (ThisItem.Status.Value <> "Done" && (!IsBlank(ThisItem.DueDate) && ThisItem.DueDate < Today())), clrDanger, ThisItem.Status.Value = "WaitingCEO", clrPrimary, ThisItem.Status.Value = "Done", ColorValue("#17703A"), ThisItem.Status.Value = "New", ColorValue("#3F4A5C"), ColorValue("#3F4A5C"))
+                        Fill: =Switch(true, ThisItem.Status.Value = "New" || (ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today()), ColorValue("#FDE8E8"), ThisItem.Status.Value = "WaitingCEO", ColorValue("#E9E9F5"), ThisItem.Status.Value = "Done", ColorValue("#E3F4EA"), ThisItem.Status.Value = "New", ColorValue("#EEF0F4"), ColorValue("#F1F2F6"))
+                        Color: =Switch(true, ThisItem.Status.Value = "New" || (ThisItem.Status.Value <> "Done" && ThisItem.DueDate < Today()), clrDanger, ThisItem.Status.Value = "WaitingCEO", clrPrimary, ThisItem.Status.Value = "Done", ColorValue("#17703A"), ThisItem.Status.Value = "New", ColorValue("#3F4A5C"), ColorValue("#3F4A5C"))
                         BorderColor: =clrAccent
                         BorderThickness: =0
                         RadiusTopLeft: =20
