@@ -1015,7 +1015,31 @@ async function onMessage(ctx, ev, cfg) {
   return { skipped: m.type };
 }
 
-async function quickPeople(ctx, cfg) {
+function byDeptName(list) {
+  return list.slice().sort((a, b) => String(a.dept || '').localeCompare(String(b.dept || ''), 'th') || String(a.nick || a.first).localeCompare(String(b.nick || b.first), 'th'));
+}
+
+// Everybody as buttons: a carousel of cards, 8 people each, ordered by department. (Quick replies hold only 13 buttons.)
+function peopleFlex(employees, dr) {
+  const sorted = byDeptName(employees);
+  const cards = [];
+  for (let i = 0; i < sorted.length && cards.length < 12; i += 8) {
+    const part = sorted.slice(i, i + 8);
+    cards.push({
+      type: 'bubble', size: 'kilo',
+      body: {
+        type: 'box', layout: 'vertical', spacing: 'sm',
+        contents: [{ type: 'text', text: `ทุกคน ${i + 1}–${i + part.length} จาก ${sorted.length}`, size: 'xs', color: '#6B7385' }].concat(part.map((e) => ({
+          type: 'button', style: 'secondary', height: 'sm',
+          action: { type: 'postback', label: truncate(e.dept ? `${e.nick || e.first} · ${e.dept}` : (e.nick || e.first || e.full), 40), data: encodeData({ a: 'who', d: dr.id, e: e.email }), displayText: `สั่ง${personName(e)}` },
+        }))),
+      },
+    });
+  }
+  return { type: 'flex', altText: 'เลือกคนที่จะสั่ง (ปัดดูทุกคน)', contents: cards.length === 1 ? cards[0] : { type: 'carousel', contents: cards } };
+}
+
+async function quickPeople(ctx, cfg, limit = MAX_QUICK_PEOPLE) {
   const employees = (await getEmployees(ctx)).filter((e) => e.active);
   const byEmail = new Map(employees.map((e) => [e.email, e]));
   const counts = await cached(ctx, 'frequent', async () => {
@@ -1032,22 +1056,34 @@ async function quickPeople(ctx, cfg) {
   for (const email of ordered.concat(fallback)) {
     const e = byEmail.get(email);
     if (e && !out.includes(e)) out.push(e);
-    if (out.length >= MAX_QUICK_PEOPLE) break;
+    if (out.length >= limit) break;
+  }
+  // Then everyone else, by department and name, until the buttons are full: the CEO should find anybody with one tap.
+  for (const e of byDeptName(employees)) {
+    if (out.length >= limit) break;
+    if (!out.includes(e)) out.push(e);
   }
   return out;
 }
 
 async function askWho(ctx, ev, dr, notice) {
-  const people = await quickPeople(ctx, await getConfig(ctx));
+  const employees = (await getEmployees(ctx)).filter((e) => e.active);
+  const hasManagers = employees.some((e) => e.manager);
+  // 13 quick-reply buttons at most: the fixed ones first, every other slot is a person.
+  const limit = Math.max(4, 13 - (1 + (hasManagers ? 1 : 0) + (dr.title ? 1 : 0) + 1));
+  const people = await quickPeople(ctx, await getConfig(ctx), limit);
   const items = people.map((e) => qrPostback(personLabel(e), { a: 'who', d: dr.id, e: e.email }, `สั่ง${personName(e)}`));
   items.push(qrPostback('🔍 คนอื่น', { a: 'search', d: dr.id }, 'คนอื่น'));
-  if ((await getEmployees(ctx)).some((e) => e.active && e.manager)) items.push(qrPostback('👥 หัวหน้าทุกคน', { a: 'grp', d: dr.id, g: 'mgr' }, 'สั่งหัวหน้าทุกคน'));
+  if (hasManagers) items.push(qrPostback('👥 หัวหน้าทุกคน', { a: 'grp', d: dr.id, g: 'mgr' }, 'สั่งหัวหน้าทุกคน'));
   if (dr.title) items.push(qrPostback('➕ เพิ่มให้งานเดิม', { a: 'addold', d: dr.id }, 'เพิ่มให้งานเดิม'));
   items.push(qrPostback('❌ ยกเลิก', { a: 'cancel', d: dr.id }, 'ยกเลิก'));
+  const more = employees.length > people.length;
   const ask = dr.title
     ? `📝 "${truncate(dr.title, 120)}"\nสั่งใคร?\n(ถ้าเป็นรายละเอียดของงานที่สั่งไปแล้ว แตะ ➕ เพิ่มให้งานเดิม)`
     : '1/3 สั่งใคร?\nพูดหรือพิมพ์ชื่อเล่นหรือชื่อจริง (หลายคนได้ เช่น "ชา เนส") หรือแตะปุ่ม';
-  await lineReply(ctx, ev, textMsg(`${notice || ''}${ask}`, items));
+  // Everybody does not fit in the buttons: the card list goes first, the text with the buttons stays last.
+  const messages = more ? [peopleFlex(employees, dr), textMsg(`${notice || ''}${ask}\n⬆️ ปัดการ์ดด้านบนเพื่อดูทุกคน`, items)] : [textMsg(`${notice || ''}${ask}`, items)];
+  await lineReply(ctx, ev, messages);
   return { draft: dr.id, stage: 'who' };
 }
 

@@ -35,7 +35,7 @@ function fakeWorld(opts = {}) {
       { Title: 'ปิยะ พีเอ็ม', FirstName: 'ปิยะ', Nickname: 'ปิ', Email: 'pm@df.co.th', Department: 'PM', Active: true, IsManager: true },
       { Title: 'มาลี การตลาด', FirstName: 'มาลี', Nickname: 'มะลิ', Email: 'mkt@df.co.th', Department: 'Marketing', Active: true, IsManager: true },
       { Title: 'อดีต พนักงาน', FirstName: 'อดีต', Nickname: 'เอ', Email: 'left@df.co.th', Department: 'Sales', Active: false },
-    ],
+    ].concat(opts.moreEmployees || []),
     Holidays: (opts.holidays || []).map((d) => ({ Title: 'หยุด', Date: d })),
     Tickets: [],
     TicketHistory: [],
@@ -1252,4 +1252,33 @@ test('step by step: more words while the date is asked go into the details; "ส
   await send(w, textEv('สั่งงาน'));
   await send(w, textEv('ยกเลิก'));
   assert.equal(w.items.Tickets.length, 1);
+});
+
+// ---------- "สั่งใคร?": everybody is a button ----------
+test('"สั่งใคร?" shows every person: all in the buttons when they fit, else a card list above them', async () => {
+  // 4 people: all of them are quick-reply buttons (not only the ones with recent tickets)
+  let w = fakeWorld();
+  await send(w, textEv('งานทดสอบ'));
+  const labels = quick(lastReply(w)).map((a) => a.label);
+  for (const n of ['เอ (Sales)', 'เอก (Presales)', 'ปิ (PM)', 'มะลิ (Marketing)']) assert.ok(labels.includes(n), n);
+  assert.equal(w.calls.replies.at(-1).messages.length, 1);
+
+  // 20 more people: 13 buttons cannot hold them, so a carousel lists all 24 (8 per card) and the buttons come last
+  const more = Array.from({ length: 20 }, (_, i) => ({ Title: `พนักงาน ${i}`, FirstName: `พนง${i}`, Nickname: `ชื่อ${i}`, Email: `p${i}@df.co.th`, Department: i % 2 ? 'Sales' : 'บัญชี', Active: true }));
+  w = fakeWorld({ moreEmployees: more });
+  await send(w, textEv('งานทดสอบ'));
+  const msgs = w.calls.replies.at(-1).messages;
+  assert.equal(msgs.length, 2);
+  assert.equal(msgs[0].type, 'flex');
+  const cards = msgs[0].contents.contents;
+  assert.equal(cards.length, 3);
+  const buttons = cards.flatMap((c) => c.body.contents.filter((x) => x.type === 'button'));
+  assert.equal(buttons.length, 24);
+  assert.ok(buttons.every((b) => b.action.type === 'postback' && b.action.label.length <= 40));
+  assert.match(msgs[1].text, /ปัดการ์ดด้านบน/);
+  assert.ok(msgs[1].quickReply.items.length <= 13);
+  // tapping a card button picks the person
+  const pick = buttons.find((b) => b.action.label.startsWith('ชื่อ3'));
+  await send(w, postbackEv(lib.decodeData(pick.action.data)));
+  assert.match(lastReply(w).text, /👤 คุณชื่อ3\nส่งเมื่อไร\?/);
 });
