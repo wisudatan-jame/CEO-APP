@@ -514,6 +514,7 @@ function helpText() {
     'พิมพ์ "สรุป" เพื่อดูภาพรวม · "ยกเลิก" เพื่อยกเลิกงานที่กำลังสร้าง',
     'พิมพ์ "เพิ่มเติม" ตามด้วยรายละเอียด เพื่อเพิ่มให้งานที่สั่งไปแล้ว',
     'ถาม "งานคุณแตนถึงไหน" หรือ "T-19 ถึงไหน" เพื่อดูความคืบหน้า ติดตาม หรือเลื่อนวันส่ง',
+    'สั่งทีละขั้น: พิมพ์ "สั่งงาน" แล้วตอบ 1) ชื่อคน 2) เรื่องที่จะสั่ง (พูดยาวได้ บอทตั้งชื่อเรื่องให้) 3) วันส่ง',
     'พูดธรรมดาก็ได้ เช่น "บอกแตนให้ส่งรายงานพรุ่งนี้" "หัวหน้าทุกคนส่ง KPI ศุกร์นี้" บอทเดาคนและวันส่งให้ ดู 👤 กับ 📅 ว่าถูกก่อนแตะวัน (ผิดแตะ 👤 เปลี่ยนคน)',
     'สั่งหลายคน: ที่ "สั่งใคร?" แตะ 👥 หัวหน้าทุกคน หรือพูด "หัวหน้าฝ่ายขาย" "ฝ่ายบัญชีทุกคน"',
     'สั่งทีเดียวหลายคน/หลายงาน: บรรทัดหนึ่งพิมพ์ชื่อ เช่น "Kชา K เนส K แม้ว" แล้วขึ้นบรรทัดใหม่ตามด้วยเนื้องาน ข้อความเดียวมีได้หลายงาน (บอทถามวันส่งครั้งเดียว)',
@@ -686,6 +687,58 @@ function guessFromSentence(employees, text, today) {
   };
 }
 
+// ---------- Step by step: 1) who  2) everything about the task  3) when ----------
+const GUIDED_START = /^(สั่งงาน(ใหม่)?|สั่ง|สั่งงานทีละขั้น)$/;
+
+// A short title from what the CEO said: the first line, without filler words, cut at a space near 60 characters.
+// Everything said stays in the details.
+function summarizeTitle(text) {
+  const first = (String(text).split(/\r?\n/).map((l) => l.trim()).find(Boolean) || '').replace(/\s+/g, ' ')
+    .replace(/^(?:(?:ผม|ฉัน)?อยากให้|ช่วย|โปรด|ให้|เรื่อง)\s*/, '');
+  if (chars(first).length <= 60) return first;
+  const cut = first.slice(0, 60);
+  const sp = cut.lastIndexOf(' ');
+  return `${(sp >= 30 ? cut.slice(0, sp) : cut).trim()}…`;
+}
+
+// Names and nothing else ("ชา เนส", "ชา กับ เนส", "คุณชา, คุณเนส"): the people, or null when a word is not a name.
+function namesOnlyPeople(employees, text) {
+  const words = String(text).replace(ASSIGN_PREFIX, '').split(/[\s,/&]+|กับ|และ/).map((w) => w.trim()).filter(Boolean);
+  if (!words.length) return null;
+  const people = [];
+  for (const w of words) {
+    const e = exactPerson(employees, w);
+    if (!e) return null;
+    if (!people.some((x) => x.email === e.email)) people.push(e);
+  }
+  return people;
+}
+
+async function startGuided(ctx, ev, notice) {
+  const userId = ev.source.userId;
+  const nowMs = ctx.now().getTime();
+  const dr = {
+    id: newId(), title: '', details: [], images: takePendingImages(ctx, userId, nowMs), assignee: null, stage: 'who',
+    guided: true, steps: true, createdAt: nowMs, lastTextAt: nowMs,
+  };
+  drafts(ctx)[userId] = dr;
+  delete ctx.store.transfer;
+  delete ctx.store.addTo;
+  return askWho(ctx, ev, dr, `${notice || ''}${dr.images.length ? `📎 แนบรูปที่ส่งไว้ ${dr.images.length} รูป\n` : ''}`);
+}
+
+// Step 2: the person is known, the task is not.
+async function askWhat(ctx, ev, dr, emp) {
+  dr.stage = 'what';
+  dr.lastTextAt = ctx.now().getTime();
+  const who = dr.group ? groupLine(dr.group) : `👤 ${personName(emp, dr.assignee)}`;
+  await lineReply(ctx, ev, textMsg(`${who}\n2/3 สั่งเรื่องอะไร?\nพูดหรือพิมพ์ได้เลย ยาวแค่ไหนก็ได้ บอทเก็บทุกคำเป็นรายละเอียด แล้วตั้งชื่อเรื่องให้`, [
+    qrPostback('👤 เปลี่ยนคน', { a: 'rewho', d: dr.id }, 'เปลี่ยนคน'),
+    qrPostback('❌ ยกเลิก', { a: 'cancel', d: dr.id }, 'ยกเลิก'),
+  ]));
+  return { draft: dr.id, stage: 'what' };
+}
+
 // A new task whose people (and maybe due date) were found in the sentence.
 async function startGuessed(ctx, ev, g, notice) {
   const userId = ev.source.userId;
@@ -793,6 +846,15 @@ async function onMessage(ctx, ev, cfg) {
       await lineReply(ctx, ev, textMsg(helpText()));
       return { help: true };
     }
+    if (dr && dr.stage === 'title') {
+      // New short title typed after "✏️ แก้ชื่อเรื่อง".
+      dr.title = truncate(t.replace(/\s+/g, ' '), 255);
+      dr.titleAuto = false;
+      dr.stage = 'when';
+      const emp = (await getEmployees(ctx)).find((e) => e.email === dr.assignee);
+      return askWhen(ctx, ev, dr, emp, `📝 "${truncate(dr.title, 120)}"\n`);
+    }
+    if (GUIDED_START.test(t)) return startGuided(ctx, ev, dr ? `ยกเลิกงานก่อนหน้า: "${truncate(dr.title || 'งานใหม่', 60)}"\n\n` : '');
     if (pendingReply) return sendReply(ctx, ev, cfg, pendingReply, t);
     if (follow) return sendFollow(ctx, ev, cfg, follow, t);
     if (dueChange) return onDueText(ctx, ev, cfg, dueChange, t);
@@ -832,8 +894,13 @@ async function onMessage(ctx, ev, cfg) {
       if (hinted) return hinted;
     }
     if (dr && dr.stage === 'what') {
-      dr.title = truncate(t.replace(/\s+/g, ' '), 255);
-      if (chars(t).length > 255) dr.details.push(t);
+      // Step 2: all the words are the details, the title is a short version of them.
+      const said = t.trim();
+      dr.title = summarizeTitle(said);
+      dr.titleAuto = dr.title !== said.replace(/\s+/g, ' ');
+      dr.details = dr.titleAuto || said.includes('\n') ? [said] : [];
+      const due = guessDue(said, bkkYmd(ctx.now()));
+      if (due && !dr.due) dr.guess = { who: false, due: due.date, word: due.word };
       dr.lastTextAt = nowMs;
       const note = `📝 "${truncate(dr.title, 120)}"\n`;
       if (dr.assignee || dr.group) {
@@ -847,6 +914,8 @@ async function onMessage(ctx, ev, cfg) {
     if (dr && (dr.stage === 'who' || dr.stage === 'search')) {
       const group = parseGroup(await getEmployees(ctx), t);
       if (group) return afterGroup(ctx, ev, dr, group);
+      const several = namesOnlyPeople(await getEmployees(ctx), t);
+      if (several && several.length > 1) return afterGroup(ctx, ev, dr, namedGroup(several));
     }
     if (dr && dr.stage === 'search') return onSearch(ctx, ev, dr, t);
     if (dr && dr.stage === 'who') {
@@ -872,6 +941,13 @@ async function onMessage(ctx, ev, cfg) {
       if (/^ส่ง/.test(t) && chars(t).length <= 20) {
         const emp = (await getEmployees(ctx)).find((e) => e.email === dr.assignee);
         return askWhen(ctx, ev, dr, emp, `ไม่เข้าใจวันส่ง "${truncate(t, 20)}" แตะปุ่มหรือ 📅 เลือกวัน\n\n`);
+      }
+      if (dr.guided && nowMs - dr.lastTextAt < APPEND_WINDOW_MS) {
+        // The CEO went on talking: it is more of the details.
+        dr.details.push(t);
+        dr.lastTextAt = nowMs;
+        const emp = (await getEmployees(ctx)).find((e) => e.email === dr.assignee);
+        return askWhen(ctx, ev, dr, emp, `➕ เพิ่มในรายละเอียดแล้ว\n📝 "${truncate(dr.title, 120)}"\n`);
       }
     }
     const guessed = guessFromSentence(await getEmployees(ctx), t, bkkYmd(ctx.now()));
@@ -966,9 +1042,12 @@ async function askWho(ctx, ev, dr, notice) {
   const items = people.map((e) => qrPostback(personLabel(e), { a: 'who', d: dr.id, e: e.email }, `สั่ง${personName(e)}`));
   items.push(qrPostback('🔍 คนอื่น', { a: 'search', d: dr.id }, 'คนอื่น'));
   if ((await getEmployees(ctx)).some((e) => e.active && e.manager)) items.push(qrPostback('👥 หัวหน้าทุกคน', { a: 'grp', d: dr.id, g: 'mgr' }, 'สั่งหัวหน้าทุกคน'));
-  items.push(qrPostback('➕ เพิ่มให้งานเดิม', { a: 'addold', d: dr.id }, 'เพิ่มให้งานเดิม'));
+  if (dr.title) items.push(qrPostback('➕ เพิ่มให้งานเดิม', { a: 'addold', d: dr.id }, 'เพิ่มให้งานเดิม'));
   items.push(qrPostback('❌ ยกเลิก', { a: 'cancel', d: dr.id }, 'ยกเลิก'));
-  await lineReply(ctx, ev, textMsg(`${notice || ''}📝 "${truncate(dr.title, 120)}"\nสั่งใคร?\n(ถ้าเป็นรายละเอียดของงานที่สั่งไปแล้ว แตะ ➕ เพิ่มให้งานเดิม)`, items));
+  const ask = dr.title
+    ? `📝 "${truncate(dr.title, 120)}"\nสั่งใคร?\n(ถ้าเป็นรายละเอียดของงานที่สั่งไปแล้ว แตะ ➕ เพิ่มให้งานเดิม)`
+    : '1/3 สั่งใคร?\nพูดหรือพิมพ์ชื่อเล่นหรือชื่อจริง (หลายคนได้ เช่น "ชา เนส") หรือแตะปุ่ม';
+  await lineReply(ctx, ev, textMsg(`${notice || ''}${ask}`, items));
   return { draft: dr.id, stage: 'who' };
 }
 
@@ -1102,9 +1181,10 @@ async function askWhen(ctx, ev, dr, emp, notice) {
     }
     if (dr.guess.who) items.push(qrPostback('👤 เปลี่ยนคน', { a: 'rewho', d: dr.id }, 'เปลี่ยนคน'));
   }
+  if (dr.titleAuto) items.push(qrPostback('✏️ แก้ชื่อเรื่อง', { a: 'retitle', d: dr.id }, 'แก้ชื่อเรื่อง'));
   items.push(qrPostback('❌ ยกเลิก', { a: 'cancel', d: dr.id }, 'ยกเลิก'));
   const who = dr.batch ? 'ใช้วันส่งเดียวกันทุกงาน' : dr.group ? groupLine(dr.group) : `👤 ${personName(emp, dr.assignee)}`;
-  await lineReply(ctx, ev, textMsg(`${notice || ''}${who}\n${hint}ส่งเมื่อไร?`, items));
+  await lineReply(ctx, ev, textMsg(`${notice || ''}${who}\n${hint}${dr.steps ? '3/3 ' : ''}ส่งเมื่อไร?`, items));
   return { draft: dr.id, stage: 'when' };
 }
 
@@ -1178,6 +1258,11 @@ async function onPostback(ctx, ev, cfg) {
     delete drafts(ctx)[userId];
     await lineReply(ctx, ev, textMsg(`ยกเลิกแล้ว: ${draftName(dr)}`));
     return { cancelled: dr.id };
+  }
+  if (p.a === 'retitle') {
+    dr.stage = 'title';
+    await lineReply(ctx, ev, textMsg('พิมพ์หรือพูดชื่อเรื่องใหม่ (สั้นๆ) รายละเอียดที่พูดไปยังอยู่ครบ', [qrPostback('❌ ยกเลิก', { a: 'cancel', d: dr.id }, 'ยกเลิก')]));
+    return { draft: dr.id, stage: 'title' };
   }
   if (p.a === 'rewho') {
     dr.assignee = null;
@@ -1729,6 +1814,7 @@ async function afterGroup(ctx, ev, dr, group) {
   });
   dr.group = Object.assign({}, group, { names: truncate(names.join(', '), 600) });
   dr.assignee = null;
+  if (!dr.title) return askWhat(ctx, ev, dr, null);
   if (dr.due) return createTicketFromDraft(ctx, ev, await getConfig(ctx), dr, dr.due);
   dr.stage = 'when';
   return askWhen(ctx, ev, dr, null);
@@ -2280,6 +2366,7 @@ async function startFromHint(ctx, ev, t, known) {
     assignee: emp ? emp.email : group ? null : (old && old.assignee) || null,
     group: group || (emp ? null : (old && old.group) || null),
     due: due || (old && old.due) || null,
+    guided: true,
     stage: 'what',
     createdAt: nowMs,
     lastTextAt: nowMs,
@@ -2321,6 +2408,7 @@ async function afterGroupNoted(ctx, ev, dr, people, note, label) {
 async function afterWho(ctx, ev, dr, emp) {
   dr.assignee = emp.email;
   dr.group = null;
+  if (!dr.title) return askWhat(ctx, ev, dr, emp);
   if (dr.due) return createTicketFromDraft(ctx, ev, await getConfig(ctx), dr, dr.due);
   dr.stage = 'when';
   return askWhen(ctx, ev, dr, emp);

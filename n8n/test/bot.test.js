@@ -1199,3 +1199,57 @@ test('words that only look like names or dates are never taken as an order', asy
   await send(w, textEv('สั่งคุณมะลิ'));
   assert.match(lastReply(w).text, /ในข้อความมีคำว่า "ภายใน3วัน"/);
 });
+
+// ---------- step by step: "สั่งงาน" -> 1) who 2) the task 3) when ----------
+const LONG_SAID = 'ท่านวิชาญโทรมาให้เร่งปิดงานติดตั้งระบบ Smart Traffic ของ Hikvision ได้แจ้งรายละเอียดให้คุณเอกชัยแล้ว\nเพื่อจะได้เชิญ กทม ตร อบจ เทศบาลทั่วประเทศมาชมการสาธิต';
+
+test('"สั่งงาน" asks 1/3 who, 2/3 the task, 3/3 when; the title is short and every word is kept', async () => {
+  const w = fakeWorld();
+  await send(w, textEv('สั่งงาน'));
+  assert.match(lastReply(w).text, /^1\/3 สั่งใคร\?/);
+  assert.ok(!quick(lastReply(w)).some((a) => a.label.includes('เพิ่มให้งานเดิม')));
+  await send(w, textEv('เอก มะลิ'));
+  assert.match(lastReply(w).text, /^👥 ตามที่ระบุ 2 คน\nเอก \(Presales\), มะลิ \(Marketing\)\n2\/3 สั่งเรื่องอะไร\?/);
+  await send(w, textEv(LONG_SAID));
+  const msg = lastReply(w);
+  assert.match(msg.text, /^📝 "ท่านวิชาญโทรมาให้เร่งปิดงานติดตั้งระบบ Smart Traffic ของ Hikvision ได้แจ้งรายละเอียดให้คุณเอกชัยแล้ว"|^📝 "[^"]+…?"\n👥 ตามที่ระบุ 2 คน/);
+  assert.match(msg.text, /3\/3 ส่งเมื่อไร\?/);
+  assert.ok(quick(msg).some((a) => a.label === '✏️ แก้ชื่อเรื่อง') === (msg.text.includes('…')));
+  await send(w, textEv('ศุกร์นี้'));
+  const t = w.items.Tickets;
+  assert.equal(t.length, 2);
+  assert.ok(t[0].fields.Title.length <= 62);
+  assert.equal(t[0].fields.Details, LONG_SAID);
+});
+
+test('step 2 long text: title is cut at a space and "✏️ แก้ชื่อเรื่อง" replaces it; the details stay', async () => {
+  const w = fakeWorld();
+  const said = 'ตรวจสอบสัญญาโครงการ Smart City ฉบับใหม่ทุกข้อ แล้วสรุปประเด็นที่ต้องแก้ไขให้ผมก่อนประชุมวันอังคาร พร้อมแนบเอกสารอ้างอิง';
+  await send(w, textEv('สั่ง'));
+  await send(w, textEv('เอก'));
+  await send(w, textEv(said));
+  const msg = lastReply(w);
+  assert.match(msg.text, /^📝 "[^"]+…"\n👤 คุณเอก\n/);
+  await send(w, postbackEv(actionData(quick(msg).find((a) => a.label === '✏️ แก้ชื่อเรื่อง'))));
+  assert.match(lastReply(w).text, /^พิมพ์หรือพูดชื่อเรื่องใหม่/);
+  await send(w, textEv('ตรวจสัญญา Smart City'));
+  assert.match(lastReply(w).text, /^📝 "ตรวจสัญญา Smart City"\n👤 คุณเอก\n📅 ในข้อความมีคำว่า "วันอังคาร"[^\n]*\n3\/3 ส่งเมื่อไร\?/);
+  await send(w, textEv('พรุ่งนี้'));
+  assert.equal(w.items.Tickets[0].fields.Title, 'ตรวจสัญญา Smart City');
+  assert.equal(w.items.Tickets[0].fields.Details, said);
+});
+
+test('step by step: more words while the date is asked go into the details; "สั่งงาน" is never a task title', async () => {
+  const w = fakeWorld();
+  await send(w, textEv('สั่งงาน'));
+  await send(w, textEv('มะลิ'));
+  await send(w, textEv('เตรียมสไลด์ประชุมบอร์ด'));
+  await send(w, textEv('ขอเพิ่มข้อมูลยอดขายไตรมาสนี้ด้วย'));
+  assert.match(lastReply(w).text, /^➕ เพิ่มในรายละเอียดแล้ว\n📝 "เตรียมสไลด์ประชุมบอร์ด"/);
+  await send(w, textEv('พรุ่งนี้'));
+  assert.equal(w.items.Tickets[0].fields.Title, 'เตรียมสไลด์ประชุมบอร์ด');
+  assert.equal(w.items.Tickets[0].fields.Details, 'ขอเพิ่มข้อมูลยอดขายไตรมาสนี้ด้วย');
+  await send(w, textEv('สั่งงาน'));
+  await send(w, textEv('ยกเลิก'));
+  assert.equal(w.items.Tickets.length, 1);
+});
