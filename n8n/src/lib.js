@@ -514,6 +514,7 @@ function helpText() {
     'พิมพ์ "สรุป" เพื่อดูภาพรวม · "ยกเลิก" เพื่อยกเลิกงานที่กำลังสร้าง',
     'พิมพ์ "เพิ่มเติม" ตามด้วยรายละเอียด เพื่อเพิ่มให้งานที่สั่งไปแล้ว',
     'ถาม "งานคุณแตนถึงไหน" หรือ "T-19 ถึงไหน" เพื่อดูความคืบหน้า ติดตาม หรือเลื่อนวันส่ง',
+    'พูดธรรมดาก็ได้ เช่น "บอกแตนให้ส่งรายงานพรุ่งนี้" "หัวหน้าทุกคนส่ง KPI ศุกร์นี้" บอทเดาคนและวันส่งให้ ดู 👤 กับ 📅 ว่าถูกก่อนแตะวัน (ผิดแตะ 👤 เปลี่ยนคน)',
     'สั่งหลายคน: ที่ "สั่งใคร?" แตะ 👥 หัวหน้าทุกคน หรือพูด "หัวหน้าฝ่ายขาย" "ฝ่ายบัญชีทุกคน"',
     'สั่งทีเดียวหลายคน/หลายงาน: บรรทัดหนึ่งพิมพ์ชื่อ เช่น "Kชา K เนส K แม้ว" แล้วขึ้นบรรทัดใหม่ตามด้วยเนื้องาน ข้อความเดียวมีได้หลายงาน (บอทถามวันส่งครั้งเดียว)',
     'ส่งรูปหลังสร้างงาน บอทจะถามว่าแนบกับงานไหน',
@@ -540,7 +541,7 @@ function currentDraft(ctx, userId) {
   return d || null;
 }
 
-async function startDraft(ctx, ev, t, notice, people, order) {
+async function startDraft(ctx, ev, t, notice, people, order, guess) {
   const userId = ev.source.userId;
   const nowMs = ctx.now().getTime();
   const title = order ? order.title : truncate(t.replace(/\s+/g, ' '), 255);
@@ -553,6 +554,7 @@ async function startDraft(ctx, ev, t, notice, people, order) {
     stage: 'who',
     createdAt: nowMs,
     lastTextAt: nowMs,
+    guess: guess || null,
   };
   drafts(ctx)[userId] = dr;
   delete ctx.store.transfer; // a new task ends any half-finished transfer
@@ -563,6 +565,152 @@ async function startDraft(ctx, ev, t, notice, people, order) {
   if (people && people.length > 1) return afterGroupNoted(ctx, ev, dr, people, note);
   if (ev.moreText && !note) return { draft: dr.id, stage: 'who' };
   return askWho(ctx, ev, dr, note);
+}
+
+// ---------- Plain speech: who and when are found inside the sentence ----------
+// "บอกแตนให้ส่งรายงานพรุ่งนี้" · "ชา เนส ตรวจ spec" · "หัวหน้าทุกคนส่ง KPI ศุกร์นี้". A name counts only where an order starts
+// (start of a line or sentence, or after สั่ง/บอก/ให้/แจ้ง/มอบ/ฝาก/@) and ends at a space, punctuation or ให้/กับ/และ/ช่วย,
+// so "เอกสาร" or "ปิดงาน" are not people and "ประชุมกับคุณเอก" is not an order to เอก. The result is only a guess:
+// the CEO still sees "👤 ..." and taps the date, with a button to change the person.
+const ASSIGN_VERBS = ['สั่งงาน', 'สั่ง', 'บอก', 'ให้', 'แจ้ง', 'มอบหมายให้', 'มอบหมาย', 'มอบให้', 'ฝากให้', 'ฝาก', 'เรียน', '@'];
+const HONOR_AT = /^(?:คุณ|พี่|น้อง|นางสาว|นาย|นาง|[Kk]\.?(?=\s*[ก-๙A-Za-z]))\s*/;
+const AFTER_NAME_WORDS = ['กับ', 'และ', 'ให้', 'ช่วย'];
+const GROUP_AT = /(?:(?:หัวหน้า|ผู้จัดการ)(?:ฝ่าย|แผนก|ทีม)\s*[^\s]{1,14}|(?:หัวหน้า|ผู้จัดการ)(?:ทุกคน|ทุกท่าน|ทุกฝ่าย|ทั้งหมด)?|(?:ฝ่าย|แผนก|ทีม)\s*[^\s]{1,14}?\s*(?:ทุกคน|ทุกท่าน)|ทุกคน(?:ใน)?(?:ฝ่าย|แผนก|ทีม)\s*[^\s]{1,14}|ทุกคน|ทุกท่าน)/y;
+const DATE_WORD = /(ภายใน|ก่อน|ส่ง|เสร็จ|ทัน)?\s*(วันนี้|พรุ่งนี้|มะรืนนี้|มะรืน|(?:วัน)?(?:จันทร์|อังคาร|พุธ|พฤหัสบดี|พฤหัส|ศุกร์|เสาร์|อาทิตย์)(?:นี้|หน้า)?)/g;
+
+// Where an order may start: the beginning, after a line break or sentence end, after "ครับ/ค่ะ ", and right after an order verb.
+function orderAnchors(q) {
+  const out = new Set();
+  const skip = (i) => { while (i < q.length && /[ \t]/.test(q[i])) i++; return i; };
+  out.add(skip(0));
+  for (const m of q.matchAll(/(?:\n|[.!?]\s|(?:ครับ|ค่ะ|คะ|นะ)\s+)/g)) out.add(skip(m.index + m[0].length));
+  for (const v of ASSIGN_VERBS) {
+    for (let i = q.indexOf(v); i >= 0; i = q.indexOf(v, i + 1)) out.add(skip(i + v.length));
+  }
+  return [...out].sort((a, b) => a - b);
+}
+
+function guessPeople(employees, text) {
+  const q = String(text).toLowerCase();
+  const cands = [];
+  for (const e of employees) {
+    if (!e.active) continue;
+    for (const raw of [e.nick, e.first].concat(e.aliases || [])) {
+      const n = lower(raw).replace(HONORIFIC, '').trim();
+      if (n) cands.push({ n, e });
+    }
+  }
+  const nameAt = (i) => {
+    let best = 0;
+    let hit = new Map();
+    for (const c of cands) {
+      if (!q.startsWith(c.n, i)) continue;
+      if (c.n.length > best) { best = c.n.length; hit = new Map(); }
+      if (c.n.length === best) hit.set(c.e.email, c.e);
+    }
+    return best ? { len: best, emps: [...hit.values()] } : null;
+  };
+  const endsWell = (j) => j >= q.length || /[\s,.;:!?()"'“”/&]/.test(q[j]) || AFTER_NAME_WORDS.some((w) => q.startsWith(w, j));
+  const honorAt = (i) => { const m = HONOR_AT.exec(q.slice(i)); return m ? m[0].length : 0; };
+  const people = [];
+  let ambiguous = false;
+  let first = null;
+  for (const a of orderAnchors(q)) {
+    let i = a + honorAt(a);
+    let end = -1;
+    for (;;) {
+      const m = nameAt(i);
+      if (!m || !endsWell(i + m.len)) break;
+      if (m.emps.length > 1) { ambiguous = true; break; }
+      if (!people.some((x) => x.email === m.emps[0].email)) people.push(m.emps[0]);
+      end = i + m.len;
+      let k = end;
+      const sep = /^[\s,/&]*(?:(?:กับ|และ|แล้วก็|รวมถึง)\s*)?/.exec(q.slice(k));
+      k += sep[0].length;
+      k += honorAt(k);
+      i = k;
+    }
+    if (end >= 0 && !first) first = { start: a, end };
+  }
+  if (ambiguous || !people.length) return null;
+  return { people, first };
+}
+
+function guessGroup(employees, text) {
+  const q = String(text);
+  for (const a of orderAnchors(q.toLowerCase())) {
+    GROUP_AT.lastIndex = a;
+    const m = GROUP_AT.exec(q);
+    if (!m || m.index !== a) continue;
+    const g = parseGroup(employees, m[0]);
+    if (g) return { group: g, first: { start: a, end: a + m[0].length } };
+  }
+  return null;
+}
+
+// One date in the text -> a suggestion for the due date (the CEO still taps it). Two different dates: no guess.
+function guessDue(text, today) {
+  const dates = new Map();
+  for (const m of String(text).matchAll(DATE_WORD)) {
+    const d = parseDueText(m[2], today);
+    if (d && !dates.has(d)) dates.set(d, m[2]);
+  }
+  const within = /ภายใน\s*(\d{1,3})\s*วัน/.exec(text);
+  if (within && Number(within[1]) > 0) {
+    const d = addDays(today, Number(within[1]));
+    if (!dates.has(d)) dates.set(d, within[0].replace(/\s+/g, ''));
+  }
+  if (dates.size !== 1) return null;
+  const [date, word] = [...dates.entries()][0];
+  return date >= today && date <= addDays(today, MAX_DUE_DAYS) ? { date, word } : null;
+}
+
+// {people | group, order: {title, details}, due} or null when nobody is named where an order starts.
+function guessFromSentence(employees, text, today) {
+  const clean = String(text).replace(/\r/g, '').split('\n').map((l) => l.replace(/^\s*@all\b[ \t]*/i, '')).join('\n').trim();
+  if (!clean) return null;
+  const found = guessPeople(employees, clean) || guessGroup(employees, clean);
+  if (!found) return null;
+  let rest = clean;
+  // The order starts with the names: they are not part of the task's name any more.
+  const before = clean.slice(0, found.first ? found.first.start : 0).trim();
+  if (found.first && (before === '' || ASSIGN_VERBS.includes(before))) {
+    rest = clean.slice(found.first.end).replace(/^[\s,:\-–]*(?:(?:ให้|ช่วย|โปรด|กับ|และ)\s*)*/, '').trim();
+  }
+  const lines = rest.split('\n').map((l) => l.trim()).filter(Boolean);
+  const title = truncate((lines[0] || '').replace(/\s+/g, ' '), 255);
+  return {
+    people: found.people, group: found.group,
+    order: { title, details: lines.length > 1 || chars(lines[0] || '') > 255 ? [lines.join('\n')] : [] },
+    due: guessDue(clean, today),
+  };
+}
+
+// A new task whose people (and maybe due date) were found in the sentence.
+async function startGuessed(ctx, ev, g, notice) {
+  const userId = ev.source.userId;
+  const nowMs = ctx.now().getTime();
+  const employees = await getEmployees(ctx);
+  const people = g.people || g.group.emails.map((email) => employees.find((e) => e.email === email)).filter(Boolean);
+  const dr = {
+    id: newId(),
+    title: g.order.title,
+    details: g.order.details,
+    images: takePendingImages(ctx, userId, nowMs),
+    assignee: null,
+    stage: 'who',
+    createdAt: nowMs,
+    lastTextAt: nowMs,
+    guess: { who: true, due: g.due ? g.due.date : null, word: g.due ? g.due.word : '' },
+  };
+  drafts(ctx)[userId] = dr;
+  delete ctx.store.transfer;
+  delete ctx.store.addTo;
+  let note = notice || '';
+  if (dr.images.length) note += `📎 แนบรูปที่ส่งไว้ ${dr.images.length} รูป\n`;
+  if (!dr.title) return startFromHint(ctx, ev, g.group ? 'หัวหน้าทุกคน' : people.map((e) => e.nick || e.first).join(' '), people.length > 1 ? people : people.slice(0, 1));
+  if (people.length === 1) return afterWhoNoted(ctx, ev, dr, people[0], note);
+  return afterGroupNoted(ctx, ev, dr, people, note, g.group && g.group.label);
 }
 
 // Several orders in one message: one due date for all of them, then one ticket (or group) per order.
@@ -726,7 +874,10 @@ async function onMessage(ctx, ev, cfg) {
         return askWhen(ctx, ev, dr, emp, `ไม่เข้าใจวันส่ง "${truncate(t, 20)}" แตะปุ่มหรือ 📅 เลือกวัน\n\n`);
       }
     }
-    return startDraft(ctx, ev, t, dr ? `ยกเลิกงานก่อนหน้า: "${truncate(dr.title, 60)}"\n\n` : '');
+    const guessed = guessFromSentence(await getEmployees(ctx), t, bkkYmd(ctx.now()));
+    if (guessed) return startGuessed(ctx, ev, guessed, dr ? `ยกเลิกงานก่อนหน้า: "${truncate(dr.title, 60)}"\n\n` : '');
+    const due = guessDue(t, bkkYmd(ctx.now()));
+    return startDraft(ctx, ev, t, dr ? `ยกเลิกงานก่อนหน้า: "${truncate(dr.title, 60)}"\n\n` : '', undefined, undefined, due ? { who: false, due: due.date, word: due.word } : null);
   }
 
   if (m.type === 'image') {
@@ -941,9 +1092,19 @@ async function askWhen(ctx, ev, dr, emp, notice) {
   ];
   if (friday !== today && friday !== tomorrow) items.push(qrPostback('ศุกร์นี้', { a: 'when', d: dr.id, v: friday }, 'ส่งศุกร์นี้'));
   items.push(qrDatePicker('📅 เลือกวัน', { a: 'date', d: dr.id }, tomorrow, today));
+  let hint = '';
+  if (dr.guess) {
+    // Found in the sentence: offered first, and not twice.
+    if (dr.guess.due) {
+      for (let i = items.length - 1; i >= 0; i--) if (items[i].action.data && decodeData(items[i].action.data).v === dr.guess.due) items.splice(i, 1);
+      items.unshift(qrPostback(`✅ ${thaiDate(dr.guess.due)}`, { a: 'when', d: dr.id, v: dr.guess.due }, `ส่ง${thaiDate(dr.guess.due)}`));
+      hint = `📅 ในข้อความมีคำว่า "${dr.guess.word}" แตะ ✅ ถ้าเป็นวันส่ง\n`;
+    }
+    if (dr.guess.who) items.push(qrPostback('👤 เปลี่ยนคน', { a: 'rewho', d: dr.id }, 'เปลี่ยนคน'));
+  }
   items.push(qrPostback('❌ ยกเลิก', { a: 'cancel', d: dr.id }, 'ยกเลิก'));
   const who = dr.batch ? 'ใช้วันส่งเดียวกันทุกงาน' : dr.group ? groupLine(dr.group) : `👤 ${personName(emp, dr.assignee)}`;
-  await lineReply(ctx, ev, textMsg(`${notice || ''}${who}\nส่งเมื่อไร?`, items));
+  await lineReply(ctx, ev, textMsg(`${notice || ''}${who}\n${hint}ส่งเมื่อไร?`, items));
   return { draft: dr.id, stage: 'when' };
 }
 
@@ -1017,6 +1178,12 @@ async function onPostback(ctx, ev, cfg) {
     delete drafts(ctx)[userId];
     await lineReply(ctx, ev, textMsg(`ยกเลิกแล้ว: ${draftName(dr)}`));
     return { cancelled: dr.id };
+  }
+  if (p.a === 'rewho') {
+    dr.assignee = null;
+    dr.group = null;
+    dr.guess = null;
+    return askWho(ctx, ev, dr, '');
   }
   if (p.a === 'grp') {
     const group = parseGroup(await getEmployees(ctx), 'หัวหน้าทุกคน');
@@ -2142,8 +2309,8 @@ async function afterWhoNoted(ctx, ev, dr, emp, note) {
   dr.stage = 'when';
   return askWhen(ctx, ev, dr, emp, `${note}📝 "${truncate(dr.title, 120)}"\n`);
 }
-async function afterGroupNoted(ctx, ev, dr, people, note) {
-  dr.group = Object.assign(namedGroup(people), { names: truncate(people.map(personLabel).join(', '), 600) });
+async function afterGroupNoted(ctx, ev, dr, people, note, label) {
+  dr.group = Object.assign(namedGroup(people), label ? { label } : {}, { names: truncate(people.map(personLabel).join(', '), 600) });
   dr.assignee = null;
   if (dr.due) return createTicketFromDraft(ctx, ev, await getConfig(ctx), dr, dr.due);
   dr.stage = 'when';
@@ -2630,7 +2797,7 @@ async function weeklySummary(ctx) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     sha256, hmacSha256, verifyLineSignature, bkkYmd, addDays, fridayOf, mondayOf, spDate, thaiDate,
-    encodeData, decodeData, matchEmployees, findAssignee, parseNamedOrders, findPersonInQuestion, personStats, leaverGroups, parseDueText, computeStats, weeklyLines, chunkMessages, truncate,
+    encodeData, decodeData, matchEmployees, findAssignee, parseNamedOrders, guessFromSentence, findPersonInQuestion, personStats, leaverGroups, parseDueText, computeStats, weeklyLines, chunkMessages, truncate,
     handleWebhook, dailySummary, weeklySummary, checkSharePointCall, notifyCeoOfStaffUpdates,
   };
 }

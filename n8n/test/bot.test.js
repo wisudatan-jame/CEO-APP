@@ -1090,8 +1090,8 @@ test('names only ("Kเอ K ปิ") ask for the task; an unknown K-name is rep
   await send(w, textEv('Kซูซู\nเตรียมสไลด์'));
   assert.match(lastReply(w).text, /^ไม่พบชื่อ "ซูซู" ในรายชื่อพนักงาน\n\(ชื่อเล่นภาษาอังกฤษ[^\n]*\n📝 "เตรียมสไลด์"\nสั่งใคร\?/);
   await send(w, textEv('ยกเลิก'));
-  await send(w, textEv('คุณเอ ส่งรายงานวันนี้'));
-  assert.match(lastReply(w).text, /^📝 "คุณเอ ส่งรายงานวันนี้"\nสั่งใคร\?/);
+  await send(w, textEv('ประชุมกับคุณเอ วันนี้'));
+  assert.match(lastReply(w).text, /^📝 "ประชุมกับคุณเอ วันนี้"\nสั่งใคร\?/); // a name inside a sentence is not an order to that person
 });
 
 test('at "สั่งใคร?" several K-names in one message pick all of them', async () => {
@@ -1157,4 +1157,45 @@ test('a task on the same line as "K name" and a plain context paragraph stay tog
   await send(w, textEv('พรุ่งนี้'));
   assert.equal(w.items.Tickets.length, 1);
   assert.equal(w.items.Tickets[0].fields.Details, 'ส่งรายงานยอดขาย\nรวมทุกสาขา\nและเทียบกับปีที่แล้ว');
+});
+
+// ---------- plain speech: the people and the date are found in the sentence ----------
+test('"บอกเอกให้ส่งรายงานพรุ่งนี้": person and date found, title without the order words, one tap on the date', async () => {
+  const w = fakeWorld();
+  await send(w, textEv('บอกเอกให้ส่งรายงานยอดขายพรุ่งนี้'));
+  const msg = lastReply(w);
+  assert.match(msg.text, /^📝 "ส่งรายงานยอดขายพรุ่งนี้"\n👤 คุณเอก\n📅 ในข้อความมีคำว่า "พรุ่งนี้" แตะ ✅ ถ้าเป็นวันส่ง\nส่งเมื่อไร\?/);
+  const labels = quick(msg).map((a) => a.label);
+  assert.equal(labels[0].startsWith('✅ '), true);
+  assert.equal(labels.filter((l) => l === 'พรุ่งนี้').length, 0, 'the same date is not offered twice');
+  assert.ok(labels.includes('👤 เปลี่ยนคน'));
+  await send(w, postbackEv(actionData(quick(msg)[0])));
+  const t = w.items.Tickets[0].fields;
+  assert.equal(t.AssigneeEmail, 'ek@df.co.th');
+  assert.equal(t.Title, 'ส่งรายงานยอดขายพรุ่งนี้');
+  assert.equal(t.DueDate, '2026-10-20T00:00:00Z');
+});
+
+test('several names and a department word in a sentence; "เปลี่ยนคน" goes back to "สั่งใคร?"', async () => {
+  const w = fakeWorld();
+  await send(w, textEv('ให้เอกกับมะลิ ตรวจสัญญาใหม่'));
+  assert.match(lastReply(w).text, /^📝 "ตรวจสัญญาใหม่"\n👥 ตามที่ระบุ 2 คน\nเอก \(Presales\), มะลิ \(Marketing\)\nส่งเมื่อไร\?/);
+  const change = quick(lastReply(w)).find((a) => a.label === '👤 เปลี่ยนคน');
+  await send(w, postbackEv(actionData(change)));
+  assert.match(lastReply(w).text, /สั่งใคร\?/);
+  await send(w, textEv('หัวหน้าทุกคนส่งแผนงบ ศุกร์นี้'));
+  assert.match(lastReply(w).text, /📝 "ส่งแผนงบ ศุกร์นี้"\n👥 หัวหน้าทุกคน 3 คน/);
+});
+
+test('words that only look like names or dates are never taken as an order', async () => {
+  const w = fakeWorld();
+  for (const text of ['เตรียมเอกสารประชุม', 'ปิดงานติดตั้งระบบ', 'ตรวจสัญญา ปิ เอก ช่วยดู']) {
+    await send(w, textEv(text));
+    assert.match(lastReply(w).text, /สั่งใคร\?/, text);
+    await send(w, textEv('ยกเลิก'));
+  }
+  // a date alone is only offered once the person is picked
+  await send(w, textEv('ทำงบ ภายใน 3 วัน'));
+  await send(w, textEv('สั่งคุณมะลิ'));
+  assert.match(lastReply(w).text, /ในข้อความมีคำว่า "ภายใน3วัน"/);
 });
