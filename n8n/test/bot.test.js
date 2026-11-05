@@ -1341,3 +1341,12 @@ test('read-back for several orders and for a group; "เปลี่ยนวั
   await send(off, textEv('พรุ่งนี้'));
   assert.equal(off.items.Tickets.length, 1);
 });
+
+test('"K name" order: the whole title is shown and "👤 เปลี่ยนคน" is on the date question', async () => {
+  const w = fakeWorld();
+  const title = 'ประสาน วิทยาลัยเทคนิคลพบุรี ,ปราณีบุรี ,ม ราชมงคลธัญญบุรี ,ม ปทุมวัน ขอประชุม on line กับ อ ที่ปรึกษา แผนการ รับ นศ ปี2570';
+  await send(w, textEv(`K เอก HR Manager\n${title.split(' ขอประชุม')[0]}\nขอประชุม${title.split(' ขอประชุม')[1]}\n เป้าหมาย\n ขอ รับ นศ`));
+  const msg = lastReply(w);
+  assert.ok(msg.text.includes('ปี2570'), msg.text);
+  assert.ok(quick(msg).some((a) => a.label === '👤 เปลี่ยนคน'));
+});

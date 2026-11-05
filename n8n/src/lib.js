@@ -555,7 +555,8 @@ async function startDraft(ctx, ev, t, notice, people, order, guess) {
     stage: 'who',
     createdAt: nowMs,
     lastTextAt: nowMs,
-    guess: guess || null,
+    // Names found in the message: "👤 เปลี่ยนคน" stays on the date question.
+    guess: guess || (people && people.length ? { who: true, due: null, word: '' } : null),
   };
   drafts(ctx)[userId] = dr;
   delete ctx.store.transfer; // a new task ends any half-finished transfer
@@ -858,7 +859,7 @@ async function onMessage(ctx, ev, cfg) {
       if (dr.pendingDate) return askConfirm(ctx, ev, dr, dr.pendingDate);
       dr.stage = 'when';
       const emp = (await getEmployees(ctx)).find((e) => e.email === dr.assignee);
-      return askWhen(ctx, ev, dr, emp, `📝 "${truncate(dr.title, 120)}"\n`);
+      return askWhen(ctx, ev, dr, emp, `📝 "${truncate(dr.title, 200)}"\n`);
     }
     if (GUIDED_START.test(t)) return startGuided(ctx, ev, dr ? `ยกเลิกงานก่อนหน้า: "${truncate(dr.title || 'งานใหม่', 60)}"\n\n` : '');
     if (pendingReply) return sendReply(ctx, ev, cfg, pendingReply, t);
@@ -908,7 +909,7 @@ async function onMessage(ctx, ev, cfg) {
       const due = guessDue(said, bkkYmd(ctx.now()));
       if (due && !dr.due) dr.guess = { who: false, due: due.date, word: due.word };
       dr.lastTextAt = nowMs;
-      const note = `📝 "${truncate(dr.title, 120)}"\n`;
+      const note = `📝 "${truncate(dr.title, 200)}"\n`;
       if (dr.assignee || dr.group) {
         dr.stage = 'when';
         const emp = (await getEmployees(ctx)).find((e) => e.email === dr.assignee);
@@ -953,7 +954,7 @@ async function onMessage(ctx, ev, cfg) {
         dr.details.push(t);
         dr.lastTextAt = nowMs;
         const emp = (await getEmployees(ctx)).find((e) => e.email === dr.assignee);
-        return askWhen(ctx, ev, dr, emp, `➕ เพิ่มในรายละเอียดแล้ว\n📝 "${truncate(dr.title, 120)}"\n`);
+        return askWhen(ctx, ev, dr, emp, `➕ เพิ่มในรายละเอียดแล้ว\n📝 "${truncate(dr.title, 200)}"\n`);
       }
     }
     const guessed = guessFromSentence(await getEmployees(ctx), t, bkkYmd(ctx.now()));
@@ -1085,7 +1086,7 @@ async function askWho(ctx, ev, dr, notice) {
   items.push(qrPostback('❌ ยกเลิก', { a: 'cancel', d: dr.id }, 'ยกเลิก'));
   const more = employees.length > people.length;
   const ask = dr.title
-    ? `📝 "${truncate(dr.title, 120)}"\nสั่งใคร?\n(ถ้าเป็นรายละเอียดของงานที่สั่งไปแล้ว แตะ ➕ เพิ่มให้งานเดิม)`
+    ? `📝 "${truncate(dr.title, 200)}"\nสั่งใคร?\n(ถ้าเป็นรายละเอียดของงานที่สั่งไปแล้ว แตะ ➕ เพิ่มให้งานเดิม)`
     : '1/3 สั่งใคร?\nพูดหรือพิมพ์ชื่อเล่นหรือชื่อจริง (หลายคนได้ เช่น "ชา เนส") หรือแตะปุ่ม';
   // Everybody does not fit in the buttons: the card list goes first, the text with the buttons stays last.
   const messages = more ? [peopleFlex(employees, dr), textMsg(`${notice || ''}${ask}\n⬆️ ปัดการ์ดด้านบนเพื่อดูทุกคน`, items)] : [textMsg(`${notice || ''}${ask}`, items)];
@@ -2499,14 +2500,14 @@ async function afterWhoNoted(ctx, ev, dr, emp, note) {
   dr.group = null;
   if (dr.due) return finishOrder(ctx, ev, await getConfig(ctx), dr, dr.due);
   dr.stage = 'when';
-  return askWhen(ctx, ev, dr, emp, `${note}📝 "${truncate(dr.title, 120)}"\n`);
+  return askWhen(ctx, ev, dr, emp, `${note}📝 "${truncate(dr.title, 200)}"\n`);
 }
 async function afterGroupNoted(ctx, ev, dr, people, note, label) {
   dr.group = Object.assign(namedGroup(people), label ? { label } : {}, { names: truncate(people.map(personLabel).join(', '), 600) });
   dr.assignee = null;
   if (dr.due) return finishOrder(ctx, ev, await getConfig(ctx), dr, dr.due);
   dr.stage = 'when';
-  return askWhen(ctx, ev, dr, null, `${note}📝 "${truncate(dr.title, 120)}"\n`);
+  return askWhen(ctx, ev, dr, null, `${note}📝 "${truncate(dr.title, 200)}"\n`);
 }
 
 // The person is known: ask the due date, or create the task when the CEO already said it.
