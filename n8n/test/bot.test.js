@@ -1053,7 +1053,7 @@ test('several LINE accounts in CEO_LINE_USER_ID: each commands the bot with thei
 });
 
 // ---------- "Kเอ K ปิ" + task on the next lines: the CEO's dictating style ----------
-const DICTATED = 'ท่านวิชาญโทรมาให้เร่งปิดงานติดตั้งระบบ Smart Traffic ของ Hikvision\nได้แจ้งรายละเอียดให้คุณเอกชัยแล้ว\nแจ้งท่านคณบดีโดยส่งโครงการให้ท่านพิจารณา';
+const DICTATED = 'ท่านวิชาญโทรมาให้เร่งปิดงานติดตั้งระบบ Smart Traffic ของ Hikvision\nแจ้งแล้ว\nส่งโครงการ';
 
 test('"Kเอ K ปิ K มะลิ" + task lines: one ticket each, title is the first line, full text in details', async () => {
   const w = fakeWorld();
@@ -1112,12 +1112,12 @@ test('K-names work with or without spaces: "KเอKปิKมะลิ"', async
 const MULTI = [
   'K เอ ปิ',
   'KPI ประจำสัปดาห์ ของ Sales ทุกคน',
-  ' ตรวจสอบ ทุก อาทิตย์',
+  ' ทุกอาทิตย์',
   '',
   '@All มีลูกค้าใส่ ซอง ผิด ทำให้ sensor เสียหาย',
   ' K มะลิ K เอก',
   ' ทำ page วิธี การใส่ซอง',
-  ' เตือนว่า ให้ระวัง sensor',
+  ' ระวัง sensor',
   '',
   '@All K เอ K มะลิ',
   ' ตรวจ Spec ใหม่ พร้อม ราคา กลาง',
@@ -1138,8 +1138,8 @@ test('one message with several orders: names without a second K, context before 
   // each order is its own group; the text before the names line stays in the details
   assert.equal(t[1].fields.GroupID, Number(t[0].id));
   assert.equal(t[3].fields.GroupID, Number(t[2].id));
-  assert.equal(t[2].fields.Details, 'มีลูกค้าใส่ ซอง ผิด ทำให้ sensor เสียหาย\nทำ page วิธี การใส่ซอง\nเตือนว่า ให้ระวัง sensor');
-  assert.equal(t[0].fields.Details, 'KPI ประจำสัปดาห์ ของ Sales ทุกคน\nตรวจสอบ ทุก อาทิตย์');
+  assert.equal(t[2].fields.Details, 'มีลูกค้าใส่ ซอง ผิด ทำให้ sensor เสียหาย\nทำ page วิธี การใส่ซอง\nระวัง sensor');
+  assert.equal(t[0].fields.Details, 'KPI ประจำสัปดาห์ ของ Sales ทุกคน\nทุกอาทิตย์');
   assert.match(lastReply(w).text, /^✅ สั่ง 3 งานแล้ว\n1\) KPI ประจำสัปดาห์ ของ Sales ทุกคน\n {3}T-\d+ คุณเอ · T-\d+ คุณปิ\n2\) ทำ page/);
   assert.equal(w.items.TicketHistory.length, 6);
 });
@@ -1292,7 +1292,7 @@ test('read-back: who, what and when are repeated and nothing is created until "�
   await send(w, textEv(SAID_HR));
   await send(w, textEv('ศุกร์นี้'));
   const msg = lastReply(w);
-  assert.match(msg.text, /^📋 ทวนก่อนสั่ง\n👤 คุณเอก\n📝 เรื่อง: ประสาน วิทยาลัยเทคนิคลพบุรี ,ปราณีบุรี ,ม ราชมงคลธัญญบุรี\n📄 รายละเอียด: ประสาน วิทยาลัยเทคนิคลพบุรี[^\n]*ขอประชุม on line[^\n]*\n📅 ส่ง ศุกร์ 23 ต\.ค\.\nถูกต้องไหม\?$/);
+  assert.match(msg.text, /^📋 ทวนก่อนสั่ง\n👤 คุณเอก\n📝 เรื่อง: ประสาน วิทยาลัยเทคนิคลพบุรี ,ปราณีบุรี ,ม ราชมงคลธัญญบุรี ขอประชุม on line กับ อ ที่ปรึกษา แผนการ รับ นศ ปี2570\n📅 ส่ง ศุกร์ 23 ต\.ค\.\nถูกต้องไหม\?$/);
   assert.deepEqual(quick(msg).map((a) => a.label), ['✅ ถูกต้อง สั่งเลย', '✏️ แก้ชื่อเรื่อง', '👤 เปลี่ยนคน', '📅 เปลี่ยนวัน', '❌ ยกเลิก']);
   assert.equal(w.items.Tickets.length, 0);
   await send(w, postbackEv(actionData(quick(msg)[0])));

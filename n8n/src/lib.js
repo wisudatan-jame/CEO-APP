@@ -1379,7 +1379,10 @@ async function askConfirm(ctx, ev, dr, date) {
     const emp = (await getEmployees(ctx)).find((e) => e.email === dr.assignee);
     lines.push(dr.group ? groupLine(dr.group) : `👤 ${personName(emp, dr.assignee)}`);
     lines.push(`📝 เรื่อง: ${truncate(dr.title, 200)}`);
-    if (dr.details.length) lines.push(`📄 รายละเอียด: ${truncate(dr.details.join(' ').replace(/\s+/g, ' '), 160)}`);
+    // The details repeat the title when the title is the first part of what was said: show only what is more.
+    const said = dr.details.join(' ').replace(/\s+/g, ' ').trim();
+    const more = said.startsWith(dr.title.replace(/…$/, '')) ? said.slice(dr.title.replace(/…$/, '').length).trim() : said;
+    if (more) lines.push(`📄 รายละเอียด: ${truncate(more, 160)}`);
     lines.push(`📅 ส่ง ${thaiDate(date)}`);
   }
   if (dr.images.length) lines.push(`📎 แนบรูป ${dr.images.length} รูป`);
@@ -1795,6 +1798,23 @@ function namesLine(employees, line) {
   return { people, unknown, inline };
 }
 
+// The title of an order: the lines that say what it is, up to a short heading line ("เป้าหมาย"), 3 lines and about 150 characters.
+// A short word group right after the names ("K รถเมล์ HR Manager") only tells who they are, so it is skipped when more lines follow.
+function orderTitle(lines) {
+  let ls = lines.map((l) => l.trim()).filter(Boolean);
+  if (ls.length > 1 && chars(ls[0]).length < 25 && chars(ls[1]).length >= 25) ls = ls.slice(1); // a short first group, then a full sentence
+  const take = [];
+  for (const l of ls) {
+    if (take.length && (take.length >= 3 || chars(l).length < 14)) break;
+    take.push(l);
+  }
+  const text = take.join(' ').replace(/\s+/g, ' ');
+  if (chars(text).length <= 150) return text;
+  const cut = text.slice(0, 150);
+  const sp = cut.lastIndexOf(' ');
+  return `${(sp >= 80 ? cut.slice(0, sp) : cut).trim()}…`;
+}
+
 // null: no names line. {unknown, body}: a name is not in Employees (nothing is created). {orders}: [{people, title, details}]
 // (title '' = names only).
 function parseNamedOrders(employees, text) {
@@ -1841,7 +1861,7 @@ function parseNamedOrders(employees, text) {
     const first = (o.instr[0] || o.ctx[0] || '');
     return {
       people: o.people,
-      title: truncate(first.replace(/\s+/g, ' '), 255),
+      title: orderTitle(o.instr.length ? o.instr : o.ctx),
       // Several lines (or a long text) keep their full wording in the details, the title is one line of it.
       details: all.length > 1 || chars(first) > 255 ? [all.join('\n')] : [],
     };
