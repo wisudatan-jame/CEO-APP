@@ -859,7 +859,7 @@ async function onMessage(ctx, ev, cfg) {
       if (dr.pendingDate) return askConfirm(ctx, ev, dr, dr.pendingDate);
       dr.stage = 'when';
       const emp = (await getEmployees(ctx)).find((e) => e.email === dr.assignee);
-      return askWhen(ctx, ev, dr, emp, `📝 "${truncate(dr.title, 200)}"\n`);
+      return askWhen(ctx, ev, dr, emp);
     }
     if (GUIDED_START.test(t)) return startGuided(ctx, ev, dr ? `ยกเลิกงานก่อนหน้า: "${truncate(dr.title || 'งานใหม่', 60)}"\n\n` : '');
     if (pendingReply) return sendReply(ctx, ev, cfg, pendingReply, t);
@@ -909,7 +909,7 @@ async function onMessage(ctx, ev, cfg) {
       const due = guessDue(said, bkkYmd(ctx.now()));
       if (due && !dr.due) dr.guess = { who: false, due: due.date, word: due.word };
       dr.lastTextAt = nowMs;
-      const note = `📝 "${truncate(dr.title, 200)}"\n`;
+      const note = '';
       if (dr.assignee || dr.group) {
         dr.stage = 'when';
         const emp = (await getEmployees(ctx)).find((e) => e.email === dr.assignee);
@@ -954,7 +954,7 @@ async function onMessage(ctx, ev, cfg) {
         dr.details.push(t);
         dr.lastTextAt = nowMs;
         const emp = (await getEmployees(ctx)).find((e) => e.email === dr.assignee);
-        return askWhen(ctx, ev, dr, emp, `➕ เพิ่มในรายละเอียดแล้ว\n📝 "${truncate(dr.title, 200)}"\n`);
+        return askWhen(ctx, ev, dr, emp, '➕ เพิ่มในรายละเอียดแล้ว\n');
       }
     }
     const guessed = guessFromSentence(await getEmployees(ctx), t, bkkYmd(ctx.now()));
@@ -1073,20 +1073,38 @@ async function quickPeople(ctx, cfg, limit = MAX_QUICK_PEOPLE) {
   return out;
 }
 
+// What the CEO sees about the order, the same way in every question: 👤 who · 📝 what · 📄 what else was said.
+function detailsMore(dr) {
+  const title = String(dr.title || '').replace(/…$/, '');
+  const said = (dr.details || []).join(' ').replace(/\s+/g, ' ').trim();
+  return said.startsWith(title) ? said.slice(title.length).trim() : said;
+}
+function titleLines(dr) {
+  const lines = [];
+  if (dr.title) lines.push(`📝 เรื่อง: ${truncate(dr.title, 200)}`);
+  const more = detailsMore(dr);
+  if (more) lines.push(`📄 รายละเอียด: ${truncate(more, 160)}`);
+  return lines;
+}
+function orderLines(dr, emp) {
+  return [dr.group ? groupLine(dr.group) : `👤 ${personName(emp, dr.assignee)}`].concat(titleLines(dr));
+}
+
 async function askWho(ctx, ev, dr, notice) {
   const employees = (await getEmployees(ctx)).filter((e) => e.active);
   const hasManagers = employees.some((e) => e.manager);
   // 13 quick-reply buttons at most: the fixed ones first, every other slot is a person.
   const limit = Math.max(4, 13 - (1 + (hasManagers ? 1 : 0) + (dr.title ? 1 : 0) + 1));
   const people = await quickPeople(ctx, await getConfig(ctx), limit);
-  const items = people.map((e) => qrPostback(personLabel(e), { a: 'who', d: dr.id, e: e.email }, `สั่ง${personName(e)}`));
-  items.push(qrPostback('🔍 คนอื่น', { a: 'search', d: dr.id }, 'คนอื่น'));
+  // "ชื่อพนักงาน" first: tap it to see every employee as a card, or type the name.
+  const items = [qrPostback('👤 ชื่อพนักงาน', { a: 'search', d: dr.id }, 'ชื่อพนักงาน')];
+  for (const e of people) items.push(qrPostback(personLabel(e), { a: 'who', d: dr.id, e: e.email }, `สั่ง${personName(e)}`));
   if (hasManagers) items.push(qrPostback('👥 หัวหน้าทุกคน', { a: 'grp', d: dr.id, g: 'mgr' }, 'สั่งหัวหน้าทุกคน'));
   if (dr.title) items.push(qrPostback('➕ เพิ่มให้งานเดิม', { a: 'addold', d: dr.id }, 'เพิ่มให้งานเดิม'));
   items.push(qrPostback('❌ ยกเลิก', { a: 'cancel', d: dr.id }, 'ยกเลิก'));
   const more = employees.length > people.length;
   const ask = dr.title
-    ? `📝 "${truncate(dr.title, 200)}"\nสั่งใคร?\n(ถ้าเป็นรายละเอียดของงานที่สั่งไปแล้ว แตะ ➕ เพิ่มให้งานเดิม)`
+    ? `📋 สั่งงานใหม่\n${titleLines(dr).join('\n')}\nสั่งใคร?\n(ถ้าเป็นรายละเอียดของงานที่สั่งไปแล้ว แตะ ➕ เพิ่มให้งานเดิม)`
     : '1/3 สั่งใคร?\nพูดหรือพิมพ์ชื่อเล่นหรือชื่อจริง (หลายคนได้ เช่น "ชา เนส") หรือแตะปุ่ม';
   // Everybody does not fit in the buttons: the card list goes first, the text with the buttons stays last.
   const messages = more ? [peopleFlex(employees, dr), textMsg(`${notice || ''}${ask}\n⬆️ ปัดการ์ดด้านบนเพื่อดูทุกคน`, items)] : [textMsg(`${notice || ''}${ask}`, items)];
@@ -1192,6 +1210,7 @@ function matchEmployees(employees, query) {
 async function onSearch(ctx, ev, dr, query) {
   const employees = await getEmployees(ctx);
   const r = findAssignee(employees, query);
+  if (r.people.length === 1 && r.exact) return afterWho(ctx, ev, dr, r.people[0]); // exactly one: no need to ask "ใช่คนนี้ไหม?"
   const found = (r.people.length ? r.people : matchEmployees(employees, query)).slice(0, 11);
   const cancel = qrPostback('❌ ยกเลิก', { a: 'cancel', d: dr.id }, 'ยกเลิก');
   if (!found.length) {
@@ -1226,7 +1245,7 @@ async function askWhen(ctx, ev, dr, emp, notice) {
   }
   if (dr.titleAuto) items.push(qrPostback('✏️ แก้ชื่อเรื่อง', { a: 'retitle', d: dr.id }, 'แก้ชื่อเรื่อง'));
   items.push(qrPostback('❌ ยกเลิก', { a: 'cancel', d: dr.id }, 'ยกเลิก'));
-  const who = dr.batch ? 'ใช้วันส่งเดียวกันทุกงาน' : dr.group ? groupLine(dr.group) : `👤 ${personName(emp, dr.assignee)}`;
+  const who = dr.batch ? 'ใช้วันส่งเดียวกันทุกงาน' : ['📋 สั่งงานใหม่'].concat(orderLines(dr, emp)).join('\n');
   await lineReply(ctx, ev, textMsg(`${notice || ''}${who}\n${hint}${dr.steps ? '3/3 ' : ''}ส่งเมื่อไร?`, items));
   return { draft: dr.id, stage: 'when' };
 }
@@ -1338,7 +1357,9 @@ async function onPostback(ctx, ev, cfg) {
   }
   if (p.a === 'search') {
     dr.stage = 'search';
-    await lineReply(ctx, ev, textMsg('พิมพ์หรือพูดชื่อเล่นหรือชื่อจริงของผู้รับผิดชอบ', [qrPostback('❌ ยกเลิก', { a: 'cancel', d: dr.id }, 'ยกเลิก')]));
+    const everyone = (await getEmployees(ctx)).filter((e) => e.active);
+    const ask = textMsg(`${everyone.length ? '⬆️ แตะชื่อในการ์ดด้านบน หรือ' : ''}พิมพ์หรือพูดชื่อเล่นหรือชื่อจริงของผู้รับผิดชอบ`, [qrPostback('❌ ยกเลิก', { a: 'cancel', d: dr.id }, 'ยกเลิก')]);
+    await lineReply(ctx, ev, everyone.length ? [peopleFlex(everyone, dr), ask] : [ask]);
     return { draft: dr.id, stage: 'search' };
   }
   if (p.a === 'who') {
@@ -1378,12 +1399,7 @@ async function askConfirm(ctx, ev, dr, date) {
     lines.push(`📅 ส่ง ${thaiDate(date)} (ทุกงาน)`);
   } else {
     const emp = (await getEmployees(ctx)).find((e) => e.email === dr.assignee);
-    lines.push(dr.group ? groupLine(dr.group) : `👤 ${personName(emp, dr.assignee)}`);
-    lines.push(`📝 เรื่อง: ${truncate(dr.title, 200)}`);
-    // The details repeat the title when the title is the first part of what was said: show only what is more.
-    const said = dr.details.join(' ').replace(/\s+/g, ' ').trim();
-    const more = said.startsWith(dr.title.replace(/…$/, '')) ? said.slice(dr.title.replace(/…$/, '').length).trim() : said;
-    if (more) lines.push(`📄 รายละเอียด: ${truncate(more, 160)}`);
+    lines.push(...orderLines(dr, emp));
     lines.push(`📅 ส่ง ${thaiDate(date)}`);
   }
   if (dr.images.length) lines.push(`📎 แนบรูป ${dr.images.length} รูป`);
@@ -2500,14 +2516,14 @@ async function afterWhoNoted(ctx, ev, dr, emp, note) {
   dr.group = null;
   if (dr.due) return finishOrder(ctx, ev, await getConfig(ctx), dr, dr.due);
   dr.stage = 'when';
-  return askWhen(ctx, ev, dr, emp, `${note}📝 "${truncate(dr.title, 200)}"\n`);
+  return askWhen(ctx, ev, dr, emp, note);
 }
 async function afterGroupNoted(ctx, ev, dr, people, note, label) {
   dr.group = Object.assign(namedGroup(people), label ? { label } : {}, { names: truncate(people.map(personLabel).join(', '), 600) });
   dr.assignee = null;
   if (dr.due) return finishOrder(ctx, ev, await getConfig(ctx), dr, dr.due);
   dr.stage = 'when';
-  return askWhen(ctx, ev, dr, null, `${note}📝 "${truncate(dr.title, 200)}"\n`);
+  return askWhen(ctx, ev, dr, null, note);
 }
 
 // The person is known: ask the due date, or create the task when the CEO already said it.

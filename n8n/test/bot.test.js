@@ -201,8 +201,9 @@ test('text -> who -> when -> ticket created with history', async () => {
   let msg = lastReply(w);
   assert.match(msg.text, /สั่งใคร/);
   const people = quick(msg);
-  assert.equal(people[0].label, 'ปิ (PM)'); // from QUICK_ASSIGNEES fallback
-  assert.ok(people.some((a) => a.label === '🔍 คนอื่น'));
+  assert.equal(people[0].label, '👤 ชื่อพนักงาน'); // always first
+  assert.equal(people[1].label, 'ปิ (PM)'); // from QUICK_ASSIGNEES fallback
+  assert.ok(!people.some((a) => a.label === '🔍 คนอื่น'));
   const draftId = actionData(people[0]).d;
 
   await send(w, postbackEv({ a: 'who', d: draftId, e: 'pm@df.co.th' }));
@@ -276,8 +277,12 @@ test('search by nickname; prefixes stripped; inactive staff excluded', async () 
   const d = actionData(quick(lastReply(w))[0]).d;
   await send(w, postbackEv({ a: 'search', d }));
   await send(w, textEv('พี่เอ'));
-  const found = quick(lastReply(w)).filter((a) => actionData(a).a === 'who');
-  assert.deepEqual(found.map((a) => actionData(a).e), ['a@df.co.th']); // exact nickname, not "เอก", not the inactive "เอ"
+  // exactly one person (the nickname, not "เอก", not the inactive "เอ"): picked without asking again
+  assert.match(lastReply(w).text, /👤 คุณเอ\n📝 เรื่อง: ส่งเอกสารสเปกให้ลูกค้า\nส่งเมื่อไร\?/);
+  await send(w, textEv('ยกเลิก'));
+  await send(w, textEv('งานอื่น'));
+  const d2 = actionData(quick(lastReply(w))[0]).d;
+  await send(w, postbackEv({ a: 'search', d: d2 }));
   await send(w, textEv('ไม่มีคนนี้'));
   assert.match(lastReply(w).text, /^ไม่พบ/);
 });
@@ -314,7 +319,7 @@ test('photos sent before the text attach to the next task; voice messages get gu
   await send(w, ev('message', { message: { type: 'image', id: 'i3' } }));
   assert.match(lastReply(w).text, new RegExp(`แนบรูป 1 รูปกับงานก่อนหน้าใช่หรือไม่\\?\n\nT-${r.results[0].created} สั่งงานคุณปิ`));
   await send(w, textEv('งานใหม่มีรูป'));
-  assert.match(lastReply(w).text, /^📎 แนบรูปที่ส่งไว้ 1 รูป\n📝 "งานใหม่มีรูป"/);
+  assert.match(lastReply(w).text, /^📎 แนบรูปที่ส่งไว้ 1 รูป\n📋 สั่งงานใหม่\n📝 เรื่อง: งานใหม่มีรูป/);
   await send(w, textEv('ยกเลิก'));
   // stale photos are dropped (2 hours later nothing is offered either)
   w.now.value = new Date(w.now.value.getTime() + 3 * 3600000);
@@ -332,11 +337,11 @@ test('name typed or spoken at "สั่งใคร?": exact, with department, 
   const w = fakeWorld();
   await send(w, textEv('งาน 1'));
   await send(w, textEv('สั่งคุณมะลิ'));
-  assert.match(lastReply(w).text, /คุณมะลิ\nส่งเมื่อไร/);
+  assert.match(lastReply(w).text, /👤 คุณมะลิ\n📝 เรื่อง: งาน 1\nส่งเมื่อไร/);
 
   await send(w, textEv('งาน 2'));
   await send(w, textEv('สั่งเอกพรีเซล'));
-  assert.match(lastReply(w).text, /คุณเอก\nส่งเมื่อไร/); // not "เอ" although "เอกพรีเซล" starts with "เอ"
+  assert.match(lastReply(w).text, /👤 คุณเอก\n📝 เรื่อง: งาน 2\nส่งเมื่อไร/); // not "เอ" although "เอกพรีเซล" starts with "เอ"
 
   await send(w, textEv('งาน 3'));
   await send(w, textEv('สั่งเอบัญชี')); // เอ is in Sales, not accounting
@@ -347,7 +352,7 @@ test('name typed or spoken at "สั่งใคร?": exact, with department, 
   await send(w, textEv('สั่งสมศรี'));
   msg = lastReply(w);
   assert.match(msg.text, /^ไม่พบชื่อ "สมศรี"/);
-  assert.ok(quick(msg).some((a) => a.label === '🔍 คนอื่น'));
+  assert.ok(quick(msg).some((a) => a.label === '👤 ชื่อพนักงาน'));
 
   // a detail that merely starts like a nickname is not a person
   const r = await send(w, textEv('เอกสารแนบตามที่คุยกัน'));
@@ -355,7 +360,7 @@ test('name typed or spoken at "สั่งใคร?": exact, with department, 
   assert.match(lastReply(w).text, /^➕ เพิ่มในรายละเอียดของงานนี้แล้ว/);
   // a due date before a person is chosen is remembered, and picking the person creates the task
   await send(w, textEv('พรุ่งนี้'));
-  assert.match(lastReply(w).text, /^📅 ส่งอังคาร 20 ต\.ค\.\n\n📝 "งาน 3"\nสั่งใคร\?/);
+  assert.match(lastReply(w).text, /^📅 ส่งอังคาร 20 ต\.ค\.\n\n📋 สั่งงานใหม่\n📝 เรื่อง: งาน 3\n📄 รายละเอียด: เอกสารแนบตามที่คุยกัน\nสั่งใคร\?/);
   const before = w.items.Tickets.length;
   await send(w, textEv('สั่งเอก'));
   assert.equal(w.items.Tickets.length, before + 1);
@@ -432,7 +437,7 @@ test('"เพิ่มให้งานเดิม" turns the draft into detai
   let msg = lastReply(w);
   assert.match(msg.text, /^➕ เพิ่มรายละเอียดให้งานไหน\?/);
   await send(w, postbackEv(actionData(quick(msg).find((a) => actionData(a).a === 'addnew'))));
-  assert.match(lastReply(w).text, /📝 "ใช้รูปที่ส่งประกอบการประชุม"\nสั่งใคร\?/);
+  assert.match(lastReply(w).text, /📝 เรื่อง: ใช้รูปที่ส่งประกอบการประชุม\nสั่งใคร\?/);
   old = quick(lastReply(w)).find((a) => actionData(a).a === 'addold');
   await send(w, postbackEv(actionData(old)));
   await send(w, postbackEv(actionData(quick(lastReply(w))[0])));
@@ -447,7 +452,7 @@ test('a name or a date alone starts a new task that asks for its name', async ()
   assert.equal(r.results[0].stage, 'what');
   assert.match(lastReply(w).text, /^📝 สั่งงานใหม่ ให้คุณมะลิ ใช่ไหม\?\nพิมพ์หรือพูดชื่องานได้เลย/);
   await send(w, textEv('เตรียมประชุม'));
-  assert.match(lastReply(w).text, /^📝 "เตรียมประชุม"\n👤 คุณมะลิ\nส่งเมื่อไร\?/);
+  assert.match(lastReply(w).text, /^📋 สั่งงานใหม่\n👤 คุณมะลิ\n📝 เรื่อง: เตรียมประชุม\nส่งเมื่อไร\?/);
   await send(w, textEv('พรุ่งนี้'));
   assert.equal(w.items.Tickets.length, 1);
   assert.deepEqual([w.items.Tickets[0].fields.Title, w.items.Tickets[0].fields.AssigneeEmail], ['เตรียมประชุม', 'mkt@df.co.th']);
@@ -457,7 +462,7 @@ test('a name or a date alone starts a new task that asks for its name', async ()
   assert.equal(r.results[0].due, '2026-10-20');
   assert.match(lastReply(w).text, /^📝 สั่งงานใหม่ ส่งอังคาร 20 ต\.ค\. ใช่ไหม\?/);
   await send(w, textEv('สรุปยอดขาย'));
-  assert.match(lastReply(w).text, /^📅 ส่งอังคาร 20 ต\.ค\.\n\n📝 "สรุปยอดขาย"\nสั่งใคร\?/);
+  assert.match(lastReply(w).text, /^📅 ส่งอังคาร 20 ต\.ค\.\n\n📋 สั่งงานใหม่\n📝 เรื่อง: สรุปยอดขาย\nสั่งใคร\?/);
   await send(w, textEv('สั่งปิ'));
   assert.equal(w.items.Tickets.length, 2);
   assert.equal(w.items.Tickets[1].fields.DueDate, '2026-10-20T00:00:00Z');
@@ -855,7 +860,7 @@ test('"งานคุณมะลิถึงไหน" / "มะลิช้�
   assert.deepEqual(quick(lastReply(w)).map((a) => a.label), ['📣 ติดตามทุกงานที่ช้า', '📣 ติดตาม T-201', '📣 ติดตาม T-202', '🔍 T-203']);
   // a task title that only starts like a name is still a new task
   await send(w, textEv('สรุปเอกสารประชุม'));
-  assert.match(lastReply(w).text, /📝 "สรุปเอกสารประชุม"\nสั่งใคร\?/);
+  assert.match(lastReply(w).text, /📝 เรื่อง: สรุปเอกสารประชุม\nสั่งใคร\?/);
 });
 
 test('follow up: all late work with a preset, or one task with spoken text', async () => {
@@ -876,7 +881,7 @@ test('follow up: all late work with a preset, or one task with spoken text', asy
   assert.equal(w.items.TicketHistory[w.items.TicketHistory.length - 1].fields.Comment, '📣 CEO ติดตามงาน: ทำไมช้า ติดอะไร');
   // the next text is a normal message again
   await send(w, textEv('งานใหม่หลังติดตาม'));
-  assert.match(lastReply(w).text, /📝 "งานใหม่หลังติดตาม"/);
+  assert.match(lastReply(w).text, /📝 เรื่อง: งานใหม่หลังติดตาม/);
 });
 
 test('"T-201 ถึงไหน" shows the latest update; due date can be moved by button or by voice', async () => {
@@ -911,7 +916,7 @@ test('order to all managers: one ticket each, linked as a group, photos for ever
   await send(w, ev('message', { message: { type: 'image', id: 'g1' } }));
   await send(w, postbackEv(actionData(grp)));
   let msg = lastReply(w);
-  assert.match(msg.text, /^👥 หัวหน้าทุกคน 3 คน\nเอ \(Sales\), ปิ \(PM\), มะลิ \(Marketing\)\nส่งเมื่อไร\?/);
+  assert.match(msg.text, /^📋 สั่งงานใหม่\n👥 หัวหน้าทุกคน 3 คน\nเอ \(Sales\), ปิ \(PM\), มะลิ \(Marketing\)\n📝 เรื่อง: เตรียมแผนงบปี 2027\nส่งเมื่อไร\?/);
   await send(w, textEv('ศุกร์นี้'));
   const tickets = w.items.Tickets;
   assert.equal(tickets.length, 3);
@@ -959,13 +964,13 @@ test('"สั่งหัวหน้าทุกคน" first, or a department,
   await send(w, textEv('สั่งหัวหน้าทุกคน'));
   assert.match(lastReply(w).text, /^📝 สั่งงานใหม่ ให้หัวหน้าทุกคน 3 คน ใช่ไหม\?/);
   await send(w, textEv('ส่งรายงานประจำเดือน'));
-  assert.match(lastReply(w).text, /^📝 "ส่งรายงานประจำเดือน"\n👥 หัวหน้าทุกคน 3 คน/);
+  assert.match(lastReply(w).text, /^📋 สั่งงานใหม่\n👥 หัวหน้าทุกคน 3 คน/);
   await send(w, textEv('พรุ่งนี้'));
   assert.equal(w.items.Tickets.length, 3);
   // a department with one active person is a normal single order
   await send(w, textEv('ทำใบเสนอราคา'));
   await send(w, textEv('ฝ่ายขายทุกคน'));
-  assert.match(lastReply(w).text, /👤 คุณเอ\nส่งเมื่อไร\?/);
+  assert.match(lastReply(w).text, /👤 คุณเอ\n📝 เรื่อง:[^\n]*\nส่งเมื่อไร\?/);
 });
 
 test('replay of the 25 Oct chat: "แนบงานร่าง MOU NT" after a photo attaches it to T-x instead of making a new task', async () => {
@@ -1059,7 +1064,7 @@ test('"Kเอ K ปิ K มะลิ" + task lines: one ticket each, title is 
   const w = fakeWorld();
   await send(w, textEv(`Kเอ K ปิ K มะลิ\n${DICTATED}`));
   let msg = lastReply(w);
-  assert.match(msg.text, /^📝 "ท่านวิชาญโทรมาให้เร่งปิดงานติดตั้งระบบ Smart Traffic ของ Hikvision"\n👥 ตามที่ระบุ 3 คน\nเอ \(Sales\), ปิ \(PM\), มะลิ \(Marketing\)\nส่งเมื่อไร\?/);
+  assert.match(msg.text, /^📋 สั่งงานใหม่\n👥 ตามที่ระบุ 3 คน\nเอ \(Sales\), ปิ \(PM\), มะลิ \(Marketing\)\n📝 เรื่อง: ท่านวิชาญโทรมาให้เร่งปิดงานติดตั้งระบบ Smart Traffic ของ Hikvision\n📄 รายละเอียด: แจ้งแล้ว ส่งโครงการ\nส่งเมื่อไร\?/);
   await send(w, textEv('ศุกร์นี้'));
   const tickets = w.items.Tickets;
   assert.deepEqual(tickets.map((t) => t.fields.AssigneeEmail), ['a@df.co.th', 'pm@df.co.th', 'mkt@df.co.th']);
@@ -1071,10 +1076,10 @@ test('"Kเอ K ปิ K มะลิ" + task lines: one ticket each, title is 
 test('"คุณเอ คุณปิ" and "K.เอ" also name people; one person goes the single-ticket way', async () => {
   const w = fakeWorld();
   await send(w, textEv(`คุณเอ คุณปิ\nส่งแผนงบ`));
-  assert.match(lastReply(w).text, /👥 ตามที่ระบุ 2 คน\nเอ \(Sales\), ปิ \(PM\)\nส่งเมื่อไร\?/);
+  assert.match(lastReply(w).text, /👥 ตามที่ระบุ 2 คน\nเอ \(Sales\), ปิ \(PM\)\n📝 เรื่อง: [^\n]*\nส่งเมื่อไร\?/);
   await send(w, textEv('ยกเลิก'));
   await send(w, textEv(`K.เอ\nส่งแผนงบ`));
-  assert.match(lastReply(w).text, /^📝 "ส่งแผนงบ"\n👤 คุณเอ\nส่งเมื่อไร\?/);
+  assert.match(lastReply(w).text, /^📋 สั่งงานใหม่\n👤 คุณเอ\n📝 เรื่อง: ส่งแผนงบ\nส่งเมื่อไร\?/);
   await send(w, textEv('พรุ่งนี้'));
   assert.equal(w.items.Tickets.length, 1);
   assert.equal(w.items.Tickets[0].fields.AssigneeEmail, 'a@df.co.th');
@@ -1086,26 +1091,26 @@ test('names only ("Kเอ K ปิ") ask for the task; an unknown K-name is rep
   await send(w, textEv('Kเอ K ปิ'));
   assert.match(lastReply(w).text, /สั่งงานใหม่ ให้ตามที่ระบุ 2 คน ใช่ไหม\?\nพิมพ์หรือพูดชื่องานได้เลย/);
   await send(w, textEv('เตรียมสไลด์'));
-  assert.match(lastReply(w).text, /^📝 "เตรียมสไลด์"\n👥 ตามที่ระบุ 2 คน/);
+  assert.match(lastReply(w).text, /^📋 สั่งงานใหม่\n👥 ตามที่ระบุ 2 คน\n📝 เรื่อง: เตรียมสไลด์/);
   await send(w, textEv('ยกเลิก'));
   await send(w, textEv('Kซูซู\nเตรียมสไลด์'));
-  assert.match(lastReply(w).text, /^ไม่พบชื่อ "ซูซู" ในรายชื่อพนักงาน\n\(ชื่อเล่นภาษาอังกฤษ[^\n]*\n📝 "เตรียมสไลด์"\nสั่งใคร\?/);
+  assert.match(lastReply(w).text, /^ไม่พบชื่อ "ซูซู" ในรายชื่อพนักงาน\n\(ชื่อเล่นภาษาอังกฤษ[^\n]*\n📋 สั่งงานใหม่\n📝 เรื่อง: เตรียมสไลด์\nสั่งใคร\?/);
   await send(w, textEv('ยกเลิก'));
   await send(w, textEv('ประชุมกับคุณเอ วันนี้'));
-  assert.match(lastReply(w).text, /^📝 "ประชุมกับคุณเอ วันนี้"\nสั่งใคร\?/); // a name inside a sentence is not an order to that person
+  assert.match(lastReply(w).text, /^📋 สั่งงานใหม่\n📝 เรื่อง: ประชุมกับคุณเอ วันนี้\nสั่งใคร\?/); // a name inside a sentence is not an order to that person
 });
 
 test('at "สั่งใคร?" several K-names in one message pick all of them', async () => {
   const w = fakeWorld();
   await send(w, textEv('เตรียมสไลด์'));
   await send(w, textEv('Kเอ K ปิ'));
-  assert.match(lastReply(w).text, /👥 ตามที่ระบุ 2 คน\nเอ \(Sales\), ปิ \(PM\)\nส่งเมื่อไร\?/);
+  assert.match(lastReply(w).text, /👥 ตามที่ระบุ 2 คน\nเอ \(Sales\), ปิ \(PM\)\n📝 เรื่อง: [^\n]*\nส่งเมื่อไร\?/);
 });
 
 test('K-names work with or without spaces: "KเอKปิKมะลิ"', async () => {
   const w = fakeWorld();
   await send(w, textEv('KเอKปิKมะลิ\nส่งแผนงบ'));
-  assert.match(lastReply(w).text, /👥 ตามที่ระบุ 3 คน\nเอ \(Sales\), ปิ \(PM\), มะลิ \(Marketing\)\nส่งเมื่อไร\?/);
+  assert.match(lastReply(w).text, /👥 ตามที่ระบุ 3 คน\nเอ \(Sales\), ปิ \(PM\), มะลิ \(Marketing\)\n📝 เรื่อง: [^\n]*\nส่งเมื่อไร\?/);
 });
 
 // ---------- the CEO's real dictation: several orders in one message ----------
@@ -1154,7 +1159,7 @@ test('several orders: an unknown name stops everything and says which name', asy
 test('a task on the same line as "K name" and a plain context paragraph stay together', async () => {
   const w = fakeWorld();
   await send(w, textEv('K เอ ส่งรายงานยอดขาย\nรวมทุกสาขา\n\nและเทียบกับปีที่แล้ว'));
-  assert.match(lastReply(w).text, /^📝 "ส่งรายงานยอดขาย"\n👤 คุณเอ\nส่งเมื่อไร\?/);
+  assert.match(lastReply(w).text, /^📋 สั่งงานใหม่\n👤 คุณเอ\n📝 เรื่อง: ส่งรายงานยอดขาย\n📄 รายละเอียด: รวมทุกสาขา และเทียบกับปีที่แล้ว\nส่งเมื่อไร\?/);
   await send(w, textEv('พรุ่งนี้'));
   assert.equal(w.items.Tickets.length, 1);
   assert.equal(w.items.Tickets[0].fields.Details, 'ส่งรายงานยอดขาย\nรวมทุกสาขา\nและเทียบกับปีที่แล้ว');
@@ -1165,7 +1170,7 @@ test('"บอกเอกให้ส่งรายงานพรุ่งน�
   const w = fakeWorld();
   await send(w, textEv('บอกเอกให้ส่งรายงานยอดขายพรุ่งนี้'));
   const msg = lastReply(w);
-  assert.match(msg.text, /^📝 "ส่งรายงานยอดขายพรุ่งนี้"\n👤 คุณเอก\n📅 ในข้อความมีคำว่า "พรุ่งนี้" แตะ ✅ ถ้าเป็นวันส่ง\nส่งเมื่อไร\?/);
+  assert.match(msg.text, /^📋 สั่งงานใหม่\n👤 คุณเอก\n📝 เรื่อง: ส่งรายงานยอดขายพรุ่งนี้\n📅 ในข้อความมีคำว่า "พรุ่งนี้" แตะ ✅ ถ้าเป็นวันส่ง\nส่งเมื่อไร\?/);
   const labels = quick(msg).map((a) => a.label);
   assert.equal(labels[0].startsWith('✅ '), true);
   assert.equal(labels.filter((l) => l === 'พรุ่งนี้').length, 0, 'the same date is not offered twice');
@@ -1180,12 +1185,12 @@ test('"บอกเอกให้ส่งรายงานพรุ่งน�
 test('several names and a department word in a sentence; "เปลี่ยนคน" goes back to "สั่งใคร?"', async () => {
   const w = fakeWorld();
   await send(w, textEv('ให้เอกกับมะลิ ตรวจสัญญาใหม่'));
-  assert.match(lastReply(w).text, /^📝 "ตรวจสัญญาใหม่"\n👥 ตามที่ระบุ 2 คน\nเอก \(Presales\), มะลิ \(Marketing\)\nส่งเมื่อไร\?/);
+  assert.match(lastReply(w).text, /^📋 สั่งงานใหม่\n👥 ตามที่ระบุ 2 คน\nเอก \(Presales\), มะลิ \(Marketing\)\n📝 เรื่อง: ตรวจสัญญาใหม่\nส่งเมื่อไร\?/);
   const change = quick(lastReply(w)).find((a) => a.label === '👤 เปลี่ยนคน');
   await send(w, postbackEv(actionData(change)));
   assert.match(lastReply(w).text, /สั่งใคร\?/);
   await send(w, textEv('หัวหน้าทุกคนส่งแผนงบ ศุกร์นี้'));
-  assert.match(lastReply(w).text, /📝 "ส่งแผนงบ ศุกร์นี้"\n👥 หัวหน้าทุกคน 3 คน/);
+  assert.match(lastReply(w).text, /📋 สั่งงานใหม่\n👥 หัวหน้าทุกคน 3 คน/);
 });
 
 test('words that only look like names or dates are never taken as an order', async () => {
@@ -1213,7 +1218,7 @@ test('"สั่งงาน" asks 1/3 who, 2/3 the task, 3/3 when; the title is
   assert.match(lastReply(w).text, /^👥 ตามที่ระบุ 2 คน\nเอก \(Presales\), มะลิ \(Marketing\)\n2\/3 สั่งเรื่องอะไร\?/);
   await send(w, textEv(LONG_SAID));
   const msg = lastReply(w);
-  assert.match(msg.text, /^📝 "ท่านวิชาญโทรมาให้เร่งปิดงานติดตั้งระบบ Smart Traffic ของ Hikvision ได้แจ้งรายละเอียดให้คุณเอกชัยแล้ว"|^📝 "[^"]+…?"\n👥 ตามที่ระบุ 2 คน/);
+  assert.match(msg.text, /^📋 สั่งงานใหม่\n👥 ตามที่ระบุ 2 คน\nเอก \(Presales\), มะลิ \(Marketing\)\n📝 เรื่อง: ท่านวิชาญโทรมาให้เร่งปิดงานติดตั้งระบบ Smart Traffic ของ…\n📄 รายละเอียด: Hikvision/);
   assert.match(msg.text, /3\/3 ส่งเมื่อไร\?/);
   assert.ok(quick(msg).some((a) => a.label === '✏️ แก้ชื่อเรื่อง') === (msg.text.includes('…')));
   await send(w, textEv('ศุกร์นี้'));
@@ -1230,11 +1235,11 @@ test('step 2 long text: title is cut at a space and "✏️ แก้ชื่�
   await send(w, textEv('เอก'));
   await send(w, textEv(said));
   const msg = lastReply(w);
-  assert.match(msg.text, /^📝 "[^"]+…"\n👤 คุณเอก\n/);
+  assert.match(msg.text, /^📋 สั่งงานใหม่\n👤 คุณเอก\n📝 เรื่อง: [^\n]+…\n/);
   await send(w, postbackEv(actionData(quick(msg).find((a) => a.label === '✏️ แก้ชื่อเรื่อง'))));
   assert.match(lastReply(w).text, /^พิมพ์หรือพูดชื่อเรื่องใหม่/);
   await send(w, textEv('ตรวจสัญญา Smart City'));
-  assert.match(lastReply(w).text, /^📝 "ตรวจสัญญา Smart City"\n👤 คุณเอก\n📅 ในข้อความมีคำว่า "วันอังคาร"[^\n]*\n3\/3 ส่งเมื่อไร\?/);
+  assert.match(lastReply(w).text, /^📋 สั่งงานใหม่\n👤 คุณเอก\n📝 เรื่อง: ตรวจสัญญา Smart City\n📄[^\n]*\n📅 ในข้อความมีคำว่า "วันอังคาร"[^\n]*\n3\/3 ส่งเมื่อไร\?/);
   await send(w, textEv('พรุ่งนี้'));
   assert.equal(w.items.Tickets[0].fields.Title, 'ตรวจสัญญา Smart City');
   assert.equal(w.items.Tickets[0].fields.Details, said);
@@ -1246,7 +1251,7 @@ test('step by step: more words while the date is asked go into the details; "ส
   await send(w, textEv('มะลิ'));
   await send(w, textEv('เตรียมสไลด์ประชุมบอร์ด'));
   await send(w, textEv('ขอเพิ่มข้อมูลยอดขายไตรมาสนี้ด้วย'));
-  assert.match(lastReply(w).text, /^➕ เพิ่มในรายละเอียดแล้ว\n📝 "เตรียมสไลด์ประชุมบอร์ด"/);
+  assert.match(lastReply(w).text, /^➕ เพิ่มในรายละเอียดแล้ว\n📋 สั่งงานใหม่\n👤 คุณมะลิ\n📝 เรื่อง: เตรียมสไลด์ประชุมบอร์ด/);
   await send(w, textEv('พรุ่งนี้'));
   assert.equal(w.items.Tickets[0].fields.Title, 'เตรียมสไลด์ประชุมบอร์ด');
   assert.equal(w.items.Tickets[0].fields.Details, 'ขอเพิ่มข้อมูลยอดขายไตรมาสนี้ด้วย');
@@ -1281,7 +1286,7 @@ test('"สั่งใคร?" shows every person: all in the buttons when they 
   // tapping a card button picks the person
   const pick = buttons.find((b) => b.action.label.startsWith('ชื่อ3'));
   await send(w, postbackEv(lib.decodeData(pick.action.data)));
-  assert.match(lastReply(w).text, /👤 คุณชื่อ3\nส่งเมื่อไร\?/);
+  assert.match(lastReply(w).text, /👤 คุณชื่อ3\n📝 เรื่อง: งานทดสอบ\nส่งเมื่อไร\?/);
 });
 
 // ---------- read it back before creating ----------
@@ -1349,4 +1354,18 @@ test('"K name" order: the whole title is shown and "👤 เปลี่ยน�
   const msg = lastReply(w);
   assert.ok(msg.text.includes('ปี2570'), msg.text);
   assert.ok(quick(msg).some((a) => a.label === '👤 เปลี่ยนคน'));
+});
+
+test('"👤 ชื่อพนักงาน" is the first button; tapping it lists every employee as cards and typing still works', async () => {
+  const w = fakeWorld();
+  await send(w, textEv('งานทดสอบ'));
+  const first = quick(lastReply(w))[0];
+  assert.equal(first.label, '👤 ชื่อพนักงาน');
+  await send(w, postbackEv(actionData(first)));
+  const msgs = w.calls.replies.at(-1).messages;
+  assert.equal(msgs[0].type, 'flex');
+  assert.equal(msgs[0].contents.body.contents.filter((x) => x.type === 'button').length, 4);
+  assert.match(msgs[1].text, /^⬆️ แตะชื่อในการ์ดด้านบน หรือพิมพ์หรือพูดชื่อ/);
+  await send(w, textEv('มะลิ'));
+  assert.match(lastReply(w).text, /^📋 สั่งงานใหม่\n👤 คุณมะลิ\n📝 เรื่อง: งานทดสอบ\nส่งเมื่อไร\?/);
 });
