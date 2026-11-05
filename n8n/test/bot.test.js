@@ -28,6 +28,7 @@ function fakeWorld(opts = {}) {
       { Title: 'CEO_LINE_USER_ID', Value: opts.ceoId === undefined ? CEO : opts.ceoId },
       { Title: 'NOACK_HOURS', Value: '24' },
       { Title: 'QUICK_ASSIGNEES', Value: 'pm@df.co.th,mkt@df.co.th' },
+      { Title: 'CONFIRM_ORDER', Value: opts.confirm ? 'on' : 'off' },
     ],
     Employees: [
       { Title: 'อนันต์ ใจดี', FirstName: 'อนันต์', LastName: 'ใจดี', Nickname: 'เอ', Aliases: 'พี่เอ,เอ Sales', Email: 'A@df.co.th', Department: 'Sales', Active: true, IsManager: true },
@@ -1281,4 +1282,62 @@ test('"สั่งใคร?" shows every person: all in the buttons when they 
   const pick = buttons.find((b) => b.action.label.startsWith('ชื่อ3'));
   await send(w, postbackEv(lib.decodeData(pick.action.data)));
   assert.match(lastReply(w).text, /👤 คุณชื่อ3\nส่งเมื่อไร\?/);
+});
+
+// ---------- read it back before creating ----------
+const SAID_HR = 'K เอก ประสาน วิทยาลัยเทคนิคลพบุรี ,ปราณีบุรี ,ม ราชมงคลธัญญบุรี\nขอประชุม on line กับ อ ที่ปรึกษา แผนการ รับ นศ ปี2570';
+
+test('read-back: who, what and when are repeated and nothing is created until "ถูกต้อง สั่งเลย"', async () => {
+  const w = fakeWorld({ confirm: true });
+  await send(w, textEv(SAID_HR));
+  await send(w, textEv('ศุกร์นี้'));
+  const msg = lastReply(w);
+  assert.match(msg.text, /^📋 ทวนก่อนสั่ง\n👤 คุณเอก\n📝 เรื่อง: ประสาน วิทยาลัยเทคนิคลพบุรี ,ปราณีบุรี ,ม ราชมงคลธัญญบุรี\n📄 รายละเอียด: ประสาน วิทยาลัยเทคนิคลพบุรี[^\n]*ขอประชุม on line[^\n]*\n📅 ส่ง ศุกร์ 23 ต\.ค\.\nถูกต้องไหม\?$/);
+  assert.deepEqual(quick(msg).map((a) => a.label), ['✅ ถูกต้อง สั่งเลย', '✏️ แก้ชื่อเรื่อง', '👤 เปลี่ยนคน', '📅 เปลี่ยนวัน', '❌ ยกเลิก']);
+  assert.equal(w.items.Tickets.length, 0);
+  await send(w, postbackEv(actionData(quick(msg)[0])));
+  assert.equal(w.items.Tickets.length, 1);
+  assert.equal(w.items.Tickets[0].fields.AssigneeEmail, 'ek@df.co.th');
+  assert.equal(w.items.Tickets[0].fields.DueDate, '2026-10-23T00:00:00Z');
+  assert.match(lastReply(w).text, /^✅ สั่งคุณเอกแล้ว · T-/);
+});
+
+test('read-back: change the date, the title or the person, or say "ถูกต้อง"', async () => {
+  const w = fakeWorld({ confirm: true });
+  await send(w, textEv('สั่งงาน'));
+  await send(w, textEv('มะลิ'));
+  await send(w, textEv('เตรียมสไลด์ประชุมบอร์ด'));
+  await send(w, textEv('พรุ่งนี้'));
+  let msg = lastReply(w);
+  assert.match(msg.text, /^📋 ทวนก่อนสั่ง\n👤 คุณมะลิ\n📝 เรื่อง: เตรียมสไลด์ประชุมบอร์ด\n📅 ส่ง อังคาร 20 ต\.ค\./);
+  // another date by voice: the read-back is repeated
+  await send(w, textEv('ศุกร์นี้'));
+  assert.match(lastReply(w).text, /📅 ส่ง ศุกร์ 23 ต\.ค\./);
+  // new title: back to the read-back with the same date
+  await send(w, postbackEv(actionData(quick(lastReply(w)).find((a) => a.label === '✏️ แก้ชื่อเรื่อง'))));
+  await send(w, textEv('สไลด์บอร์ดเดือนหน้า'));
+  assert.match(lastReply(w).text, /^📋 ทวนก่อนสั่ง\n👤 คุณมะลิ\n📝 เรื่อง: สไลด์บอร์ดเดือนหน้า\n.*📅 ส่ง ศุกร์ 23 ต\.ค\./s);
+  assert.equal(w.items.Tickets.length, 0);
+  await send(w, textEv('ถูกต้องครับ'));
+  assert.equal(w.items.Tickets.length, 1);
+  assert.equal(w.items.Tickets[0].fields.Title, 'สไลด์บอร์ดเดือนหน้า');
+  assert.equal(w.items.Tickets[0].fields.DueDate, '2026-10-23T00:00:00Z');
+});
+
+test('read-back for several orders and for a group; "เปลี่ยนวัน" asks the date again; CONFIRM_ORDER=off skips it', async () => {
+  const w = fakeWorld({ confirm: true });
+  await send(w, textEv('K เอ ปิ\nตรวจสัญญา\n\nK มะลิ\nทำสไลด์'));
+  await send(w, textEv('พรุ่งนี้'));
+  let msg = lastReply(w);
+  assert.match(msg.text, /^📋 ทวนก่อนสั่ง\n1\) คุณเอ, คุณปิ\n {3}ตรวจสัญญา\n2\) คุณมะลิ\n {3}ทำสไลด์\n📅 ส่ง อังคาร 20 ต\.ค\. \(ทุกงาน\)\nถูกต้องไหม\?/);
+  assert.ok(!quick(msg).some((a) => a.label.includes('แก้ชื่อเรื่อง')));
+  await send(w, postbackEv(actionData(quick(msg).find((a) => a.label === '📅 เปลี่ยนวัน'))));
+  assert.match(lastReply(w).text, /ส่งเมื่อไร\?/);
+  await send(w, textEv('ศุกร์นี้'));
+  await send(w, postbackEv(actionData(quick(lastReply(w))[0])));
+  assert.equal(w.items.Tickets.length, 3);
+  const off = fakeWorld();
+  await send(off, textEv('K มะลิ\nทำสไลด์'));
+  await send(off, textEv('พรุ่งนี้'));
+  assert.equal(off.items.Tickets.length, 1);
 });

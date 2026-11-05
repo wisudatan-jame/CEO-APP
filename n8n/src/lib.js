@@ -846,10 +846,16 @@ async function onMessage(ctx, ev, cfg) {
       await lineReply(ctx, ev, textMsg(helpText()));
       return { help: true };
     }
+    if (dr && dr.stage === 'confirm' && dr.pendingDate) {
+      if (/^(ใช่|ถูกต้อง|ถูก|ตกลง|ยืนยัน|สั่งเลย|โอเค|ok)(ครับ|ค่ะ|คะ)?$/i.test(t.replace(/\s+/g, ''))) return createTicketFromDraft(ctx, ev, cfg, dr, dr.pendingDate);
+      const again = parseDueText(t, bkkYmd(ctx.now()));
+      if (again) return askConfirm(ctx, ev, dr, again);
+    }
     if (dr && dr.stage === 'title') {
       // New short title typed after "✏️ แก้ชื่อเรื่อง".
       dr.title = truncate(t.replace(/\s+/g, ' '), 255);
       dr.titleAuto = false;
+      if (dr.pendingDate) return askConfirm(ctx, ev, dr, dr.pendingDate);
       dr.stage = 'when';
       const emp = (await getEmployees(ctx)).find((e) => e.email === dr.assignee);
       return askWhen(ctx, ev, dr, emp, `📝 "${truncate(dr.title, 120)}"\n`);
@@ -937,7 +943,7 @@ async function onMessage(ctx, ev, cfg) {
     }
     if (dr && dr.stage === 'when') {
       const date = parseDueText(t, bkkYmd(ctx.now()));
-      if (date) return createTicketFromDraft(ctx, ev, cfg, dr, date);
+      if (date) return finishOrder(ctx, ev, cfg, dr, date);
       if (/^ส่ง/.test(t) && chars(t).length <= 20) {
         const emp = (await getEmployees(ctx)).find((e) => e.email === dr.assignee);
         return askWhen(ctx, ev, dr, emp, `ไม่เข้าใจวันส่ง "${truncate(t, 20)}" แตะปุ่มหรือ 📅 เลือกวัน\n\n`);
@@ -1300,7 +1306,17 @@ async function onPostback(ctx, ev, cfg) {
     await lineReply(ctx, ev, textMsg('พิมพ์หรือพูดชื่อเรื่องใหม่ (สั้นๆ) รายละเอียดที่พูดไปยังอยู่ครบ', [qrPostback('❌ ยกเลิก', { a: 'cancel', d: dr.id }, 'ยกเลิก')]));
     return { draft: dr.id, stage: 'title' };
   }
+  if (p.a === 'ok') {
+    if (dr.stage !== 'confirm' || !dr.pendingDate) return askWhen(ctx, ev, dr, (await getEmployees(ctx)).find((e) => e.email === dr.assignee));
+    return createTicketFromDraft(ctx, ev, cfg, dr, dr.pendingDate);
+  }
+  if (p.a === 'rewhen') {
+    dr.stage = 'when';
+    dr.pendingDate = null;
+    return askWhen(ctx, ev, dr, (await getEmployees(ctx)).find((e) => e.email === dr.assignee));
+  }
   if (p.a === 'rewho') {
+    dr.pendingDate = null;
     dr.assignee = null;
     dr.group = null;
     dr.guess = null;
@@ -1340,10 +1356,43 @@ async function onPostback(ctx, ev, cfg) {
       const emp = (await getEmployees(ctx)).find((e) => e.email === dr.assignee);
       return askWhen(ctx, { source: ev.source }, dr, emp);
     }
-    return createTicketFromDraft(ctx, ev, cfg, dr, date);
+    return finishOrder(ctx, ev, cfg, dr, date);
   }
   await lineReply(ctx, ev, textMsg('ปุ่มนี้หมดอายุแล้ว ส่งข้อความชื่องานใหม่ได้เลย'));
   return { expired: p.d };
+}
+
+// Read it back before creating: who, what, when, with buttons to fix any of them. Config CONFIRM_ORDER = off skips this step.
+async function finishOrder(ctx, ev, cfg, dr, date) {
+  if (lower((cfg || {}).CONFIRM_ORDER) === 'off') return createTicketFromDraft(ctx, ev, cfg, dr, date);
+  return askConfirm(ctx, ev, dr, date);
+}
+
+async function askConfirm(ctx, ev, dr, date) {
+  dr.stage = 'confirm';
+  dr.pendingDate = date;
+  const lines = ['📋 ทวนก่อนสั่ง'];
+  if (dr.batch) {
+    dr.batch.forEach((b, i) => lines.push(`${i + 1}) ${truncate(b.names, 60)}`, `   ${truncate(b.title, 80)}`));
+    lines.push(`📅 ส่ง ${thaiDate(date)} (ทุกงาน)`);
+  } else {
+    const emp = (await getEmployees(ctx)).find((e) => e.email === dr.assignee);
+    lines.push(dr.group ? groupLine(dr.group) : `👤 ${personName(emp, dr.assignee)}`);
+    lines.push(`📝 เรื่อง: ${truncate(dr.title, 200)}`);
+    if (dr.details.length) lines.push(`📄 รายละเอียด: ${truncate(dr.details.join(' ').replace(/\s+/g, ' '), 160)}`);
+    lines.push(`📅 ส่ง ${thaiDate(date)}`);
+  }
+  if (dr.images.length) lines.push(`📎 แนบรูป ${dr.images.length} รูป`);
+  lines.push('ถูกต้องไหม?');
+  const items = [qrPostback('✅ ถูกต้อง สั่งเลย', { a: 'ok', d: dr.id }, 'ถูกต้อง')];
+  if (!dr.batch) {
+    items.push(qrPostback('✏️ แก้ชื่อเรื่อง', { a: 'retitle', d: dr.id }, 'แก้ชื่อเรื่อง'));
+    items.push(qrPostback('👤 เปลี่ยนคน', { a: 'rewho', d: dr.id }, 'เปลี่ยนคน'));
+  }
+  items.push(qrPostback('📅 เปลี่ยนวัน', { a: 'rewhen', d: dr.id }, 'เปลี่ยนวัน'));
+  items.push(qrPostback('❌ ยกเลิก', { a: 'cancel', d: dr.id }, 'ยกเลิก'));
+  await lineReply(ctx, ev, textMsg(lines.join('\n'), items));
+  return { draft: dr.id, stage: 'confirm' };
 }
 
 async function createTicketFromDraft(ctx, ev, cfg, dr, date, quiet) {
@@ -1851,7 +1900,7 @@ async function afterGroup(ctx, ev, dr, group) {
   dr.group = Object.assign({}, group, { names: truncate(names.join(', '), 600) });
   dr.assignee = null;
   if (!dr.title) return askWhat(ctx, ev, dr, null);
-  if (dr.due) return createTicketFromDraft(ctx, ev, await getConfig(ctx), dr, dr.due);
+  if (dr.due) return finishOrder(ctx, ev, await getConfig(ctx), dr, dr.due);
   dr.stage = 'when';
   return askWhen(ctx, ev, dr, null);
 }
@@ -2428,14 +2477,14 @@ function namedGroup(people) {
 async function afterWhoNoted(ctx, ev, dr, emp, note) {
   dr.assignee = emp.email;
   dr.group = null;
-  if (dr.due) return createTicketFromDraft(ctx, ev, await getConfig(ctx), dr, dr.due);
+  if (dr.due) return finishOrder(ctx, ev, await getConfig(ctx), dr, dr.due);
   dr.stage = 'when';
   return askWhen(ctx, ev, dr, emp, `${note}📝 "${truncate(dr.title, 120)}"\n`);
 }
 async function afterGroupNoted(ctx, ev, dr, people, note, label) {
   dr.group = Object.assign(namedGroup(people), label ? { label } : {}, { names: truncate(people.map(personLabel).join(', '), 600) });
   dr.assignee = null;
-  if (dr.due) return createTicketFromDraft(ctx, ev, await getConfig(ctx), dr, dr.due);
+  if (dr.due) return finishOrder(ctx, ev, await getConfig(ctx), dr, dr.due);
   dr.stage = 'when';
   return askWhen(ctx, ev, dr, null, `${note}📝 "${truncate(dr.title, 120)}"\n`);
 }
@@ -2445,7 +2494,7 @@ async function afterWho(ctx, ev, dr, emp) {
   dr.assignee = emp.email;
   dr.group = null;
   if (!dr.title) return askWhat(ctx, ev, dr, emp);
-  if (dr.due) return createTicketFromDraft(ctx, ev, await getConfig(ctx), dr, dr.due);
+  if (dr.due) return finishOrder(ctx, ev, await getConfig(ctx), dr, dr.due);
   dr.stage = 'when';
   return askWhen(ctx, ev, dr, emp);
 }
