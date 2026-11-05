@@ -1,0 +1,1101 @@
+Screens:
+  scrCeoCreate:
+    Properties:
+      Fill: =clrBg
+      OnVisible: |-
+        =ClearCollect(colEmp, Filter(Employees, Active = true));
+        If(IsBlank(varNDue), Set(varNDue, DateAdd(Today(), 1, TimeUnit.Days)));
+        Set(varNPickAll, false);
+        Set(varNCal, false);
+        Set(varRecentT, Filter(Tickets, Created >= DateAdd(Today(), -60, TimeUnit.Days)));
+        Set(varFreq, FirstN(SortByColumns(AddColumns(GroupBy(varRecentT, AssigneeEmail, Rows), Cnt, CountRows(Rows)), "Cnt", SortOrder.Descending), 4))
+    Children:
+      - recTopCN:
+          Control: Rectangle@2.3.0
+          Properties:
+            Fill: =clrPrimary
+            Height: =90
+            Width: =Parent.Width
+      - recTopLineCN:
+          Control: Rectangle@2.3.0
+          Properties:
+            Fill: =clrAccent
+            Height: =4
+            Width: =Parent.Width
+            Y: =90
+      - imgLogoCN:
+          Control: Image@2.2.3
+          Properties:
+            Image: |-
+              ='df-logo-white'
+            ImagePosition: =ImagePosition.Fit
+            X: =16
+            Y: =12
+            Width: =150
+            Height: =66
+      - imgCEOCN:
+          Control: Image@2.2.3
+          Properties:
+            Image: |-
+              ='ceo-avatar-sangngan'
+            ImagePosition: =ImagePosition.Fit
+            X: =Parent.Width - 80
+            Y: =4
+            Width: =64
+            Height: =83
+      - lblNHead:
+          Control: Label@2.5.1
+          Properties:
+            Text: ="สั่งงาน"
+            Font: =Font.'Open Sans'
+            Size: =20
+            Color: =clrPrimary
+            X: =24
+            Y: =104
+            Width: =Parent.Width - 48
+            Height: =46
+            FontWeight: =FontWeight.Bold
+      - btnNNote:
+          Control: Classic/Button@2.2.0
+          Properties:
+            Text: ="ปกติสั่งผ่าน LINE ได้เร็วกว่า หน้านี้ใช้เมื่อบอท LINE ไม่ตอบ"
+            OnSelect: =false
+            Font: =Font.'Open Sans'
+            Size: =12
+            FontWeight: =FontWeight.Normal
+            Fill: =Color.White
+            Color: =clrMuted
+            BorderColor: =clrLine
+            BorderThickness: =2
+            RadiusTopLeft: =14
+            RadiusTopRight: =14
+            RadiusBottomLeft: =14
+            RadiusBottomRight: =14
+            HoverFill: =Color.White
+            HoverColor: =Self.Color
+            HoverBorderColor: =Self.BorderColor
+            PressedFill: =Color.White
+            PressedColor: =Self.Color
+            PressedBorderColor: =Self.BorderColor
+            X: =24
+            Y: =152
+            Width: =Parent.Width - 48
+            Height: =48
+            Align: =Align.Left
+            PaddingLeft: =16
+      - lblNTitleHead:
+          Control: Label@2.5.1
+          Properties:
+            Text: ="งานอะไร"
+            Font: =Font.'Open Sans'
+            Size: =13
+            Color: =clrText
+            X: =24
+            Y: =212
+            Width: =300
+            Height: =32
+            FontWeight: =FontWeight.Semibold
+      - txtNTitle:
+          Control: Classic/TextInput@2.3.2
+          Properties:
+            Default: =""
+            HintText: ="เช่น เตรียมสไลด์ประชุมบอร์ด"
+            Height: =60
+            Font: =Font.'Open Sans'
+            Size: =15
+            BorderColor: =clrLine
+            BorderThickness: =2
+            Fill: =Color.White
+            HoverFill: =Color.White
+            X: =24
+            Width: =Parent.Width - 48
+            RadiusTopLeft: =10
+            RadiusTopRight: =10
+            RadiusBottomLeft: =10
+            RadiusBottomRight: =10
+            Y: =248
+      - lblNDetailsHead:
+          Control: Label@2.5.1
+          Properties:
+            Text: ="รายละเอียด (ไม่บังคับ)"
+            Font: =Font.'Open Sans'
+            Size: =13
+            Color: =clrText
+            X: =24
+            Y: =314
+            Width: =300
+            Height: =32
+            FontWeight: =FontWeight.Semibold
+      - txtNDetails:
+          Control: Classic/TextInput@2.3.2
+          Properties:
+            Default: =""
+            HintText: =""
+            Height: =100
+            Font: =Font.'Open Sans'
+            Size: =15
+            BorderColor: =clrLine
+            BorderThickness: =2
+            Fill: =Color.White
+            HoverFill: =Color.White
+            X: =24
+            Width: =Parent.Width - 48
+            RadiusTopLeft: =10
+            RadiusTopRight: =10
+            RadiusBottomLeft: =10
+            RadiusBottomRight: =10
+            Y: =350
+            Mode: =TextMode.MultiLine
+      - lblNWhoHead:
+          Control: Label@2.5.1
+          Properties:
+            Text: ="สั่งใคร"
+            Font: =Font.'Open Sans'
+            Size: =13
+            Color: =clrText
+            X: =24
+            Y: =460
+            Width: =200
+            Height: =34
+            FontWeight: =FontWeight.Semibold
+      - conNWho:
+          Control: GroupContainer@1.3.0
+          Variant: AutoLayout
+          Properties:
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            PaddingTop: =0
+            PaddingBottom: =0
+            PaddingLeft: =0
+            PaddingRight: =0
+            LayoutGap: =0
+            DropShadow: =DropShadow.None
+            Fill: =Color.Transparent
+            BorderThickness: =0
+            X: =24
+            Y: =498
+            Width: =Parent.Width - 48
+            Height: =RoundUp(CountRows(galNWho.AllItems) / 3, 0) * 62
+          Children:
+            - galNWho:
+                Control: Gallery@2.15.0
+                Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
+                Properties:
+                  Items: =FirstN(SortByColumns(AddColumns(colEmp, Rank, If(Email in colPick.Email, 0, Lower(Email) in varFreq.AssigneeEmail, 1, 2)), "Rank", SortOrder.Ascending, "Nickname", SortOrder.Ascending), 7)
+                  TemplateSize: =62
+                  WrapCount: =3
+                  ShowScrollbar: =false
+                  Fill: =Color.Transparent
+                  BorderThickness: =0
+                  FillPortions: =1
+                  AlignInContainer: =AlignInContainer.Stretch
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                Children:
+                  - btnNWho:
+                      Control: Classic/Button@2.2.0
+                      Properties:
+                        Text: =Coalesce(ThisItem.Nickname, ThisItem.FirstName) & If(IsBlank(ThisItem.Department), "", " (" & ThisItem.Department & ")")
+                        OnSelect: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), Remove(colPick, LookUp(colPick, Email = ThisItem.Email)), Collect(colPick, ThisItem))
+                        Font: =Font.'Open Sans'
+                        Size: =12
+                        FontWeight: =FontWeight.Semibold
+                        Fill: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), clrPrimary, Color.White)
+                        Color: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), Color.White, clrPrimary)
+                        BorderColor: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), clrPrimary, clrLine)
+                        BorderThickness: =2
+                        RadiusTopLeft: =27
+                        RadiusTopRight: =27
+                        RadiusBottomLeft: =27
+                        RadiusBottomRight: =27
+                        HoverFill: =ColorFade(Self.Fill, -10%)
+                        HoverColor: =Self.Color
+                        HoverBorderColor: =Self.BorderColor
+                        PressedFill: =ColorFade(Self.Fill, -20%)
+                        PressedColor: =Self.Color
+                        PressedBorderColor: =Self.BorderColor
+                        X: =4
+                        Y: =4
+                        Width: =Parent.TemplateWidth - 8
+                        Height: =Parent.TemplateHeight - 8
+                        DisplayMode: =If(varNMgr, DisplayMode.Disabled, DisplayMode.Edit)
+                        DisabledFill: =clrBg
+                        DisabledColor: =clrMuted
+                        DisabledBorderColor: =clrLine
+      - btnNMgr:
+          Control: Classic/Button@2.2.0
+          Properties:
+            Text: ="หัวหน้า/ผู้จัดการ (ทุกคน)"
+            OnSelect: =Set(varNMgr, !varNMgr)
+            Font: =Font.'Open Sans'
+            Size: =12
+            FontWeight: =FontWeight.Semibold
+            Fill: =If(varNMgr, clrPrimary, Color.White)
+            Color: =If(varNMgr, Color.White, clrPrimary)
+            BorderColor: =clrLine
+            BorderThickness: =2
+            RadiusTopLeft: =26
+            RadiusTopRight: =26
+            RadiusBottomLeft: =26
+            RadiusBottomRight: =26
+            HoverFill: =ColorFade(Self.Fill, -10%)
+            HoverColor: =Self.Color
+            HoverBorderColor: =Self.BorderColor
+            PressedFill: =ColorFade(Self.Fill, -20%)
+            PressedColor: =Self.Color
+            PressedBorderColor: =Self.BorderColor
+            Height: =54
+            X: =24 + Mod(CountRows(galNWho.AllItems) + 0, 3) * (Parent.Width - 48) / 3 + 4
+            Y: =498 + RoundDown((CountRows(galNWho.AllItems) + 0) / 3, 0) * 62 + 4
+            Width: =(Parent.Width - 48) / 3 - 8
+      - btnNMore:
+          Control: Classic/Button@2.2.0
+          Properties:
+            Text: ="คนอื่น…"
+            OnSelect: =Set(varNMgr, false); Reset(txtNFind); Set(varNPickAll, true)
+            Font: =Font.'Open Sans'
+            Size: =12
+            FontWeight: =FontWeight.Semibold
+            Fill: =If(false, clrPrimary, Color.White)
+            Color: =If(false, Color.White, clrPrimary)
+            BorderColor: =clrLine
+            BorderThickness: =2
+            RadiusTopLeft: =26
+            RadiusTopRight: =26
+            RadiusBottomLeft: =26
+            RadiusBottomRight: =26
+            HoverFill: =ColorFade(Self.Fill, -10%)
+            HoverColor: =Self.Color
+            HoverBorderColor: =Self.BorderColor
+            PressedFill: =ColorFade(Self.Fill, -20%)
+            PressedColor: =Self.Color
+            PressedBorderColor: =Self.BorderColor
+            Height: =54
+            X: =24 + Mod(CountRows(galNWho.AllItems) + 1, 3) * (Parent.Width - 48) / 3 + 4
+            Y: =498 + RoundDown((CountRows(galNWho.AllItems) + 1) / 3, 0) * 62 + 4
+            Width: =(Parent.Width - 48) / 3 - 8
+      - lblNWhenHead:
+          Control: Label@2.5.1
+          Properties:
+            Text: ="ส่งเมื่อไร"
+            Font: =Font.'Open Sans'
+            Size: =13
+            Color: =clrText
+            X: =24
+            Y: =498 + RoundUp((CountRows(galNWho.AllItems) + 2) / 3, 0) * 62 + 6
+            Width: =200
+            Height: =34
+            FontWeight: =FontWeight.Semibold
+      - btnNDayToday:
+          Control: Classic/Button@2.2.0
+          Properties:
+            Text: ="วันนี้"
+            OnSelect: =Set(varNDue, Today())
+            Font: =Font.'Open Sans'
+            Size: =14
+            FontWeight: =FontWeight.Semibold
+            Fill: =If(varNDue = Today(), clrPrimary, Color.White)
+            Color: =If(varNDue = Today(), Color.White, clrPrimary)
+            BorderColor: =clrLine
+            BorderThickness: =2
+            RadiusTopLeft: =26
+            RadiusTopRight: =26
+            RadiusBottomLeft: =26
+            RadiusBottomRight: =26
+            HoverFill: =ColorFade(Self.Fill, -10%)
+            HoverColor: =Self.Color
+            HoverBorderColor: =Self.BorderColor
+            PressedFill: =ColorFade(Self.Fill, -20%)
+            PressedColor: =Self.Color
+            PressedBorderColor: =Self.BorderColor
+            Height: =52
+            X: =24 + 0 * ((Parent.Width - 48 - 36) / 4 + 12)
+            Y: =lblNWhenHead.Y + 38
+            Width: =(Parent.Width - 48 - 36) / 4
+      - btnNDayTmr:
+          Control: Classic/Button@2.2.0
+          Properties:
+            Text: ="พรุ่งนี้"
+            OnSelect: =Set(varNDue, DateAdd(Today(), 1, TimeUnit.Days))
+            Font: =Font.'Open Sans'
+            Size: =14
+            FontWeight: =FontWeight.Semibold
+            Fill: =If(varNDue = DateAdd(Today(), 1, TimeUnit.Days), clrPrimary, Color.White)
+            Color: =If(varNDue = DateAdd(Today(), 1, TimeUnit.Days), Color.White, clrPrimary)
+            BorderColor: =clrLine
+            BorderThickness: =2
+            RadiusTopLeft: =26
+            RadiusTopRight: =26
+            RadiusBottomLeft: =26
+            RadiusBottomRight: =26
+            HoverFill: =ColorFade(Self.Fill, -10%)
+            HoverColor: =Self.Color
+            HoverBorderColor: =Self.BorderColor
+            PressedFill: =ColorFade(Self.Fill, -20%)
+            PressedColor: =Self.Color
+            PressedBorderColor: =Self.BorderColor
+            Height: =52
+            X: =24 + 1 * ((Parent.Width - 48 - 36) / 4 + 12)
+            Y: =lblNWhenHead.Y + 38
+            Width: =(Parent.Width - 48 - 36) / 4
+      - btnNDayFri:
+          Control: Classic/Button@2.2.0
+          Properties:
+            Text: ="ศุกร์นี้"
+            OnSelect: =Set(varNDue, DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days))
+            Font: =Font.'Open Sans'
+            Size: =14
+            FontWeight: =FontWeight.Semibold
+            Fill: =If(varNDue = DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days), clrPrimary, Color.White)
+            Color: =If(varNDue = DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days), Color.White, clrPrimary)
+            BorderColor: =clrLine
+            BorderThickness: =2
+            RadiusTopLeft: =26
+            RadiusTopRight: =26
+            RadiusBottomLeft: =26
+            RadiusBottomRight: =26
+            HoverFill: =ColorFade(Self.Fill, -10%)
+            HoverColor: =Self.Color
+            HoverBorderColor: =Self.BorderColor
+            PressedFill: =ColorFade(Self.Fill, -20%)
+            PressedColor: =Self.Color
+            PressedBorderColor: =Self.BorderColor
+            Height: =52
+            X: =24 + 2 * ((Parent.Width - 48 - 36) / 4 + 12)
+            Y: =lblNWhenHead.Y + 38
+            Width: =(Parent.Width - 48 - 36) / 4
+      - btnNDayPick:
+          Control: Classic/Button@2.2.0
+          Properties:
+            Text: =If(!(varNDue in [Today(), DateAdd(Today(), 1, TimeUnit.Days), DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days)]), (Text(varNDue, "ddd", "th-TH") & " " & Day(varNDue) & " " & Index(["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."], Month(varNDue)).Value), "เลือกวัน…")
+            OnSelect: =Set(varNPickAll, false); Set(varCalMonth, Date(Year(varNDue), Month(varNDue), 1)); Set(varNCal, true)
+            Font: =Font.'Open Sans'
+            Size: =14
+            FontWeight: =FontWeight.Semibold
+            Fill: =If(!(varNDue in [Today(), DateAdd(Today(), 1, TimeUnit.Days), DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days)]), clrPrimary, Color.White)
+            Color: =If(!(varNDue in [Today(), DateAdd(Today(), 1, TimeUnit.Days), DateAdd(Today(), Mod(6 - Weekday(Today()), 7), TimeUnit.Days)]), Color.White, clrPrimary)
+            BorderColor: =clrLine
+            BorderThickness: =2
+            RadiusTopLeft: =26
+            RadiusTopRight: =26
+            RadiusBottomLeft: =26
+            RadiusBottomRight: =26
+            HoverFill: =ColorFade(Self.Fill, -10%)
+            HoverColor: =Self.Color
+            HoverBorderColor: =Self.BorderColor
+            PressedFill: =ColorFade(Self.Fill, -20%)
+            PressedColor: =Self.Color
+            PressedBorderColor: =Self.BorderColor
+            Height: =52
+            X: =24 + 3 * ((Parent.Width - 48 - 36) / 4 + 12)
+            Y: =lblNWhenHead.Y + 38
+            Width: =(Parent.Width - 48 - 36) / 4
+      - conNAtt:
+          Control: GroupContainer@1.3.0
+          Variant: AutoLayout
+          Properties:
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            PaddingTop: =0
+            PaddingBottom: =0
+            PaddingLeft: =0
+            PaddingRight: =0
+            LayoutGap: =0
+            DropShadow: =DropShadow.None
+            Fill: =Color.White
+            BorderThickness: =2
+            LayoutJustifyContent: =LayoutJustifyContent.End
+            BorderColor: =ColorValue("#8A94A6")
+            RadiusTopLeft: =14
+            RadiusTopRight: =14
+            RadiusBottomLeft: =14
+            RadiusBottomRight: =14
+            Height: =If(IsEmpty(attNew.Attachments), 76, attNew.Height + 4)
+            X: =24
+            Y: =btnNDayToday.Y + 64
+            Width: =Parent.Width - 48
+          Children:
+            - attNew:
+                Control: Attachments@2.3.0
+                Properties:
+                  Items: =Blank()
+                  MaxAttachments: =5
+                  MaxAttachmentSize: =10
+                  NoAttachmentsText: =""
+                  DisplayMode: =DisplayMode.Edit
+                  AddAttachmentText: ="แนบรูปหรือไฟล์ (ไม่บังคับ)"
+                  Font: =Font.'Open Sans'
+                  Size: =13
+                  FontWeight: =FontWeight.Bold
+                  Color: =clrPrimary
+                  Fill: =Color.Transparent
+                  ItemFill: =clrBg
+                  ItemColor: =clrText
+                  ItemHoverFill: =clrLine
+                  HoverFill: =clrBg
+                  Height: =If(IsEmpty(Self.Attachments), 110, 70 + CountRows(Self.Attachments) * 40)
+                  Width: =Parent.Width + 30
+                  BorderThickness: =0
+                  PaddingTop: =5
+                  PaddingBottom: =8
+                  PaddingRight: =36
+                  PaddingLeft: =If(IsEmpty(Self.Attachments), (Parent.Width - 250) / 2, 12)
+                  FillPortions: =0
+                  AlignInContainer: =AlignInContainer.Start
+                  LayoutMinHeight: =Self.Height
+                  LayoutMinWidth: =Self.Width
+      - lblNSummary:
+          Control: Label@2.5.1
+          Properties:
+            Text: =If(varNMgr, "สั่งหัวหน้า/ผู้จัดการทุกคน " & CountRows(Filter(colEmp, IsManager = true)) & " คน", IsEmpty(colPick), "ยังไม่ได้เลือกคน", "สั่งคุณ" & Concat(colPick, Coalesce(Nickname, FirstName), ", คุณ")) & " · ส่ง " & Text(varNDue, "dddd d mmmm", "th-TH")
+            Font: =Font.'Open Sans'
+            Size: =13
+            Color: =clrPrimary
+            X: =24
+            Y: =conNAtt.Y + conNAtt.Height + 8
+            Width: =Parent.Width - 48
+            Height: =44
+            FontWeight: =FontWeight.Semibold
+      - btnNCreate:
+          Control: Classic/Button@2.2.0
+          Properties:
+            Text: ="สั่งงาน"
+            OnSelect: |-
+              =Set(varBusy, true);
+              Set(varWho, If(varNMgr, Filter(colEmp, IsManager = true), colPick));
+              Set(varBase, {Title: Trim(txtNTitle.Text), Details: Trim(txtNDetails.Text), DueDate: varNDue,
+                  Priority: {Value: "Normal"}, Status: {Value: "New"}, IsOpen: true, OverdueNotified: false, NoAckNotified: false,
+                  Source: {Value: "App"}, PermsSet: false, HasFiles: false});
+              Set(varFirst, Patch(Tickets, Defaults(Tickets), varBase, {AssigneeEmail: Lower(First(varWho).Email)}));
+              ClearCollect(colMade, varFirst);
+              If(CountRows(varWho) > 1,
+                  Patch(Tickets, varFirst, {GroupID: varFirst.ID});
+                  Collect(Tickets, ForAll(LastN(varWho, CountRows(varWho) - 1) As p,
+                      Patch(varBase, {AssigneeEmail: Lower(p.Email), GroupID: varFirst.ID})));
+                  ClearCollect(colMade, Filter(Tickets, GroupID = varFirst.ID)));
+              Collect(TicketHistory, ForAll(colMade As t,
+                  {Title: "T-" & t.ID, TicketID: t.ID, Action: {Value: "create"}, ToStatus: "New", ActorEmail: Lower(User().Email),
+                    Source: {Value: "App"}, Processed: false, CEOPending: false}));
+              ForAll(attNew.Attachments As f, ForAll(colMade As t, AttachTicketFile.Run(t.ID, {contentBytes: f.Value, name: f.Name})));
+              Set(varBusy, false);
+              Notify("สั่งงานแล้ว " & Concat(colMade, "T-" & ID, ", "), NotificationType.Success);
+              Reset(txtNTitle); Reset(txtNDetails); Reset(attNew); Clear(colPick); Set(varNMgr, false)
+            Font: =Font.'Open Sans'
+            Size: =16
+            FontWeight: =FontWeight.Bold
+            Fill: =clrAccent
+            Color: =Color.White
+            BorderColor: =clrAccent
+            BorderThickness: =0
+            RadiusTopLeft: =16
+            RadiusTopRight: =16
+            RadiusBottomLeft: =16
+            RadiusBottomRight: =16
+            HoverFill: =ColorFade(Self.Fill, -10%)
+            HoverColor: =Self.Color
+            HoverBorderColor: =Self.BorderColor
+            PressedFill: =ColorFade(Self.Fill, -20%)
+            PressedColor: =Self.Color
+            PressedBorderColor: =Self.BorderColor
+            X: =24
+            Y: =Parent.Height - 96 - 84
+            Width: =Parent.Width - 48
+            Height: =72
+            DisplayMode: =If(varBusy || IsBlank(Trim(txtNTitle.Text)) || (!varNMgr && IsEmpty(colPick)) || varNDue < Today(), DisplayMode.Disabled, DisplayMode.Edit)
+            DisabledFill: =ColorFade(clrAccent, 60%)
+            DisabledColor: =Color.White
+      - conNPicker:
+          Control: GroupContainer@1.3.0
+          Variant: AutoLayout
+          Properties:
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            PaddingTop: =14
+            PaddingBottom: =8
+            PaddingLeft: =18
+            PaddingRight: =18
+            LayoutGap: =10
+            DropShadow: =DropShadow.Semibold
+            Fill: =Color.White
+            BorderThickness: =2
+            BorderColor: =clrLine
+            RadiusTopLeft: =20
+            RadiusTopRight: =20
+            RadiusBottomLeft: =20
+            RadiusBottomRight: =20
+            X: =24
+            Y: =150
+            Width: =Parent.Width - 48
+            Height: =Parent.Height - 96 - 16 - Self.Y
+            Visible: =varNPickAll
+          Children:
+            - conNPickHead:
+                Control: GroupContainer@1.3.0
+                Variant: AutoLayout
+                Properties:
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  PaddingTop: =0
+                  PaddingBottom: =0
+                  PaddingLeft: =0
+                  PaddingRight: =0
+                  LayoutGap: =12
+                  DropShadow: =DropShadow.None
+                  Fill: =Color.Transparent
+                  BorderThickness: =0
+                  Height: =50
+                  FillPortions: =0
+                  AlignInContainer: =AlignInContainer.Stretch
+                Children:
+                  - lblNPickHead:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: ="เลือกคน" & If(IsEmpty(colPick), "", " (เลือกแล้ว " & CountRows(colPick) & ")")
+                        Font: =Font.'Open Sans'
+                        Size: =16
+                        Color: =clrPrimary
+                        Height: =50
+                        FontWeight: =FontWeight.Bold
+                        FillPortions: =1
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =0
+                        LayoutMinHeight: =0
+                  - btnNPickDone:
+                      Control: Classic/Button@2.2.0
+                      Properties:
+                        Text: ="เสร็จ"
+                        OnSelect: =Set(varNPickAll, false)
+                        Font: =Font.'Open Sans'
+                        Size: =15
+                        FontWeight: =FontWeight.Bold
+                        Fill: =clrAccent
+                        Color: =Color.White
+                        BorderColor: =clrAccent
+                        BorderThickness: =0
+                        RadiusTopLeft: =14
+                        RadiusTopRight: =14
+                        RadiusBottomLeft: =14
+                        RadiusBottomRight: =14
+                        HoverFill: =ColorFade(Self.Fill, -10%)
+                        HoverColor: =Self.Color
+                        HoverBorderColor: =Self.BorderColor
+                        PressedFill: =ColorFade(Self.Fill, -20%)
+                        PressedColor: =Self.Color
+                        PressedBorderColor: =Self.BorderColor
+                        Width: =130
+                        Height: =50
+                        FillPortions: =0
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =130
+                        LayoutMinHeight: =0
+            - txtNFind:
+                Control: Classic/TextInput@2.3.2
+                Properties:
+                  Default: =""
+                  HintText: ="ค้นหาชื่อ ชื่อเล่น หรือฝ่าย"
+                  Height: =54
+                  Font: =Font.'Open Sans'
+                  Size: =14
+                  BorderColor: =clrLine
+                  BorderThickness: =2
+                  Fill: =Color.White
+                  HoverFill: =Color.White
+                  PaddingLeft: =18
+                  RadiusTopLeft: =27
+                  RadiusTopRight: =27
+                  RadiusBottomLeft: =27
+                  RadiusBottomRight: =27
+                  FillPortions: =0
+                  AlignInContainer: =AlignInContainer.Stretch
+            - galNAll:
+                Control: Gallery@2.15.0
+                Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
+                Properties:
+                  Items: =SortByColumns(Filter(colEmp, IsBlank(Trim(txtNFind.Text)) || Trim(txtNFind.Text) in Nickname || Trim(txtNFind.Text) in FirstName || Trim(txtNFind.Text) in Department), "Nickname", SortOrder.Ascending)
+                  TemplateSize: =68
+                  OnSelect: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), Remove(colPick, LookUp(colPick, Email = ThisItem.Email)), Collect(colPick, ThisItem))
+                  Fill: =Color.Transparent
+                  BorderThickness: =0
+                  FillPortions: =1
+                  AlignInContainer: =AlignInContainer.Stretch
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                Children:
+                  - btnNAllCheck:
+                      Control: Classic/Button@2.2.0
+                      Properties:
+                        Text: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), "✓", "")
+                        OnSelect: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), Remove(colPick, LookUp(colPick, Email = ThisItem.Email)), Collect(colPick, ThisItem))
+                        Font: =Font.'Open Sans'
+                        Size: =14
+                        FontWeight: =FontWeight.Bold
+                        Fill: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), clrPrimary, Color.White)
+                        Color: =Color.White
+                        BorderColor: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), clrPrimary, clrLine)
+                        BorderThickness: =2
+                        RadiusTopLeft: =20
+                        RadiusTopRight: =20
+                        RadiusBottomLeft: =20
+                        RadiusBottomRight: =20
+                        HoverFill: =ColorFade(Self.Fill, -10%)
+                        HoverColor: =Self.Color
+                        HoverBorderColor: =Self.BorderColor
+                        PressedFill: =ColorFade(Self.Fill, -20%)
+                        PressedColor: =Self.Color
+                        PressedBorderColor: =Self.BorderColor
+                        X: =0
+                        Y: =14
+                        Width: =40
+                        Height: =40
+                  - lblNAllName:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: =Coalesce(ThisItem.Nickname, ThisItem.FirstName) & "  " & ThisItem.FirstName & " " & ThisItem.LastName
+                        Font: =Font.'Open Sans'
+                        Size: =14
+                        Color: =clrText
+                        X: =54
+                        Y: =6
+                        Width: =Parent.TemplateWidth - 54
+                        Height: =32
+                        FontWeight: =FontWeight.Semibold
+                        Wrap: =false
+                        OnSelect: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), Remove(colPick, LookUp(colPick, Email = ThisItem.Email)), Collect(colPick, ThisItem))
+                  - lblNAllDept:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: =ThisItem.Department & If(ThisItem.IsManager, " · หัวหน้า/ผู้จัดการ", "")
+                        Font: =Font.'Open Sans'
+                        Size: =12
+                        Color: =clrMuted
+                        X: =54
+                        Y: =36
+                        Width: =Parent.TemplateWidth - 54
+                        Height: =28
+                        OnSelect: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), Remove(colPick, LookUp(colPick, Email = ThisItem.Email)), Collect(colPick, ThisItem))
+                  - recNAllLine:
+                      Control: Rectangle@2.3.0
+                      Properties:
+                        X: =0
+                        Y: =Parent.TemplateHeight - 1
+                        Width: =Parent.TemplateWidth
+                        Height: =1
+                        Fill: =clrLine
+                        OnSelect: =If(!IsBlank(LookUp(colPick, Email = ThisItem.Email)), Remove(colPick, LookUp(colPick, Email = ThisItem.Email)), Collect(colPick, ThisItem))
+      - conNCal:
+          Control: GroupContainer@1.3.0
+          Variant: AutoLayout
+          Properties:
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            PaddingTop: =14
+            PaddingBottom: =8
+            PaddingLeft: =18
+            PaddingRight: =18
+            LayoutGap: =10
+            DropShadow: =DropShadow.Semibold
+            Fill: =Color.White
+            BorderThickness: =2
+            BorderColor: =clrLine
+            RadiusTopLeft: =20
+            RadiusTopRight: =20
+            RadiusBottomLeft: =20
+            RadiusBottomRight: =20
+            X: =24
+            Y: =lblNWhenHead.Y - 380
+            Width: =Parent.Width - 48
+            Height: =498
+            Visible: =varNCal
+          Children:
+            - conNCalHead:
+                Control: GroupContainer@1.3.0
+                Variant: AutoLayout
+                Properties:
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  PaddingTop: =0
+                  PaddingBottom: =0
+                  PaddingLeft: =0
+                  PaddingRight: =0
+                  LayoutGap: =8
+                  DropShadow: =DropShadow.None
+                  Fill: =Color.Transparent
+                  BorderThickness: =0
+                  Height: =50
+                  FillPortions: =0
+                  AlignInContainer: =AlignInContainer.Stretch
+                Children:
+                  - btnNCalPrev:
+                      Control: Classic/Button@2.2.0
+                      Properties:
+                        Text: ="‹"
+                        OnSelect: =If(varCalMonth > Date(Year(Today()), Month(Today()), 1), Set(varCalMonth, DateAdd(varCalMonth, -1, TimeUnit.Months)))
+                        Font: =Font.'Open Sans'
+                        Size: =20
+                        FontWeight: =FontWeight.Bold
+                        Fill: =Color.White
+                        Color: =If(varCalMonth > Date(Year(Today()), Month(Today()), 1), clrPrimary, clrLine)
+                        BorderColor: =clrLine
+                        BorderThickness: =2
+                        RadiusTopLeft: =25
+                        RadiusTopRight: =25
+                        RadiusBottomLeft: =25
+                        RadiusBottomRight: =25
+                        HoverFill: =ColorFade(Self.Fill, -10%)
+                        HoverColor: =Self.Color
+                        HoverBorderColor: =Self.BorderColor
+                        PressedFill: =ColorFade(Self.Fill, -20%)
+                        PressedColor: =Self.Color
+                        PressedBorderColor: =Self.BorderColor
+                        Width: =56
+                        Height: =50
+                        FillPortions: =0
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =56
+                        LayoutMinHeight: =0
+                  - lblNCalMonth:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: =Text(varCalMonth, "mmmm yyyy", "th-TH")
+                        Font: =Font.'Open Sans'
+                        Size: =16
+                        Color: =clrPrimary
+                        Height: =50
+                        FontWeight: =FontWeight.Bold
+                        Align: =Align.Center
+                        FillPortions: =1
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =0
+                        LayoutMinHeight: =0
+                  - btnNCalNext:
+                      Control: Classic/Button@2.2.0
+                      Properties:
+                        Text: ="›"
+                        OnSelect: =If(true, Set(varCalMonth, DateAdd(varCalMonth, 1, TimeUnit.Months)))
+                        Font: =Font.'Open Sans'
+                        Size: =20
+                        FontWeight: =FontWeight.Bold
+                        Fill: =Color.White
+                        Color: =If(true, clrPrimary, clrLine)
+                        BorderColor: =clrLine
+                        BorderThickness: =2
+                        RadiusTopLeft: =25
+                        RadiusTopRight: =25
+                        RadiusBottomLeft: =25
+                        RadiusBottomRight: =25
+                        HoverFill: =ColorFade(Self.Fill, -10%)
+                        HoverColor: =Self.Color
+                        HoverBorderColor: =Self.BorderColor
+                        PressedFill: =ColorFade(Self.Fill, -20%)
+                        PressedColor: =Self.Color
+                        PressedBorderColor: =Self.BorderColor
+                        Width: =56
+                        Height: =50
+                        FillPortions: =0
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =56
+                        LayoutMinHeight: =0
+                  - btnNCalClose:
+                      Control: Classic/Button@2.2.0
+                      Properties:
+                        Text: ="ปิด"
+                        OnSelect: =Set(varNCal, false)
+                        Font: =Font.'Open Sans'
+                        Size: =14
+                        FontWeight: =FontWeight.Semibold
+                        Fill: =Color.White
+                        Color: =clrPrimary
+                        BorderColor: =clrLine
+                        BorderThickness: =2
+                        RadiusTopLeft: =14
+                        RadiusTopRight: =14
+                        RadiusBottomLeft: =14
+                        RadiusBottomRight: =14
+                        HoverFill: =ColorFade(Self.Fill, -10%)
+                        HoverColor: =Self.Color
+                        HoverBorderColor: =Self.BorderColor
+                        PressedFill: =ColorFade(Self.Fill, -20%)
+                        PressedColor: =Self.Color
+                        PressedBorderColor: =Self.BorderColor
+                        Width: =100
+                        Height: =50
+                        FillPortions: =0
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =100
+                        LayoutMinHeight: =0
+            - conNCalWeek:
+                Control: GroupContainer@1.3.0
+                Variant: AutoLayout
+                Properties:
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  PaddingTop: =0
+                  PaddingBottom: =0
+                  PaddingLeft: =0
+                  PaddingRight: =0
+                  LayoutGap: =0
+                  DropShadow: =DropShadow.None
+                  Fill: =Color.Transparent
+                  BorderThickness: =0
+                  Height: =30
+                  FillPortions: =0
+                  AlignInContainer: =AlignInContainer.Stretch
+                Children:
+                  - lblNCalW0:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: ="อา"
+                        Font: =Font.'Open Sans'
+                        Size: =12
+                        Color: =clrMuted
+                        Height: =30
+                        Align: =Align.Center
+                        FillPortions: =1
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =0
+                        LayoutMinHeight: =0
+                  - lblNCalW1:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: ="จ"
+                        Font: =Font.'Open Sans'
+                        Size: =12
+                        Color: =clrMuted
+                        Height: =30
+                        Align: =Align.Center
+                        FillPortions: =1
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =0
+                        LayoutMinHeight: =0
+                  - lblNCalW2:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: ="อ"
+                        Font: =Font.'Open Sans'
+                        Size: =12
+                        Color: =clrMuted
+                        Height: =30
+                        Align: =Align.Center
+                        FillPortions: =1
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =0
+                        LayoutMinHeight: =0
+                  - lblNCalW3:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: ="พ"
+                        Font: =Font.'Open Sans'
+                        Size: =12
+                        Color: =clrMuted
+                        Height: =30
+                        Align: =Align.Center
+                        FillPortions: =1
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =0
+                        LayoutMinHeight: =0
+                  - lblNCalW4:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: ="พฤ"
+                        Font: =Font.'Open Sans'
+                        Size: =12
+                        Color: =clrMuted
+                        Height: =30
+                        Align: =Align.Center
+                        FillPortions: =1
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =0
+                        LayoutMinHeight: =0
+                  - lblNCalW5:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: ="ศ"
+                        Font: =Font.'Open Sans'
+                        Size: =12
+                        Color: =clrMuted
+                        Height: =30
+                        Align: =Align.Center
+                        FillPortions: =1
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =0
+                        LayoutMinHeight: =0
+                  - lblNCalW6:
+                      Control: Label@2.5.1
+                      Properties:
+                        Text: ="ส"
+                        Font: =Font.'Open Sans'
+                        Size: =12
+                        Color: =clrMuted
+                        Height: =30
+                        Align: =Align.Center
+                        FillPortions: =1
+                        AlignInContainer: =AlignInContainer.Start
+                        LayoutMinWidth: =0
+                        LayoutMinHeight: =0
+            - galNCal:
+                Control: Gallery@2.15.0
+                Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
+                Properties:
+                  Items: =ForAll(Sequence(42), DateAdd(varCalMonth, Value - Weekday(varCalMonth), TimeUnit.Days))
+                  TemplateSize: =62
+                  WrapCount: =7
+                  ShowScrollbar: =false
+                  Fill: =Color.Transparent
+                  BorderThickness: =0
+                  FillPortions: =1
+                  AlignInContainer: =AlignInContainer.Stretch
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                Children:
+                  - btnNCalDay:
+                      Control: Classic/Button@2.2.0
+                      Properties:
+                        Text: =Day(ThisItem.Value)
+                        OnSelect: =Set(varNDue, ThisItem.Value); Set(varNCal, false)
+                        Font: =Font.'Open Sans'
+                        Size: =14
+                        FontWeight: =If(ThisItem.Value = Today(), FontWeight.Bold, FontWeight.Normal)
+                        Fill: =If(ThisItem.Value = varNDue, clrPrimary, Color.White)
+                        Color: =If(ThisItem.Value = varNDue, Color.White, Month(ThisItem.Value) <> Month(varCalMonth), clrMuted, clrText)
+                        BorderColor: =If(ThisItem.Value = Today(), clrAccent, Color.White)
+                        BorderThickness: =2
+                        RadiusTopLeft: =24
+                        RadiusTopRight: =24
+                        RadiusBottomLeft: =24
+                        RadiusBottomRight: =24
+                        HoverFill: =ColorFade(Self.Fill, -10%)
+                        HoverColor: =Self.Color
+                        HoverBorderColor: =Self.BorderColor
+                        PressedFill: =ColorFade(Self.Fill, -20%)
+                        PressedColor: =Self.Color
+                        PressedBorderColor: =Self.BorderColor
+                        X: =6
+                        Y: =4
+                        Width: =Parent.TemplateWidth - 12
+                        Height: =Parent.TemplateHeight - 8
+                        DisplayMode: =If(ThisItem.Value < Today(), DisplayMode.Disabled, DisplayMode.Edit)
+                        DisabledFill: =Color.White
+                        DisabledColor: =clrLine
+                        DisabledBorderColor: =Color.White
+      - recTabLineCN:
+          Control: Rectangle@2.3.0
+          Properties:
+            Fill: =clrLine
+            X: =0
+            Y: =Parent.Height - 96
+            Width: =Parent.Width
+            Height: =2
+      - btnTabHomeCN:
+          Control: Classic/Button@2.2.0
+          Properties:
+            Text: ="ภาพรวม"
+            OnSelect: =Navigate(scrCeoHome)
+            Font: =Font.'Open Sans'
+            Size: =13
+            FontWeight: =FontWeight.Normal
+            Fill: =Color.White
+            Color: =clrMuted
+            BorderColor: =clrAccent
+            BorderThickness: =0
+            RadiusTopLeft: =0
+            RadiusTopRight: =0
+            RadiusBottomLeft: =0
+            RadiusBottomRight: =0
+            HoverFill: =clrBg
+            HoverColor: =Self.Color
+            HoverBorderColor: =Self.BorderColor
+            PressedFill: =clrLine
+            PressedColor: =Self.Color
+            PressedBorderColor: =Self.BorderColor
+            X: =0
+            Y: =Parent.Height - 96 + 2
+            Width: =Parent.Width / 3
+            Height: =94
+            VerticalAlign: =VerticalAlign.Bottom
+            PaddingBottom: =12
+      - icoTabHomeCN:
+          Control: Classic/Icon@2.5.0
+          Properties:
+            Icon: =Icon.Home
+            Color: =clrMuted
+            OnSelect: =Navigate(scrCeoHome)
+            X: =(Parent.Width / 3 - 34) / 2
+            Y: =Parent.Height - 96 + 14
+            Width: =34
+            Height: =34
+      - btnTabListCN:
+          Control: Classic/Button@2.2.0
+          Properties:
+            Text: ="งานทั้งหมด"
+            OnSelect: =Set(varFilter, "all"); Navigate(scrCeoTickets)
+            Font: =Font.'Open Sans'
+            Size: =13
+            FontWeight: =FontWeight.Normal
+            Fill: =Color.White
+            Color: =clrMuted
+            BorderColor: =clrAccent
+            BorderThickness: =0
+            RadiusTopLeft: =0
+            RadiusTopRight: =0
+            RadiusBottomLeft: =0
+            RadiusBottomRight: =0
+            HoverFill: =clrBg
+            HoverColor: =Self.Color
+            HoverBorderColor: =Self.BorderColor
+            PressedFill: =clrLine
+            PressedColor: =Self.Color
+            PressedBorderColor: =Self.BorderColor
+            X: =Parent.Width * 1 / 3
+            Y: =Parent.Height - 96 + 2
+            Width: =Parent.Width / 3
+            Height: =94
+            VerticalAlign: =VerticalAlign.Bottom
+            PaddingBottom: =12
+      - icoTabListCN:
+          Control: Classic/Icon@2.5.0
+          Properties:
+            Icon: =Icon.DetailList
+            Color: =clrMuted
+            OnSelect: =Set(varFilter, "all"); Navigate(scrCeoTickets)
+            X: =Parent.Width * 1 / 3 + (Parent.Width / 3 - 34) / 2
+            Y: =Parent.Height - 96 + 14
+            Width: =34
+            Height: =34
+      - btnTabNewCN:
+          Control: Classic/Button@2.2.0
+          Properties:
+            Text: ="สั่งงาน"
+            OnSelect: =Navigate(scrCeoCreate)
+            Font: =Font.'Open Sans'
+            Size: =13
+            FontWeight: =FontWeight.Bold
+            Fill: =Color.White
+            Color: =clrAccent
+            BorderColor: =clrAccent
+            BorderThickness: =0
+            RadiusTopLeft: =0
+            RadiusTopRight: =0
+            RadiusBottomLeft: =0
+            RadiusBottomRight: =0
+            HoverFill: =clrBg
+            HoverColor: =Self.Color
+            HoverBorderColor: =Self.BorderColor
+            PressedFill: =clrLine
+            PressedColor: =Self.Color
+            PressedBorderColor: =Self.BorderColor
+            X: =Parent.Width * 2 / 3
+            Y: =Parent.Height - 96 + 2
+            Width: =Parent.Width / 3
+            Height: =94
+            VerticalAlign: =VerticalAlign.Bottom
+            PaddingBottom: =12
+      - icoTabNewCN:
+          Control: Classic/Icon@2.5.0
+          Properties:
+            Icon: =Icon.Add
+            Color: =clrAccent
+            OnSelect: =Navigate(scrCeoCreate)
+            X: =Parent.Width * 2 / 3 + (Parent.Width / 3 - 34) / 2
+            Y: =Parent.Height - 96 + 14
+            Width: =34
+            Height: =34
